@@ -14,13 +14,18 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # Force any embedded Node.js JS-action runtime to Node 24 — actions/checkout@v6
+  # and upload-artifact@v7 are already Node 24 native, but third-party actions
+  # (rust-cache, rust-toolchain) may still ship Node 20 entrypoints internally.
+  # GitHub deprecates Node 20 on 2026-09-16; Node 24 becomes default 2026-06-02.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   check:
     name: Check & Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -36,7 +41,7 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: cargo test
@@ -51,28 +56,28 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: cargo build --release
         run: cargo build --release --workspace
       - name: Upload binary (linux)
         if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: omc-hud-linux-x86_64
           path: target/release/omc-hud
           if-no-files-found: error
       - name: Upload binary (macos)
         if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: omc-hud-macos
           path: target/release/omc-hud
           if-no-files-found: error
       - name: Upload binary (windows)
         if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: omc-hud-windows-x86_64
           path: target/release/omc-hud.exe
