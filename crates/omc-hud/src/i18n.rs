@@ -12,7 +12,6 @@ pub struct Strings {
     pub tok: &'static str,
     pub todo: &'static str,
     pub autopilot: &'static str,
-    pub rl: &'static str,
 }
 
 const EN: Strings = Strings {
@@ -20,7 +19,6 @@ const EN: Strings = Strings {
     tok: "tok",
     todo: "TODO",
     autopilot: "autopilot",
-    rl: "RL",
 };
 
 const ZH_CN: Strings = Strings {
@@ -28,7 +26,6 @@ const ZH_CN: Strings = Strings {
     tok: "词元",
     todo: "待办",
     autopilot: "自动",
-    rl: "限额",
 };
 
 pub fn detect_locale() -> Locale {

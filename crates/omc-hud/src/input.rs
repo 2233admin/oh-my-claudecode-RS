@@ -19,10 +19,6 @@ pub struct Input {
     #[serde(default)]
     pub prompt_start_ms: Option<u64>,
     #[serde(default)]
-    pub rate_limit_reset_5h_ms: Option<u64>,
-    #[serde(default)]
-    pub rate_limit_reset_weekly_ms: Option<u64>,
-    #[serde(default)]
     pub turns: Option<u64>,
     #[serde(default)]
     pub hooks_state: Option<serde_json::Value>,
