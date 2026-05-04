@@ -1,5 +1,5 @@
 use crate::cache::HudCache;
-use crate::elements::{render_element, RenderContext, DEFAULT_ELEMENTS};
+use crate::elements::{DEFAULT_ELEMENTS, RenderContext, render_element};
 use crate::i18n::Strings;
 use crate::input::Input;
 use crate::terminal::ColorLevel;

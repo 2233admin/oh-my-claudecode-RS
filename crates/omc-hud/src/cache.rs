@@ -98,11 +98,14 @@ pub fn save(input: &Input, cache: &HudCache) {
         return;
     };
 
-    if let Some(parent) = path.parent() {
-        if let Err(err) = fs::create_dir_all(parent) {
-            eprintln!("omc-hud: failed to create cache dir {}: {err}", parent.display());
-            return;
-        }
+    if let Some(parent) = path.parent()
+        && let Err(err) = fs::create_dir_all(parent)
+    {
+        eprintln!(
+            "omc-hud: failed to create cache dir {}: {err}",
+            parent.display()
+        );
+        return;
     }
 
     let tmp = path.with_extension("json.tmp");
@@ -112,7 +115,10 @@ pub fn save(input: &Input, cache: &HudCache) {
     };
 
     if let Err(err) = fs::write(&tmp, bytes) {
-        eprintln!("omc-hud: failed to write cache temp {}: {err}", tmp.display());
+        eprintln!(
+            "omc-hud: failed to write cache temp {}: {err}",
+            tmp.display()
+        );
         return;
     }
     if let Err(err) = fs::rename(&tmp, &path) {

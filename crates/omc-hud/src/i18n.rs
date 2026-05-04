@@ -32,7 +32,9 @@ const ZH_CN: Strings = Strings {
 };
 
 pub fn detect_locale() -> Locale {
-    let locale = env::var("LC_ALL").or_else(|_| env::var("LANG")).unwrap_or_default();
+    let locale = env::var("LC_ALL")
+        .or_else(|_| env::var("LANG"))
+        .unwrap_or_default();
     if locale.to_ascii_lowercase().contains("zh") {
         Locale::ZhCn
     } else {

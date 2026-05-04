@@ -3,11 +3,14 @@ use crate::elements::RenderContext;
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     let now = now_ms();
-    let reset = [ctx.input.rate_limit_reset_5h_ms, ctx.input.rate_limit_reset_weekly_ms]
-        .into_iter()
-        .flatten()
-        .filter(|reset| *reset > now)
-        .min()?;
+    let reset = [
+        ctx.input.rate_limit_reset_5h_ms,
+        ctx.input.rate_limit_reset_weekly_ms,
+    ]
+    .into_iter()
+    .flatten()
+    .filter(|reset| *reset > now)
+    .min()?;
     Some(format!(
         "⚡ {} {}",
         ctx.strings.rl,

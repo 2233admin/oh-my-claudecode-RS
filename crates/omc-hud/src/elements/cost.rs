@@ -1,5 +1,5 @@
 use crate::elements::RenderContext;
-use crate::terminal::{paint, SemanticColor};
+use crate::terminal::{SemanticColor, paint};
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     let cost = ctx.input.cost_usd?;

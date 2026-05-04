@@ -17,7 +17,9 @@ pub fn detect_color_level() -> ColorLevel {
         };
     }
 
-    let colorterm = env::var("COLORTERM").unwrap_or_default().to_ascii_lowercase();
+    let colorterm = env::var("COLORTERM")
+        .unwrap_or_default()
+        .to_ascii_lowercase();
     if colorterm.contains("truecolor") || colorterm.contains("24bit") {
         return ColorLevel::TrueColor;
     }
