@@ -1,0 +1,16 @@
+[package]
+name = "omc-hud"
+description = "Rust statusline binary for Claude Code (replaces OMC HUD)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[[bin]]
+name = "omc-hud"
+path = "src/main.rs"
