@@ -2,51 +2,67 @@
 
 Rust rewrite of [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode). Performance and maintainability over the TS upstream.
 
-## Why
-
-- **Performance**: TS HUD spawn-per-render hits 390-502ms cold-start (upstream issue #2843). Rust binary target: <5ms.
-- **Memory**: OMC's bun + haiku MCP stack is 663MB. The sibling `omc-hub-rs` already proved a 7.4MB Rust replacement — same playbook applied to the rest of OMC.
-- **Maintenance**: Single-author Rust fork = full control, no upstream churn dependency, no npm dep hell.
-- **Decoupling**: TS upstream's design and maintainer style are immaterial to this project.
+> **Sub-5ms cold-start, statically-linked Rust binary, single-author.**
+> No npm, no node_modules, no upstream churn dependency.
 
 ## Status
 
-**Pre-alpha.** Just started. First MVP: `omc-hud` (Rust statusline).
+**Pre-alpha — skeleton ready.**
 
-## Architecture
+| Metric | Value |
+|---|---|
+| Cold-start (median, 5 runs, Win11/9800X3D) | **3.84ms** ✓ (target <5ms; TS upstream issue #2843 reports 390-502ms) |
+| Binary size (release, opt-z + lto + strip) | 330 KB |
+| Render pipeline | end-to-end wired (stdin → cache → render → stdout → save) |
+| Elements implemented | 1 / 13 (Context ETA — full LSE regression) |
+| Elements stubbed | 12 / 13 (skeletons in place, returning `None`) |
+| Tests | 0 (TDD lands per-element) |
+| GitHub remote | not yet pushed |
 
-Cargo workspace, multi-crate. Each subsystem ships as an independent binary or library.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for design rationale, hot-path budget, and decision log.
 
-```
-oh-my-claudecode-RS/
-├── crates/
-│   ├── omc-hud/        statusline binary (MVP)
-│   ├── omc-hooks/      pre/post-tool-use, session-start/end (planned)
-│   ├── omc-cli/        autopilot/ralph/ultrawork (planned)
-│   ├── omc-team/       orchestration (planned)
-│   └── omc-shared/     config / state-path / protocol (extracted as needed)
-└── docs/
-```
+## Why
+
+- **Performance**: TS HUD spawn-per-render hits 390-502ms cold-start. Rust target: <5ms. **Achieved: 3.84ms.**
+- **Memory**: OMC's bun + haiku MCP stack is 663MB. Sibling `omc-hub-rs` already proved 7.4MB Rust replacement; same playbook for the rest.
+- **Maintenance**: Single-author Rust fork = full control, no upstream churn dependency, no npm dep hell.
+- **Decoupling**: Upstream's design and maintainer style are immaterial here.
+
+## Architecture (one paragraph)
+
+Cargo workspace, edition 2024, mimalloc allocator, sync hot path (no tokio in MVP). Single binary today: `omc-hud` (statusline, replaces upstream HUD). 13 elements rendered via enum-match dispatch with `catch_unwind` per element so a single panic returns `"?"` instead of crashing the line. Cache lives in `.omc/state/sessions/<id>/hud-cache.json`, atomic-rename writes. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Sibling project
 
-- **[omc-hub-rs](https://github.com/2233admin/omc-hub-rs)** — independent MCP server replacement (already shipped, v0.1.0+). Lives separately. This monorepo references it as a runtime dependency where needed. **Will not be absorbed.**
+- **[omc-hub-rs](https://github.com/2233admin/omc-hub-rs)** — independent MCP server replacement (already shipped, v0.1.0+, 7.4MB binary). Lives separately. **Will not be absorbed.** This monorepo will reference it as a runtime dependency when needed.
 
-## Roadmap (rough)
+## Roadmap
 
 | Phase | Crate | Description | Status |
 |-------|-------|-------------|--------|
-| 0 | omc-hud | Statusline replacement (Context ETA, color degrade, CJK width, i18n, productivity stats) | 🚧 starting |
-| 1 | omc-shared | Common config/state/path utilities | ⚪ planned |
-| 2 | omc-hooks | Hook engine (PostToolUse, SessionStart, etc.) | ⚪ planned |
-| 3 | omc-cli | Top-level commands (autopilot/ralph/ultrawork/team) | ⚪ planned |
-| 4 | omc-team | Multi-agent orchestration | ⚪ planned |
+| 0 | `omc-hud` | Statusline (Context ETA / color degrade / CJK width / i18n / stats) | 🚧 in progress |
+| 1 | `omc-shared` | Common config / state-path / protocol utilities | ⚪ planned |
+| 2 | `omc-hooks` | Hook engine (PostToolUse, SessionStart, etc.) | ⚪ planned |
+| 3 | `omc-cli` | Top-level commands (autopilot / ralph / ultrawork) | ⚪ planned |
+| 4 | `omc-team` | Multi-agent orchestration | ⚪ planned |
+
+## Build (when implementation lands)
+
+```bash
+git clone https://github.com/2233admin/oh-my-claudecode-RS.git
+cd oh-my-claudecode-RS
+cargo build --release
+# binary at target/release/omc-hud (.exe on Windows)
+```
 
 ## Inspiration credits
 
-- Algorithm/UX inspiration from [codachi](https://github.com/vincent-k2026/codachi) (MIT, vincent-k2026) — independently re-implemented in Rust. Not a code port.
-- Reference TS implementation: [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) (Apache 2.0, Yeachan-Heo). This project does not copy upstream code; it consumes the same external interfaces (Claude Code stdin schema, settings.json contracts).
+Independent re-implementation, no code copying. See [ARCHITECTURE.md § Inspiration](ARCHITECTURE.md#inspiration--attribution) for full attribution table.
+
+- [codachi](https://github.com/vincent-k2026/codachi) (MIT, vincent-k2026) — Context ETA concept, CJK width awareness, terminal-degrade idea
+- [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) (Apache 2.0, Yeachan-Heo) — stdin schema, element catalog, OMC state path conventions
+- Codex via `codex-rescue` agent — initial production skeleton (commit `d813abf`)
 
 ## License
 
-MIT.
+MIT — see [LICENSE](LICENSE).
