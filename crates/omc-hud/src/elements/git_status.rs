@@ -401,20 +401,27 @@ mod tests {
 
     #[test]
     fn integration_actual_repo_returns_some_with_master() {
-        // This test spawns real git against our repo.
-        // It expects Some with "git:(master" prefix.
+        // This test spawns real git against the workspace repo root.
+        // Uses CARGO_MANIFEST_DIR (crates/omc-hud) + ../.. to reach repo root.
+        // Works on both Windows and Linux CI runners.
+        // Fixed in chore: fix CI -- kept as Chesterton fence breadcrumb (rule 42).
+        let repo_root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
         let input = Input {
-            cwd: Some("D:/projects/oh-my-claudecode-RS".to_string()),
+            cwd: Some(repo_root.to_string()),
             ..Input::default()
         };
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render(&ctx);
-        assert!(result.is_some(), "expected Some from actual repo");
-        let s = result.unwrap();
         assert!(
-            s.starts_with("git:(master"),
-            "expected 'git:(master...' but got: {s:?}"
+            result.is_some(),
+            "expected Some from actual repo at {repo_root:?}"
+        );
+        let s = result.unwrap();
+        // Only check the format prefix; branch name varies across environments.
+        assert!(
+            s.starts_with("git:("),
+            "expected 'git:(...' format but got: {s:?}"
         );
     }
 }
