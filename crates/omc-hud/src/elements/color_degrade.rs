@@ -1,3 +1,14 @@
+//! `color_degrade` — terminal-capability detection utility.
+//!
+//! [`detect_color_level`] inspects `NO_COLOR`, `FORCE_COLOR`, `COLORTERM`,
+//! and `TERM` to pick the highest color level the terminal can render.
+//! Called once per HUD invocation (in `main`) and threaded into every
+//! [`super::RenderContext`] via [`crate::terminal::ColorLevel`]. Other
+//! elements gate their ANSI escape emission on the resulting level.
+//!
+//! As an [`super::Element`] slot this surface produces no visible output —
+//! the work has already happened by the time elements render.
+
 use std::env;
 
 use crate::terminal::ColorLevel;
@@ -34,6 +45,19 @@ pub fn detect_color_level() -> ColorLevel {
     }
 }
 
+/// Utility element — never produces visible output.
+/// Color-level detection happens once in `main` and propagates through
+/// `RenderContext::color_level`; consumers gate ANSI escapes on it.
 pub fn render() -> Option<String> {
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn render_always_returns_none() {
+        assert_eq!(render(), None);
+    }
 }

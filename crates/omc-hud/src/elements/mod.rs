@@ -81,7 +81,7 @@ fn render_element_inner(element: Element, ctx: &RenderContext<'_>) -> Option<Str
         Element::PromptTimeElapsed => prompt_time::render(ctx),
         Element::ColorDegrade => color_degrade::render(),
         Element::CjkWidth => cjk_width::render(),
-        Element::I18n => None,
+        Element::I18n => crate::i18n::render_element(),
         Element::ContextEta => context_eta::render(ctx),
     }
 }

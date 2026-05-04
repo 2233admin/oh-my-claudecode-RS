@@ -53,7 +53,9 @@ fn render_at(ctx: &RenderContext<'_>, now: u64) -> Option<String> {
 
     let time_str = format_elapsed(elapsed_ms);
 
-    if color_enabled(ctx.color_level) && let Some(color) = color_for_elapsed(elapsed_ms) {
+    if color_enabled(ctx.color_level)
+        && let Some(color) = color_for_elapsed(elapsed_ms)
+    {
         return Some(format!("{color}{time_str}\x1b[0m"));
     }
 
