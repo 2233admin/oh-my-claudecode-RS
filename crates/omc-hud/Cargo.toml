@@ -8,8 +8,10 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+unicode-width = { workspace = true }
+mimalloc = { workspace = true }
 
 [[bin]]
 name = "omc-hud"
