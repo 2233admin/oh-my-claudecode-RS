@@ -53,7 +53,7 @@ Cargo workspace, edition 2024, [mimalloc](https://crates.io/crates/mimalloc) glo
 | 1 | `omc-shared` | Common config / state-path / protocol utilities | ⚪ planned |
 | 2 | `omc-hooks` | Hook engine (PostToolUse, SessionStart, etc.) | ⚪ planned |
 | 3 | `omc-cli` | Top-level commands (autopilot / ralph / ultrawork / team) | ⚪ planned |
-| 4 | `omc-team` | Multi-agent orchestration | ⚪ planned |
+| 4 | `omc-team` | Claude Code experimental agent team orchestration shell | 🧪 v0.4 session + runtime adapters |
 
 ## Build
 
@@ -82,6 +82,49 @@ cargo test --workspace          # 204 tests, all green on master
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --check
 ```
+
+## Experimental Team Orchestration
+
+`omc-team` is an aggressive v0.4 orchestration shell. Claude Code experimental agent teams remain the default runtime, while GitHub/Linear stay as visibility adapters. FSC and KohakuTerrarium can be selected as local runtime adapters for users who want swarm execution or creature/terrarium execution without turning those projects into trackers. v0.4 adds the local Agent Memory & Observability Kernel: every team launch writes durable session records, invocation records, usage ledgers, run briefings, and whiteboard files under `.omc/team/`.
+
+```bash
+cargo run -p omc-team -- init
+set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+cargo run -p omc-team -- linear doctor --team OMC-RS --fix
+cargo run -p omc-team -- github doctor --repo 2233admin/oh-my-claudecode-RS --fix
+cargo run -p omc-team -- runtime doctor kohaku
+cargo run -p omc-team -- runtime doctor fsc
+cargo run -p omc-team -- start XAR-123 --tracker linear --team-size 3
+cargo run -p omc-team -- start '#123' --tracker github --team-size 3
+cargo run -p omc-team -- start ./task.md --runtime kohaku --team-size 4
+cargo run -p omc-team -- start ./task.md --runtime fsc --team-size 5
+cargo run -p omc-team -- start ./task.md --team-size 16
+cargo run -p omc-team -- session list
+cargo run -p omc-team -- session resume <agent-id-or-run-id>
+cargo run -p omc-team -- usage report --by agent
+cargo run -p omc-team -- top
+cargo run -p omc-team -- doctor observability
+cargo run -p omc-team -- handoff 2233admin-oh-my-claudecode-rs-123 --github
+cargo run -p omc-team -- handoff <run-id> --runtime kohaku
+cargo run -p omc-team -- research "investigate parser architecture"
+cargo run -p omc-team -- review PR-142 --security --tests
+```
+
+Claude Code v2.1.32+ is required for the default runtime. Generated missions tell Claude to create the official agent team and use its shared task list, mailbox, hooks, and worktree isolation. Linear and GitHub Issues are visibility adapters only: `agent-ready` is the intake gate, OMC writes lease/start/handoff comments, and the selected runtime remains the execution source of truth.
+
+Runtime adapters are local-only in v0.3:
+
+- `--runtime claude` is the default and preserves the official Claude Code team model.
+- `--runtime kohaku` generates a temporary Kohaku package under `.omc/team/kohaku/<run_id>/`, with an OMC Lead as root creature and developer/reviewer/tester/security peer creatures inside the terrarium. OMC follows Kohaku's core boundary: creatures are self-contained, terrariums are wiring only, root is outside the terrarium, and prompts do not inline tool lists or tool-call syntax.
+- `--runtime fsc` generates FSC mission/task artifacts under `.omc/team/fsc/<run_id>/` and treats FSC as a local swarm execution backend. FSC handles decomposition and scheduling; OMC collects reports and handoff output.
+
+The session layer treats native subagents as ephemeral. OMC persists the durable identity instead: `.omc/team/sessions/*.json` tracks agent state, `.omc/team/invocations/*.json` tracks each model/runtime call, `.omc/team/usage.jsonl` records token/time/cost events with source and confidence, `.omc/team/runs/<run_id>/briefing.md` is the resume packet seed, and `.omc/team/whiteboard/` stores accepted facts, decisions, risks, questions, and handoffs. Context budget rules are explicit: checkpoint at 70%, resume brief at 85%, stop new work at 92%, and force handoff at 95%. A 16-agent run is organized as one lead plus five builder/reviewer/verifier cells rather than one flat chat.
+
+X-CMD and [`abtop`](https://github.com/graykode/abtop) are reference/optional observability inputs, not hard dependencies. X-CMD's Claude usage/session ideas inform accounting and export/import flows; abtop's read-only Claude/Codex monitoring informs future `omc-team top` work for context, rate limits, ports, and child processes.
+
+OMC does not auto-open upstream PRs for FSC or KohakuTerrarium. Any future external contribution flow must first record a public issue/discussion approval trail before PR creation is allowed.
+
+OMC includes native Karpathy-style agent discipline by default, inspired by [`forrestchang/andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills): think before coding, keep implementations simple, make surgical changes, and drive work with explicit verification. `omc-team init` writes this into `CLAUDE.md` and the generated team prompts/subagents carry the same discipline without requiring an external plugin install.
 
 ## Inspiration credits
 

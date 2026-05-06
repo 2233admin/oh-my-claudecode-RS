@@ -30,3 +30,5 @@ vendor/
 coverage/
 .cache/
 tmp/
+.claude/worktrees/
+.omc/team/

@@ -2,8 +2,8 @@
 //!
 //! Provides access to x-cmd skills, tools, and status.
 
-pub mod skills;
 pub mod executor;
+pub mod skills;
 
 use std::path::PathBuf;
 
