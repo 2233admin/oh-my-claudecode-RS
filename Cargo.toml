@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/omc-hud",
+    "crates/omc-xcmd",
 ]
 
 [workspace.package]
