@@ -188,6 +188,7 @@ pub fn init_project(root: &Path) -> Result<InitReport, String> {
         agent_linear_reporter(),
         &mut report,
     )?;
+    upsert_agents_md(root, &mut report)?;
     upsert_claude_md(root, &mut report)?;
     upsert_file(
         root.join(WORKTREE_INCLUDE),
@@ -566,7 +567,14 @@ fn upsert_gitignore(root: &Path, report: &mut InitReport) -> Result<(), String> 
 }
 
 fn upsert_claude_md(root: &Path, report: &mut InitReport) -> Result<(), String> {
-    let path = root.join("CLAUDE.md");
+    upsert_agent_discipline_doc(root.join("CLAUDE.md"), report)
+}
+
+fn upsert_agents_md(root: &Path, report: &mut InitReport) -> Result<(), String> {
+    upsert_agent_discipline_doc(root.join("AGENTS.md"), report)
+}
+
+fn upsert_agent_discipline_doc(path: PathBuf, report: &mut InitReport) -> Result<(), String> {
     let block = format!(
         "{DISCIPLINE_START}\n{}\n{DISCIPLINE_END}\n",
         native_agent_discipline().trim()
@@ -689,6 +697,13 @@ This project uses OMC's built-in agent discipline, inspired by Karpathy-style gu
 - Preserve template headings, checklists, and required fields.
 - Fill issue and PR bodies through generated body files, then lint them before calling GitHub.
 - PRs must explain scope, tests, linked issues, and any intentional omissions.
+
+### Tooling Boundary
+
+- Prefer OMC native commands and adapters for team orchestration, tracker updates, sessions, usage, and handoff.
+- Do not require x-cmd or x-cmd skills for normal project work.
+- Treat x-cmd as an optional toolbox only when a task explicitly benefits from it.
+- Do not use x-cmd as a hidden tracker, scheduler, memory layer, or source of team truth.
 "#
 }
 
@@ -699,6 +714,7 @@ fn native_agent_discipline_prompt() -> &'static str {
 - Surgical changes: every changed line must trace to this mission; preserve unrelated code and user edits.
 - Goal-driven execution: define verification early, loop until it passes, and report evidence.
 - GitHub contract discipline: follow repository templates and CONTRIBUTING guidance for issues and PRs.
+- Tooling boundary: use OMC native adapters first; x-cmd is optional and must not become the tracker, scheduler, memory layer, or team truth.
 "#
 }
 
@@ -1082,6 +1098,10 @@ mod tests {
         assert!(root.join(".claude/settings.json").exists());
         assert!(root.join(".claude/agents/omc-planner.md").exists());
         assert!(root.join(".worktreeinclude").exists());
+        let agents = fs::read_to_string(root.join("AGENTS.md")).unwrap();
+        assert!(agents.contains(DISCIPLINE_START));
+        assert!(agents.contains("OMC Native Agent Discipline"));
+        assert!(agents.contains("Do not require x-cmd"));
         let claude = fs::read_to_string(root.join("CLAUDE.md")).unwrap();
         assert!(claude.contains(DISCIPLINE_START));
         assert!(claude.contains("OMC Native Agent Discipline"));
@@ -1097,15 +1117,26 @@ mod tests {
     fn init_project_preserves_existing_claude_md() {
         let root = unique_temp_dir();
         fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("AGENTS.md"),
+            "# Existing Agent Rules\n\nUse OMC.\n",
+        )
+        .unwrap();
         fs::write(root.join("CLAUDE.md"), "# Existing Rules\n\nKeep me.\n").unwrap();
 
         init_project(&root).unwrap();
+        let agents = fs::read_to_string(root.join("AGENTS.md")).unwrap();
+        assert!(agents.contains("# Existing Agent Rules"));
+        assert!(agents.contains("Use OMC."));
+        assert_eq!(agents.matches(DISCIPLINE_START).count(), 1);
         let claude = fs::read_to_string(root.join("CLAUDE.md")).unwrap();
         assert!(claude.contains("# Existing Rules"));
         assert!(claude.contains("Keep me."));
         assert_eq!(claude.matches(DISCIPLINE_START).count(), 1);
 
         init_project(&root).unwrap();
+        let agents = fs::read_to_string(root.join("AGENTS.md")).unwrap();
+        assert_eq!(agents.matches(DISCIPLINE_START).count(), 1);
         let claude = fs::read_to_string(root.join("CLAUDE.md")).unwrap();
         assert_eq!(claude.matches(DISCIPLINE_START).count(), 1);
 

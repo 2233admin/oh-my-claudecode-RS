@@ -1090,14 +1090,22 @@ fn linear_api() -> Result<LinearApi, String> {
     };
     let path = home.join(".config/linear/config.json");
     let raw = fs::read_to_string(&path).map_err(|_| {
-        "Linear token missing. Set LINEAR_API_KEY or configure x linear.".to_string()
+        format!(
+            "Linear token missing. Set LINEAR_API_KEY or create {} with api_key.",
+            path.display()
+        )
     })?;
     let value: Value = serde_json::from_str(&raw)
         .map_err(|e| format!("invalid Linear config {}: {e}", path.display()))?;
     let token = value
         .get("api_key")
         .and_then(Value::as_str)
-        .ok_or("Linear token missing. Set LINEAR_API_KEY or configure x linear.")?;
+        .ok_or_else(|| {
+            format!(
+                "Linear token missing. Set LINEAR_API_KEY or create {} with api_key.",
+                path.display()
+            )
+        })?;
     Ok(LinearApi {
         token: token.to_string(),
     })

@@ -120,11 +120,11 @@ Runtime adapters are local-only in v0.3:
 
 The session layer treats native subagents as ephemeral. OMC persists the durable identity instead: `.omc/team/sessions/*.json` tracks agent state, `.omc/team/invocations/*.json` tracks each model/runtime call, `.omc/team/usage.jsonl` records token/time/cost events with source and confidence, `.omc/team/runs/<run_id>/briefing.md` is the resume packet seed, and `.omc/team/whiteboard/` stores accepted facts, decisions, risks, questions, and handoffs. Context budget rules are explicit: checkpoint at 70%, resume brief at 85%, stop new work at 92%, and force handoff at 95%. A 16-agent run is organized as one lead plus five builder/reviewer/verifier cells rather than one flat chat.
 
-X-CMD and [`abtop`](https://github.com/graykode/abtop) are reference/optional observability inputs, not hard dependencies. X-CMD's Claude usage/session ideas inform accounting and export/import flows; abtop's read-only Claude/Codex monitoring informs future `omc-team top` work for context, rate limits, ports, and child processes.
+OMC native commands and adapters are the default control plane. X-CMD and [`abtop`](https://github.com/graykode/abtop) are reference/optional observability inputs, not hard dependencies. X-CMD's Claude usage/session ideas inform accounting and export/import flows; abtop's read-only Claude/Codex monitoring informs future `omc-team top` work for context, rate limits, ports, and child processes.
 
 OMC does not auto-open upstream PRs for FSC or KohakuTerrarium. Any future external contribution flow must first record a public issue/discussion approval trail before PR creation is allowed.
 
-OMC includes native Karpathy-style agent discipline by default, inspired by [`forrestchang/andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills): think before coding, keep implementations simple, make surgical changes, and drive work with explicit verification. `omc-team init` writes this into `CLAUDE.md` and the generated team prompts/subagents carry the same discipline without requiring an external plugin install.
+OMC includes native Karpathy-style agent discipline by default, inspired by [`forrestchang/andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills): think before coding, keep implementations simple, make surgical changes, and drive work with explicit verification. `omc-team init` writes this into `AGENTS.md` and `CLAUDE.md`, and the generated team prompts/subagents carry the same discipline without requiring an external plugin install or x-cmd skill.
 
 ## Inspiration credits
 
