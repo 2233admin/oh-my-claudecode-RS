@@ -437,3 +437,226 @@ pub fn append_omx_team_event(
 
     Ok(full)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn read_omx_config_returns_none_when_absent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let config = read_omx_team_config("my-team", cwd).unwrap();
+        assert!(config.is_none());
+    }
+
+    #[test]
+    fn read_omx_tasks_returns_empty_when_no_tasks_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let tasks = list_omx_tasks("my-team", cwd).unwrap();
+        assert!(tasks.is_empty());
+    }
+
+    #[test]
+    fn read_omx_mailbox_returns_empty_when_no_mailbox() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let mailbox = read_omx_mailbox("my-team", "worker-1", cwd);
+        assert_eq!(mailbox.worker, "worker-1");
+        assert!(mailbox.messages.is_empty());
+    }
+
+    #[test]
+    fn list_omx_teams_returns_empty_when_no_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let teams = list_omx_teams(cwd).unwrap();
+        assert!(teams.is_empty());
+    }
+
+    #[test]
+    fn list_omx_teams_discovers_teams() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let teams_root = PathBuf::from(cwd).join(".omx").join("state").join("team");
+        std::fs::create_dir_all(teams_root.join("alpha")).unwrap();
+        std::fs::create_dir_all(teams_root.join("beta")).unwrap();
+
+        let teams = list_omx_teams(cwd).unwrap();
+        assert_eq!(teams, vec!["alpha", "beta"]);
+    }
+
+    #[test]
+    fn read_config_from_config_json() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let team_root = PathBuf::from(cwd)
+            .join(".omx")
+            .join("state")
+            .join("team")
+            .join("test-team");
+        std::fs::create_dir_all(&team_root).unwrap();
+
+        let config = OmxTeamConfig {
+            name: "test-team".to_string(),
+            task: "do something".to_string(),
+            agent_type: "executor".to_string(),
+            worker_count: 2,
+            max_workers: 5,
+            workers: vec![
+                OmxWorkerInfo {
+                    name: "w1".to_string(),
+                    index: 0,
+                    role: "executor".to_string(),
+                    assigned_tasks: vec![],
+                    pid: None,
+                    pane_id: None,
+                },
+                OmxWorkerInfo {
+                    name: "w2".to_string(),
+                    index: 1,
+                    role: "executor".to_string(),
+                    assigned_tasks: vec![],
+                    pid: None,
+                    pane_id: None,
+                },
+            ],
+            created_at: Utc::now(),
+            tmux_session: "tmux-1".to_string(),
+            next_task_id: 1,
+        };
+
+        let config_json = serde_json::to_string_pretty(&config).unwrap();
+        std::fs::write(team_root.join("config.json"), config_json).unwrap();
+
+        let result = read_omx_team_config("test-team", cwd).unwrap().unwrap();
+        assert_eq!(result.name, "test-team");
+        assert_eq!(result.worker_count, 2);
+        assert_eq!(result.workers.len(), 2);
+    }
+
+    #[test]
+    fn read_config_prefers_manifest_v2() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let team_root = PathBuf::from(cwd)
+            .join(".omx")
+            .join("state")
+            .join("team")
+            .join("v2-team");
+        std::fs::create_dir_all(&team_root).unwrap();
+
+        let manifest = OmxTeamManifestV2 {
+            schema_version: 2,
+            name: "v2-team".to_string(),
+            task: "v2 task".to_string(),
+            tmux_session: "tmux-v2".to_string(),
+            worker_count: 1,
+            workers: vec![OmxWorkerInfo {
+                name: "lead".to_string(),
+                index: 0,
+                role: "planner".to_string(),
+                assigned_tasks: vec![],
+                pid: None,
+                pane_id: None,
+            }],
+            next_task_id: 1,
+            created_at: Utc::now(),
+            extra: std::collections::HashMap::new(),
+        };
+
+        let manifest_json = serde_json::to_string_pretty(&manifest).unwrap();
+        std::fs::write(team_root.join("manifest.v2.json"), manifest_json).unwrap();
+
+        let result = read_omx_team_config("v2-team", cwd).unwrap().unwrap();
+        assert_eq!(result.name, "v2-team");
+        assert_eq!(result.agent_type, "planner");
+    }
+
+    #[test]
+    fn send_and_read_direct_message() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        // Create minimal team structure
+        let team_root = PathBuf::from(cwd)
+            .join(".omx")
+            .join("state")
+            .join("team")
+            .join("msg-team");
+        std::fs::create_dir_all(&team_root).unwrap();
+
+        let msg = send_omx_direct_message("msg-team", "w1", "w2", "ping", cwd).unwrap();
+        assert_eq!(msg.from_worker, "w1");
+        assert_eq!(msg.to_worker, "w2");
+        assert_eq!(msg.body, "ping");
+
+        let messages = list_omx_mailbox_messages("msg-team", "w2", cwd);
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].body, "ping");
+    }
+
+    #[test]
+    fn list_omx_tasks_returns_empty_when_no_tasks() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let tasks = list_omx_tasks("team-x", cwd).unwrap();
+        assert!(tasks.is_empty());
+    }
+
+    #[test]
+    fn append_and_read_event() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let event = append_omx_team_event(
+            "evt-team",
+            OmxTeamEventType::TaskCompleted,
+            "worker-1",
+            cwd,
+            Some("task-1"),
+            None,
+            Some("done"),
+        )
+        .unwrap();
+
+        assert_eq!(event.team, "evt-team");
+        assert_eq!(event.event_type, OmxTeamEventType::TaskCompleted);
+        assert_eq!(event.task_id, Some("task-1".to_string()));
+        assert_eq!(event.reason, Some("done".to_string()));
+
+        // Verify the ndjson file
+        let events_path = team_dir("evt-team", cwd)
+            .join("events")
+            .join("events.ndjson");
+        assert!(events_path.exists());
+        let content = std::fs::read_to_string(&events_path).unwrap();
+        assert!(content.contains("task_completed"));
+    }
+
+    #[test]
+    fn omx_task_status_serde_roundtrip() {
+        let statuses = vec![
+            OmxTaskStatus::Pending,
+            OmxTaskStatus::Blocked,
+            OmxTaskStatus::InProgress,
+            OmxTaskStatus::Completed,
+            OmxTaskStatus::Failed,
+        ];
+
+        for status in statuses {
+            let json = serde_json::to_string(&status).unwrap();
+            let deserialized: OmxTaskStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(status, deserialized);
+        }
+    }
+}

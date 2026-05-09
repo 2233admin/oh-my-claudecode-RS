@@ -47,7 +47,9 @@ impl HeartbeatManager {
         fs::create_dir_all(&dir)?;
         let path = dir.join(format!("{}.json", data.worker_id));
         let json = serde_json::to_string_pretty(data)?;
-        fs::write(&path, json)?;
+        let tmp_path = path.with_extension("json.tmp");
+        fs::write(&tmp_path, &json)?;
+        fs::rename(&tmp_path, &path)?;
         Ok(())
     }
 

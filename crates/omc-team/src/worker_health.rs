@@ -25,6 +25,8 @@ pub struct WorkerHealth {
     pub tasks_completed: u32,
     pub tasks_failed: u32,
     pub uptime_seconds: u64,
+    pub capabilities: Vec<String>,
+    pub high_priority_completed: u32,
 }
 
 /// Health-check result for a single worker.
@@ -66,6 +68,8 @@ impl HealthMonitor {
             tasks_completed: 0,
             tasks_failed: 0,
             uptime_seconds: 0,
+            capabilities: Vec::new(),
+            high_priority_completed: 0,
         };
         self.workers.insert(worker_id.clone(), health);
         self.registered_at.insert(worker_id.clone(), now);
@@ -293,12 +297,11 @@ mod tests {
 
     #[test]
     fn unresponsive_after_timeout() {
-        // Use a very short timeout to simulate expired heartbeat
-        let mut mon = HealthMonitor::new(0, 3);
+        let mut mon = HealthMonitor::new(10, 3);
         mon.register_worker("w-1".into());
         mon.record_heartbeat("w-1");
 
-        // With 0ms timeout, check_health should detect it as unresponsive
+        std::thread::sleep(Duration::from_millis(15));
         let reports = mon.check_health();
         assert_eq!(reports.len(), 1);
         assert_eq!(reports[0].current_status, WorkerStatus::Unresponsive);

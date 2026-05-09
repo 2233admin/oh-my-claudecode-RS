@@ -1,5 +1,5 @@
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU8, AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use std::sync::OnceLock;
@@ -28,6 +28,7 @@ pub struct CircuitBreaker {
     failure_threshold: u32,
     reset_timeout: Duration,
     state: Mutex<CircuitState>,
+    atomic_state: AtomicU8,
     failure_count: AtomicU32,
     last_failure_millis: AtomicU64,
 }
@@ -38,6 +39,7 @@ impl CircuitBreaker {
             failure_threshold,
             reset_timeout,
             state: Mutex::new(CircuitState::Closed),
+            atomic_state: AtomicU8::new(CircuitState::Closed as u8),
             failure_count: AtomicU32::new(0),
             last_failure_millis: AtomicU64::new(0),
         }
@@ -45,16 +47,29 @@ impl CircuitBreaker {
 
     /// Returns the current state, transitioning Open to HalfOpen if the
     /// reset timeout has elapsed.
+    ///
+    /// Fast path: reads the atomic mirror without locking when the circuit
+    /// is Closed or HalfOpen. Only acquires the mutex when the circuit is
+    /// Open and the reset timeout may have elapsed.
     pub fn state(&self) -> CircuitState {
-        let mut state = self.state.lock().unwrap();
-        if *state == CircuitState::Open {
-            let last = self.last_failure_millis.load(Ordering::Relaxed);
-            let now = monotonic_millis();
-            if now.saturating_sub(last) >= self.reset_timeout.as_millis() as u64 {
-                *state = CircuitState::HalfOpen;
+        let snapshot = self.atomic_state.load(Ordering::Acquire);
+        match snapshot {
+            0 => CircuitState::Closed,
+            2 => CircuitState::HalfOpen,
+            _ => {
+                // Circuit is Open — check if timeout elapsed under lock
+                let mut state = self.state.lock().unwrap();
+                if *state == CircuitState::Open {
+                    let last = self.last_failure_millis.load(Ordering::Relaxed);
+                    let now = monotonic_millis();
+                    if now.saturating_sub(last) >= self.reset_timeout.as_millis() as u64 {
+                        *state = CircuitState::HalfOpen;
+                        self.atomic_state.store(2, Ordering::Release);
+                    }
+                }
+                *state
             }
         }
-        *state
     }
 
     /// Record a successful call. Resets the failure count and closes the circuit.
@@ -62,6 +77,7 @@ impl CircuitBreaker {
         self.failure_count.store(0, Ordering::Relaxed);
         let mut state = self.state.lock().unwrap();
         *state = CircuitState::Closed;
+        self.atomic_state.store(0, Ordering::Release);
     }
 
     /// Record a failed call. Opens the circuit when the threshold is reached.
@@ -72,6 +88,7 @@ impl CircuitBreaker {
         if count >= self.failure_threshold {
             let mut state = self.state.lock().unwrap();
             *state = CircuitState::Open;
+            self.atomic_state.store(1, Ordering::Release);
         }
     }
 

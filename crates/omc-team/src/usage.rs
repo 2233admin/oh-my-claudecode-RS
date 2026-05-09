@@ -30,6 +30,7 @@ pub struct CostBreakdown {
     pub input_cost: f64,
     pub output_cost: f64,
     pub cache_read_cost: f64,
+    pub cache_write_cost: f64,
     pub total_cost: f64,
 }
 
@@ -91,6 +92,7 @@ impl UsageTracker {
         entry.cost.input_cost += cost.input_cost;
         entry.cost.output_cost += cost.output_cost;
         entry.cost.cache_read_cost += cost.cache_read_cost;
+        entry.cost.cache_write_cost += cost.cache_write_cost;
         entry.cost.total_cost += cost.total_cost;
     }
 
@@ -133,6 +135,7 @@ impl UsageTracker {
             total_cost.input_cost += w.cost.input_cost;
             total_cost.output_cost += w.cost.output_cost;
             total_cost.cache_read_cost += w.cost.cache_read_cost;
+            total_cost.cache_write_cost += w.cost.cache_write_cost;
             total_cost.total_cost += w.cost.total_cost;
             completed_tasks += w.tasks_completed;
             failed_tasks += w.tasks_failed;
@@ -173,6 +176,7 @@ pub struct ModelPricing {
     pub input_per_mtok: f64,
     pub output_per_mtok: f64,
     pub cache_read_per_mtok: f64,
+    pub cache_write_per_mtok: f64,
 }
 
 pub fn default_pricing(model: &str) -> ModelPricing {
@@ -182,12 +186,14 @@ pub fn default_pricing(model: &str) -> ModelPricing {
             input_per_mtok: 15.0,
             output_per_mtok: 75.0,
             cache_read_per_mtok: 1.5,
+            cache_write_per_mtok: 18.75,
         }
     } else if lower.contains("haiku") {
         ModelPricing {
             input_per_mtok: 0.25,
             output_per_mtok: 1.25,
             cache_read_per_mtok: 0.03,
+            cache_write_per_mtok: 0.3,
         }
     } else {
         // Default to sonnet pricing
@@ -195,6 +201,7 @@ pub fn default_pricing(model: &str) -> ModelPricing {
             input_per_mtok: 3.0,
             output_per_mtok: 15.0,
             cache_read_per_mtok: 0.3,
+            cache_write_per_mtok: 3.75,
         }
     }
 }
@@ -204,11 +211,14 @@ pub fn calculate_cost(tokens: &TokenUsage, pricing: &ModelPricing) -> CostBreakd
     let output_cost = (tokens.output_tokens as f64) * pricing.output_per_mtok / 1_000_000.0;
     let cache_read_cost =
         (tokens.cache_read_tokens as f64) * pricing.cache_read_per_mtok / 1_000_000.0;
+    let cache_write_cost =
+        (tokens.cache_write_tokens as f64) * pricing.cache_write_per_mtok / 1_000_000.0;
     CostBreakdown {
         input_cost,
         output_cost,
         cache_read_cost,
-        total_cost: input_cost + output_cost + cache_read_cost,
+        cache_write_cost,
+        total_cost: input_cost + output_cost + cache_read_cost + cache_write_cost,
     }
 }
 
@@ -231,19 +241,20 @@ pub fn render_summary_report(summary: &TeamUsageSummary) -> String {
     if !summary.workers.is_empty() {
         out.push_str("## Per-Worker Breakdown\n\n");
         out.push_str(
-            "| Worker | Model | Input | Output | Cache Read | Total Tokens | Cost ($) |\n",
+            "| Worker | Model | Input | Output | Cache Read | Cache Write | Total Tokens | Cost ($) |\n",
         );
         out.push_str(
-            "|--------|-------|-------|--------|------------|--------------|----------|\n",
+            "|--------|-------|-------|--------|------------|-------------|--------------|----------|\n",
         );
         for w in &summary.workers {
             out.push_str(&format!(
-                "| {} | {} | {} | {} | {} | {} | {:.6} |\n",
+                "| {} | {} | {} | {} | {} | {} | {} | {:.6} |\n",
                 w.worker_id,
                 w.model,
                 w.tokens.input_tokens,
                 w.tokens.output_tokens,
                 w.tokens.cache_read_tokens,
+                w.tokens.cache_write_tokens,
                 w.tokens.total(),
                 w.cost.total_cost,
             ));
@@ -265,8 +276,16 @@ pub fn render_summary_report(summary: &TeamUsageSummary) -> String {
         summary.total_tokens.cache_read_tokens
     ));
     out.push_str(&format!(
+        "- **Cache write tokens:** {}\n",
+        summary.total_tokens.cache_write_tokens
+    ));
+    out.push_str(&format!(
         "- **Total tokens:** {}\n",
         summary.total_tokens.total()
+    ));
+    out.push_str(&format!(
+        "- **Cache write cost:** ${:.6}\n",
+        summary.total_cost.cache_write_cost
     ));
     out.push_str(&format!(
         "- **Total cost:** ${:.6}\n",
@@ -374,6 +393,46 @@ mod tests {
     }
 
     #[test]
+    fn cost_cache_write_pricing() {
+        let pricing = default_pricing("claude-opus-4-7");
+        let tokens = TokenUsage {
+            input_tokens: 0,
+            output_tokens: 0,
+            cache_read_tokens: 0,
+            cache_write_tokens: 1_000_000,
+        };
+        let cost = calculate_cost(&tokens, &pricing);
+        assert!((cost.cache_write_cost - 18.75).abs() < f64::EPSILON);
+        assert!((cost.total_cost - 18.75).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn cost_cache_write_sonnet_pricing() {
+        let pricing = default_pricing("claude-sonnet-4-6");
+        let tokens = TokenUsage {
+            input_tokens: 0,
+            output_tokens: 0,
+            cache_read_tokens: 0,
+            cache_write_tokens: 1_000_000,
+        };
+        let cost = calculate_cost(&tokens, &pricing);
+        assert!((cost.cache_write_cost - 3.75).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn cost_cache_write_haiku_pricing() {
+        let pricing = default_pricing("claude-haiku-4-5-20251001");
+        let tokens = TokenUsage {
+            input_tokens: 0,
+            output_tokens: 0,
+            cache_read_tokens: 0,
+            cache_write_tokens: 1_000_000,
+        };
+        let cost = calculate_cost(&tokens, &pricing);
+        assert!((cost.cache_write_cost - 0.3).abs() < f64::EPSILON);
+    }
+
+    #[test]
     fn tracker_records_tokens_and_tasks() {
         let mut tracker = UsageTracker::new();
         tracker.record_tokens(
@@ -463,7 +522,7 @@ mod tests {
                 input_tokens: 5000,
                 output_tokens: 3000,
                 cache_read_tokens: 1000,
-                cache_write_tokens: 0,
+                cache_write_tokens: 500,
             },
         );
         tracker.record_task_completion("worker-alpha", true, 2500);
@@ -474,5 +533,7 @@ mod tests {
         assert!(report.contains("worker-alpha"));
         assert!(report.contains("claude-opus-4-7"));
         assert!(report.contains("## Totals"));
+        assert!(report.contains("Cache Write"));
+        assert!(report.contains("Cache write cost"));
     }
 }

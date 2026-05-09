@@ -671,3 +671,157 @@ pub const ALL_TOOLS: &[&str] = &[
     TOOL_READ_OMX_MESSAGES,
     TOOL_READ_OMX_TASKS,
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn interop_mode_serde_roundtrip() {
+        let modes = vec![InteropMode::Off, InteropMode::Observe, InteropMode::Active];
+        for mode in modes {
+            let json = serde_json::to_string(&mode).unwrap();
+            let deserialized: InteropMode = serde_json::from_str(&json).unwrap();
+            assert_eq!(mode, deserialized);
+        }
+    }
+
+    #[test]
+    fn interop_mode_display() {
+        assert_eq!(InteropMode::Off.to_string(), "off");
+        assert_eq!(InteropMode::Observe.to_string(), "observe");
+        assert_eq!(InteropMode::Active.to_string(), "active");
+    }
+
+    #[test]
+    fn interop_mode_and_bridge_env_behavior() {
+        // Mutex serializes env-var tests to avoid races with parallel tests.
+        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _guard = ENV_LOCK.lock().unwrap();
+
+        let saved_mode = std::env::var("OMX_OMC_INTEROP_MODE").ok();
+        let saved_enabled = std::env::var("OMX_OMC_INTEROP_ENABLED").ok();
+        let saved_tools = std::env::var("OMC_INTEROP_TOOLS_ENABLED").ok();
+
+        unsafe {
+            std::env::remove_var("OMX_OMC_INTEROP_MODE");
+            std::env::remove_var("OMX_OMC_INTEROP_ENABLED");
+            std::env::remove_var("OMC_INTEROP_TOOLS_ENABLED");
+        }
+
+        assert_eq!(get_interop_mode(), InteropMode::Off);
+        assert!(!can_use_omx_direct_write_bridge());
+
+        unsafe { std::env::set_var("OMX_OMC_INTEROP_MODE", "OBSERVE") };
+        assert_eq!(get_interop_mode(), InteropMode::Observe);
+
+        unsafe { std::env::set_var("OMX_OMC_INTEROP_MODE", "active") };
+        assert_eq!(get_interop_mode(), InteropMode::Active);
+
+        // Bridge requires all three flags
+        unsafe {
+            std::env::set_var("OMX_OMC_INTEROP_ENABLED", "1");
+            std::env::set_var("OMC_INTEROP_TOOLS_ENABLED", "1");
+        }
+        assert!(can_use_omx_direct_write_bridge());
+
+        // Missing one flag => false
+        unsafe { std::env::remove_var("OMC_INTEROP_TOOLS_ENABLED") };
+        assert!(!can_use_omx_direct_write_bridge());
+
+        // Mode not active => false
+        unsafe {
+            std::env::set_var("OMC_INTEROP_TOOLS_ENABLED", "1");
+            std::env::set_var("OMX_OMC_INTEROP_MODE", "observe");
+        }
+        assert!(!can_use_omx_direct_write_bridge());
+
+        // Restore original values
+        macro_rules! restore {
+            ($var:expr, $saved:expr) => {
+                match $saved {
+                    Some(val) => unsafe { std::env::set_var($var, val) },
+                    None => unsafe { std::env::remove_var($var) },
+                }
+            };
+        }
+        restore!("OMX_OMC_INTEROP_MODE", saved_mode);
+        restore!("OMX_OMC_INTEROP_ENABLED", saved_enabled);
+        restore!("OMC_INTEROP_TOOLS_ENABLED", saved_tools);
+    }
+
+    #[test]
+    fn truncate_preview_short_text() {
+        assert_eq!(truncate_preview("hello", 100), "hello");
+    }
+
+    #[test]
+    fn truncate_preview_long_text() {
+        let text = "a".repeat(500);
+        assert_eq!(truncate_preview(&text, 200).len(), 200);
+    }
+
+    #[test]
+    fn status_icon_returns_correct_values() {
+        assert_eq!(status_icon(&shared_state::TaskStatus::Completed), "[done]");
+        assert_eq!(status_icon(&shared_state::TaskStatus::Failed), "[fail]");
+        assert_eq!(status_icon(&shared_state::TaskStatus::InProgress), "[...] ");
+        assert_eq!(status_icon(&shared_state::TaskStatus::Pending), "[ ] ");
+    }
+
+    #[test]
+    fn omx_status_icon_returns_correct_values() {
+        assert_eq!(
+            omx_status_icon(&omx_team_state::OmxTaskStatus::Completed),
+            "[done]"
+        );
+        assert_eq!(
+            omx_status_icon(&omx_team_state::OmxTaskStatus::Failed),
+            "[fail]"
+        );
+        assert_eq!(
+            omx_status_icon(&omx_team_state::OmxTaskStatus::InProgress),
+            "[...] "
+        );
+        assert_eq!(
+            omx_status_icon(&omx_team_state::OmxTaskStatus::Blocked),
+            "[blk] "
+        );
+        assert_eq!(
+            omx_status_icon(&omx_team_state::OmxTaskStatus::Pending),
+            "[ ] "
+        );
+    }
+
+    #[test]
+    fn tool_text_creates_correct_structure() {
+        let result = tool_text("hello");
+        assert!(result.is_error.is_none());
+        assert_eq!(result.content.len(), 1);
+        assert_eq!(result.content[0].content_type, "text");
+        assert_eq!(result.content[0].text, "hello");
+    }
+
+    #[test]
+    fn tool_error_creates_correct_structure() {
+        let result = tool_error("doing stuff", "boom");
+        assert_eq!(result.is_error, Some(true));
+        assert!(result.content[0].text.contains("doing stuff"));
+        assert!(result.content[0].text.contains("boom"));
+    }
+
+    #[test]
+    fn all_tool_names_are_nonempty() {
+        for name in ALL_TOOLS {
+            assert!(!name.is_empty());
+        }
+    }
+
+    #[test]
+    fn tool_name_constants_unique() {
+        let mut seen = std::collections::HashSet::new();
+        for name in ALL_TOOLS {
+            assert!(seen.insert(*name), "duplicate tool name: {name}");
+        }
+    }
+}

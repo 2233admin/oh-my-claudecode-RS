@@ -199,19 +199,35 @@ impl AllocationPolicy {
                 .min_by_key(|w| w.tasks_completed + w.tasks_failed)
                 .map(|w| w.worker_id.clone()),
             AllocationPolicy::CapabilityMatch {
-                required_capabilities: _,
+                required_capabilities,
             } => {
-                // Without capability data on WorkerHealth, fall back to least-busy
-                healthy
+                // Filter workers whose capabilities contain all required ones
+                let matching: Vec<&WorkerHealth> = healthy
                     .iter()
-                    .min_by_key(|w| w.tasks_completed)
+                    .copied()
+                    .filter(|w| {
+                        required_capabilities
+                            .iter()
+                            .all(|cap| w.capabilities.contains(cap))
+                    })
+                    .collect();
+
+                let candidates: &Vec<&WorkerHealth> = if matching.is_empty() {
+                    &healthy
+                } else {
+                    &matching
+                };
+
+                candidates
+                    .iter()
+                    .min_by_key(|w| w.tasks_completed + w.tasks_failed)
                     .map(|w| w.worker_id.clone())
             }
             AllocationPolicy::PriorityFirst => {
-                // Select the worker with the fewest total tasks
+                // Pick the worker with the most high-priority experience
                 healthy
                     .iter()
-                    .min_by_key(|w| w.tasks_completed + w.tasks_failed)
+                    .max_by_key(|w| w.high_priority_completed)
                     .map(|w| w.worker_id.clone())
             }
         }
@@ -287,6 +303,29 @@ mod tests {
             tasks_completed: completed,
             tasks_failed: failed,
             uptime_seconds: 0,
+            capabilities: Vec::new(),
+            high_priority_completed: 0,
+        }
+    }
+
+    fn make_worker_with_caps(
+        id: &str,
+        status: WorkerStatus,
+        completed: u32,
+        failed: u32,
+        caps: Vec<String>,
+        high_priority_completed: u32,
+    ) -> WorkerHealth {
+        WorkerHealth {
+            worker_id: id.to_string(),
+            status,
+            last_heartbeat: None,
+            consecutive_errors: 0,
+            tasks_completed: completed,
+            tasks_failed: failed,
+            uptime_seconds: 0,
+            capabilities: caps,
+            high_priority_completed,
         }
     }
 
@@ -436,6 +475,56 @@ mod tests {
         let policy = AllocationPolicy::LeastBusy;
         let task = make_task("t-1");
         assert!(policy.select_worker(&workers, &task).is_none());
+    }
+
+    #[test]
+    fn capability_match_selects_matching_worker() {
+        let workers = vec![
+            make_worker_with_caps(
+                "w-1",
+                WorkerStatus::Healthy,
+                2,
+                0,
+                vec!["python".into(), "ml".into()],
+                0,
+            ),
+            make_worker_with_caps("w-2", WorkerStatus::Healthy, 1, 0, vec!["rust".into()], 0),
+            make_worker_with_caps("w-3", WorkerStatus::Healthy, 5, 0, vec!["python".into()], 0),
+        ];
+        let policy = AllocationPolicy::CapabilityMatch {
+            required_capabilities: vec!["python".into()],
+        };
+        let task = make_task("t-1");
+        // w-3 has python but w-1 has python AND ml. Both match "python".
+        // Least busy among matching (w-3: 5 total, w-1: 2 total) -> w-1
+        assert_eq!(policy.select_worker(&workers, &task), Some("w-1".into()));
+    }
+
+    #[test]
+    fn capability_match_falls_back_when_no_match() {
+        let workers = vec![
+            make_worker_with_caps("w-1", WorkerStatus::Healthy, 5, 0, vec!["python".into()], 0),
+            make_worker_with_caps("w-2", WorkerStatus::Healthy, 2, 0, vec!["rust".into()], 0),
+        ];
+        let policy = AllocationPolicy::CapabilityMatch {
+            required_capabilities: vec!["go".into()],
+        };
+        let task = make_task("t-1");
+        // No worker has "go", falls back to least-busy -> w-2 (2 < 5)
+        assert_eq!(policy.select_worker(&workers, &task), Some("w-2".into()));
+    }
+
+    #[test]
+    fn priority_first_selects_most_experienced() {
+        let workers = vec![
+            make_worker_with_caps("w-1", WorkerStatus::Healthy, 10, 0, vec![], 3),
+            make_worker_with_caps("w-2", WorkerStatus::Healthy, 8, 0, vec![], 7),
+            make_worker_with_caps("w-3", WorkerStatus::Healthy, 15, 0, vec![], 5),
+        ];
+        let policy = AllocationPolicy::PriorityFirst;
+        let task = make_task("t-1");
+        // w-2 has highest high_priority_completed (7)
+        assert_eq!(policy.select_worker(&workers, &task), Some("w-2".into()));
     }
 
     // -- ScalingPolicy tests --

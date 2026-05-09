@@ -468,3 +468,440 @@ pub fn cleanup_interop(cwd: &str, options: &CleanupOptions) -> Result<CleanupRes
         messages_deleted,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn init_creates_directory_and_config() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let config = init_interop_session("test-session", cwd, Some("/omx")).unwrap();
+        assert_eq!(config.session_id, "test-session");
+        assert_eq!(config.omc_cwd, cwd);
+        assert_eq!(config.omx_cwd, Some("/omx".to_string()));
+        assert_eq!(config.status, InteropStatus::Active);
+
+        // Config file should exist
+        let config_path = interop_dir(cwd).join("config.json");
+        assert!(config_path.exists());
+    }
+
+    #[test]
+    fn read_config_returns_none_when_absent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let result = read_interop_config(cwd).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn read_config_returns_config_after_init() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        init_interop_session("s1", cwd, None).unwrap();
+
+        let config = read_interop_config(cwd).unwrap().unwrap();
+        assert_eq!(config.session_id, "s1");
+        assert!(config.omx_cwd.is_none());
+    }
+
+    #[test]
+    fn add_shared_task_creates_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let task = add_shared_task(
+            cwd,
+            InteropSide::Omc,
+            InteropSide::Omx,
+            TaskType::Analyze,
+            "analyze the codebase",
+            None,
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(task.source, InteropSide::Omc);
+        assert_eq!(task.target, InteropSide::Omx);
+        assert_eq!(task.status, TaskStatus::Pending);
+        assert!(task.id.starts_with("task-"));
+
+        let task_path = interop_dir(cwd)
+            .join("tasks")
+            .join(format!("{}.json", task.id));
+        assert!(task_path.exists());
+    }
+
+    #[test]
+    fn read_shared_tasks_returns_all() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        add_shared_task(
+            cwd,
+            InteropSide::Omc,
+            InteropSide::Omx,
+            TaskType::Analyze,
+            "task 1",
+            None,
+            None,
+        )
+        .unwrap();
+        add_shared_task(
+            cwd,
+            InteropSide::Omx,
+            InteropSide::Omc,
+            TaskType::Implement,
+            "task 2",
+            None,
+            None,
+        )
+        .unwrap();
+
+        let tasks = read_shared_tasks(cwd, None).unwrap();
+        assert_eq!(tasks.len(), 2);
+    }
+
+    #[test]
+    fn read_shared_tasks_filter_by_source() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        add_shared_task(
+            cwd,
+            InteropSide::Omc,
+            InteropSide::Omx,
+            TaskType::Analyze,
+            "from omc",
+            None,
+            None,
+        )
+        .unwrap();
+        add_shared_task(
+            cwd,
+            InteropSide::Omx,
+            InteropSide::Omc,
+            TaskType::Implement,
+            "from omx",
+            None,
+            None,
+        )
+        .unwrap();
+
+        let filter = SharedTaskFilter {
+            source: Some(InteropSide::Omc),
+            target: None,
+            status: None,
+        };
+        let tasks = read_shared_tasks(cwd, Some(&filter)).unwrap();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].source, InteropSide::Omc);
+    }
+
+    #[test]
+    fn read_shared_tasks_filter_by_status() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let task = add_shared_task(
+            cwd,
+            InteropSide::Omc,
+            InteropSide::Omx,
+            TaskType::Analyze,
+            "will complete",
+            None,
+            None,
+        )
+        .unwrap();
+
+        update_shared_task(
+            cwd,
+            &task.id,
+            Some(TaskStatus::Completed),
+            Some("done"),
+            None,
+        )
+        .unwrap();
+
+        add_shared_task(
+            cwd,
+            InteropSide::Omc,
+            InteropSide::Omx,
+            TaskType::Test,
+            "still pending",
+            None,
+            None,
+        )
+        .unwrap();
+
+        let filter = SharedTaskFilter {
+            source: None,
+            target: None,
+            status: Some(TaskStatus::Completed),
+        };
+        let tasks = read_shared_tasks(cwd, Some(&filter)).unwrap();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].status, TaskStatus::Completed);
+    }
+
+    #[test]
+    fn read_shared_tasks_empty_when_no_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let tasks = read_shared_tasks(cwd, None).unwrap();
+        assert!(tasks.is_empty());
+    }
+
+    #[test]
+    fn update_shared_task_changes_status_and_result() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let task = add_shared_task(
+            cwd,
+            InteropSide::Omc,
+            InteropSide::Omx,
+            TaskType::Analyze,
+            "do this",
+            None,
+            None,
+        )
+        .unwrap();
+
+        let updated = update_shared_task(
+            cwd,
+            &task.id,
+            Some(TaskStatus::Completed),
+            Some("all done"),
+            None,
+        )
+        .unwrap()
+        .unwrap();
+
+        assert_eq!(updated.status, TaskStatus::Completed);
+        assert_eq!(updated.result.as_deref(), Some("all done"));
+        assert!(updated.completed_at.is_some());
+    }
+
+    #[test]
+    fn update_shared_task_returns_none_for_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let result =
+            update_shared_task(cwd, "nonexistent", Some(TaskStatus::Failed), None, None).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn update_shared_task_sets_error_and_failed_completed_at() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let task = add_shared_task(
+            cwd,
+            InteropSide::Omc,
+            InteropSide::Omx,
+            TaskType::Test,
+            "will fail",
+            None,
+            None,
+        )
+        .unwrap();
+
+        let updated =
+            update_shared_task(cwd, &task.id, Some(TaskStatus::Failed), None, Some("broke"))
+                .unwrap()
+                .unwrap();
+
+        assert_eq!(updated.status, TaskStatus::Failed);
+        assert_eq!(updated.error.as_deref(), Some("broke"));
+        assert!(updated.completed_at.is_some());
+    }
+
+    #[test]
+    fn message_roundtrip() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let msg = add_shared_message(cwd, InteropSide::Omc, InteropSide::Omx, "hello there", None)
+            .unwrap();
+
+        assert_eq!(msg.source, InteropSide::Omc);
+        assert_eq!(msg.target, InteropSide::Omx);
+        assert_eq!(msg.content, "hello there");
+        assert!(!msg.read);
+
+        let messages = read_shared_messages(cwd, None).unwrap();
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].id, msg.id);
+    }
+
+    #[test]
+    fn read_shared_messages_empty_when_no_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let messages = read_shared_messages(cwd, None).unwrap();
+        assert!(messages.is_empty());
+    }
+
+    #[test]
+    fn mark_message_as_read_updates_flag() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let msg =
+            add_shared_message(cwd, InteropSide::Omc, InteropSide::Omx, "unread", None).unwrap();
+
+        let changed = mark_message_as_read(cwd, &msg.id).unwrap();
+        assert!(changed);
+
+        let messages = read_shared_messages(cwd, None).unwrap();
+        assert!(messages[0].read);
+    }
+
+    #[test]
+    fn mark_message_as_read_returns_false_for_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let result = mark_message_as_read(cwd, "no-such-msg").unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn read_messages_filter_unread_only() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let msg1 =
+            add_shared_message(cwd, InteropSide::Omc, InteropSide::Omx, "first", None).unwrap();
+        add_shared_message(cwd, InteropSide::Omc, InteropSide::Omx, "second", None).unwrap();
+
+        mark_message_as_read(cwd, &msg1.id).unwrap();
+
+        let filter = SharedMessageFilter {
+            source: None,
+            target: None,
+            unread_only: true,
+        };
+        let unread = read_shared_messages(cwd, Some(&filter)).unwrap();
+        assert_eq!(unread.len(), 1);
+        assert_eq!(unread[0].content, "second");
+    }
+
+    #[test]
+    fn cleanup_removes_tasks_and_messages() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        add_shared_task(
+            cwd,
+            InteropSide::Omc,
+            InteropSide::Omx,
+            TaskType::Analyze,
+            "cleanup me",
+            None,
+            None,
+        )
+        .unwrap();
+        add_shared_message(
+            cwd,
+            InteropSide::Omc,
+            InteropSide::Omx,
+            "cleanup me too",
+            None,
+        )
+        .unwrap();
+
+        let result = cleanup_interop(
+            cwd,
+            &CleanupOptions {
+                keep_tasks: false,
+                keep_messages: false,
+                older_than_ms: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(result.tasks_deleted, 1);
+        assert_eq!(result.messages_deleted, 1);
+
+        assert!(read_shared_tasks(cwd, None).unwrap().is_empty());
+        assert!(read_shared_messages(cwd, None).unwrap().is_empty());
+    }
+
+    #[test]
+    fn cleanup_keep_tasks_preserves_tasks() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        add_shared_task(
+            cwd,
+            InteropSide::Omc,
+            InteropSide::Omx,
+            TaskType::Analyze,
+            "keep me",
+            None,
+            None,
+        )
+        .unwrap();
+
+        let result = cleanup_interop(
+            cwd,
+            &CleanupOptions {
+                keep_tasks: true,
+                keep_messages: true,
+                older_than_ms: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(result.tasks_deleted, 0);
+        assert_eq!(result.messages_deleted, 0);
+    }
+
+    #[test]
+    fn add_task_with_context_and_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cwd = tmp.path().to_str().unwrap();
+
+        let ctx = serde_json::json!({"key": "value"});
+        let files = vec!["src/main.rs".to_string(), "Cargo.toml".to_string()];
+
+        let task = add_shared_task(
+            cwd,
+            InteropSide::Omc,
+            InteropSide::Omx,
+            TaskType::Review,
+            "review these",
+            Some(ctx.clone()),
+            Some(files.clone()),
+        )
+        .unwrap();
+
+        assert_eq!(task.context, Some(ctx));
+        assert_eq!(task.files, Some(files));
+    }
+
+    #[test]
+    fn interop_side_other_and_display() {
+        assert_eq!(InteropSide::Omc.other(), InteropSide::Omx);
+        assert_eq!(InteropSide::Omx.other(), InteropSide::Omc);
+        assert_eq!(InteropSide::Omc.to_string(), "OMC");
+        assert_eq!(InteropSide::Omx.to_string(), "OMX");
+    }
+
+    #[test]
+    fn interop_dir_path() {
+        let p = interop_dir("/tmp/work");
+        assert_eq!(p, PathBuf::from("/tmp/work/.omc/state/interop"));
+    }
+}
