@@ -46,6 +46,26 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: cargo test
         run: cargo test --workspace
+      - name: Generate coverage
+        uses: actions-rs/tarpaulin@v1
+        with:
+          version: '0.20.10'
+          args: '--workspace --out Xml'
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Run DeepSource
+        run: |
+          # DeepSource analysis
+          pip install deepsource
+          deepsource init --token ${{ secrets.DEEPSOURCE_TOKEN }}
+          deepsource test
+          deepsource analyze
 
   build:
     name: Build (release)
