@@ -32,3 +32,4 @@ coverage/
 tmp/
 .claude/worktrees/
 .omc/team/
+.gitnexus

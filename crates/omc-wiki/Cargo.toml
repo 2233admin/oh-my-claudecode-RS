@@ -1,6 +1,6 @@
 [package]
-name = "omc-team"
-description = "Claude Code agent team orchestration shell for OMC-RS"
+name = "omc-wiki"
+description = "Wiki knowledge layer for oh-my-claudecode-RS"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,11 +10,7 @@ repository.workspace = true
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-dirs = "5"
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["fs", "sync"] }
 chrono = { workspace = true }
-futures = "0.3"
-
-[[bin]]
-name = "omc-team"
-path = "src/main.rs"
+thiserror = { workspace = true }
+tracing = { workspace = true }

@@ -7,9 +7,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+pub mod agent_lifecycle;
+pub mod background;
+pub mod fault_tolerance;
 mod observability;
 mod runtimes;
+pub mod task_graph;
 mod trackers;
+pub mod work_stealing;
 pub use observability::{
     AgentInvocationRecord, AgentSessionRecord, AgentSessionState, CellPlan, ContextBudget,
     ContextGuardAction, ContextGuardDecision, ObservabilityDoctorReport, ObservabilityStartReport,

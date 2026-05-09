@@ -1,0 +1,22 @@
+[package]
+name = "omc-context"
+description = "Context injection, rules injection, and AGENTS.md management for oh-my-claudecode-RS"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["fs", "sync"] }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+dirs = { workspace = true }
+glob-match = "0.2"
+pathdiff = "0.2"
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }

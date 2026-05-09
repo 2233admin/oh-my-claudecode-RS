@@ -1,20 +1,17 @@
 [package]
-name = "omc-team"
-description = "Claude Code agent team orchestration shell for OMC-RS"
+name = "omc-interop"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
+description = "Cross-tool interoperability layer for OMC/OMX communication"
 
 [dependencies]
-serde = { workspace = true, features = ["derive"] }
+serde = { workspace = true }
 serde_json = { workspace = true }
-dirs = "5"
 tokio = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+uuid = { version = "1", features = ["v4"] }
 chrono = { workspace = true }
-futures = "0.3"
-
-[[bin]]
-name = "omc-team"
-path = "src/main.rs"

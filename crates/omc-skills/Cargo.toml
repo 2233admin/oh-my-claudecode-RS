@@ -1,0 +1,20 @@
+[package]
+name = "omc-skills"
+description = "Skills loader and executor for oh-my-claudecode-RS"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_yaml = "0.9"
+thiserror = { workspace = true }
+walkdir = "2.4"
+regex = "1.10"
+tokio = { workspace = true, features = ["fs", "sync", "rt"] }
+once_cell = "1.19"
+tracing = "0.1"
+
+[dev-dependencies]
+tempfile = "3.10"

@@ -1,20 +1,21 @@
 [package]
-name = "omc-team"
-description = "Claude Code agent team orchestration shell for OMC-RS"
+name = "omc-mcp"
+description = "MCP Tool Server for oh-my-claudecode-RS (JSON-RPC over stdio)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[[bin]]
+name = "omc-mcp"
+path = "src/main.rs"
+
+[lib]
+name = "omc_mcp"
+path = "src/lib.rs"
+
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-dirs = "5"
-tokio = { workspace = true }
 chrono = { workspace = true }
-futures = "0.3"
-
-[[bin]]
-name = "omc-team"
-path = "src/main.rs"

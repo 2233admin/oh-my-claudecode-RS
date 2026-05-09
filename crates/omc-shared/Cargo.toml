@@ -1,0 +1,23 @@
+[package]
+name = "omc-shared"
+description = "Shared types, config, and state for oh-my-claudecode-RS"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+dirs = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+tracing = { workspace = true }
+regex = "1"
+once_cell = "1"
+async-trait = { workspace = true }
