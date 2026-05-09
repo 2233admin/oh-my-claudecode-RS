@@ -4,6 +4,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
+use crate::communication::validate_name;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeartbeatData {
     pub worker_id: String,
@@ -39,6 +41,8 @@ impl HeartbeatManager {
     }
 
     pub fn write_heartbeat(&self, data: &HeartbeatData) -> anyhow::Result<()> {
+        validate_name(&data.team_name, "team")?;
+        validate_name(&data.worker_id, "worker")?;
         let dir = self.heartbeat_dir(&data.team_name);
         fs::create_dir_all(&dir)?;
         let path = dir.join(format!("{}.json", data.worker_id));
@@ -52,6 +56,8 @@ impl HeartbeatManager {
         team: &str,
         worker: &str,
     ) -> anyhow::Result<Option<HeartbeatData>> {
+        validate_name(team, "team")?;
+        validate_name(worker, "worker")?;
         let path = self.heartbeat_path(team, worker);
         if !path.exists() {
             return Ok(None);
@@ -62,6 +68,7 @@ impl HeartbeatManager {
     }
 
     pub fn list_heartbeats(&self, team: &str) -> anyhow::Result<Vec<HeartbeatData>> {
+        validate_name(team, "team")?;
         let dir = self.heartbeat_dir(team);
         if !dir.exists() {
             return Ok(Vec::new());
@@ -81,6 +88,8 @@ impl HeartbeatManager {
     }
 
     pub fn is_alive(&self, team: &str, worker: &str) -> anyhow::Result<bool> {
+        validate_name(team, "team")?;
+        validate_name(worker, "worker")?;
         let Some(data) = self.read_heartbeat(team, worker)? else {
             return Ok(false);
         };
@@ -93,6 +102,8 @@ impl HeartbeatManager {
     }
 
     pub fn delete_heartbeat(&self, team: &str, worker: &str) -> anyhow::Result<()> {
+        validate_name(team, "team")?;
+        validate_name(worker, "worker")?;
         let path = self.heartbeat_path(team, worker);
         if path.exists() {
             fs::remove_file(&path)?;
@@ -101,6 +112,7 @@ impl HeartbeatManager {
     }
 
     pub fn cleanup_team(&self, team: &str) -> anyhow::Result<()> {
+        validate_name(team, "team")?;
         let dir = self.heartbeat_dir(team);
         if dir.exists() {
             fs::remove_dir_all(&dir)?;

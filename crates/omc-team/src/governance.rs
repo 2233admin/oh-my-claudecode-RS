@@ -1,6 +1,6 @@
-use std::cell::RefCell;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 
@@ -295,7 +295,7 @@ pub struct SentinelGate {
     governance: TeamGovernance,
     permissions: WorkerPermissions,
     enforcement: EnforcementMode,
-    audit_log: RefCell<AuditLog>,
+    audit_log: Mutex<AuditLog>,
 }
 
 impl SentinelGate {
@@ -308,16 +308,16 @@ impl SentinelGate {
             governance,
             permissions,
             enforcement,
-            audit_log: RefCell::new(AuditLog::new()),
+            audit_log: Mutex::new(AuditLog::new()),
         }
     }
 
-    pub fn audit_log(&self) -> std::cell::Ref<'_, AuditLog> {
-        self.audit_log.borrow()
+    pub fn audit_log(&self) -> std::sync::MutexGuard<'_, AuditLog> {
+        self.audit_log.lock().unwrap()
     }
 
-    pub fn audit_log_mut(&self) -> std::cell::RefMut<'_, AuditLog> {
-        self.audit_log.borrow_mut()
+    pub fn audit_log_mut(&self) -> std::sync::MutexGuard<'_, AuditLog> {
+        self.audit_log.lock().unwrap()
     }
 
     pub fn check_task_dispatch(&self, task: &str, worker: &str) -> Result<(), SentinelError> {
@@ -487,7 +487,7 @@ impl SentinelGate {
     }
 
     fn log_entry(&self, entry: AuditEntry) {
-        self.audit_log.borrow_mut().record(entry);
+        self.audit_log.lock().unwrap().record(entry);
     }
 }
 

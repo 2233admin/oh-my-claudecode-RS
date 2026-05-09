@@ -1,10 +1,11 @@
-use std::fs::{self, OpenOptions};
+use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
 use super::types::OutboxMessage;
+use super::{append_jsonl, read_jsonl, validate_name};
 
 /// Build the outbox file path: `{base_dir}/.omc/state/team/{team}/outbox/{worker}.jsonl`
 fn outbox_path(base_dir: &Path, team_name: &str, worker_name: &str) -> PathBuf {
@@ -18,13 +19,15 @@ fn outbox_path(base_dir: &Path, team_name: &str, worker_name: &str) -> PathBuf {
 }
 
 /// Write a message to a worker's outbox (worker -> lead).
-/// Uses atomic write: appends via a temp file + rename.
+/// Uses atomic append via O_APPEND.
 pub fn write_outbox(
     base_dir: &Path,
     team_name: &str,
     worker_name: &str,
     message: &OutboxMessage,
 ) -> Result<()> {
+    validate_name(team_name, "team")?;
+    validate_name(worker_name, "worker")?;
     let path = outbox_path(base_dir, team_name, worker_name);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
@@ -40,6 +43,8 @@ pub fn read_outbox(
     team_name: &str,
     worker_name: &str,
 ) -> Result<Vec<OutboxMessage>> {
+    validate_name(team_name, "team")?;
+    validate_name(worker_name, "worker")?;
     let path = outbox_path(base_dir, team_name, worker_name);
     read_jsonl(&path)
 }
@@ -52,6 +57,8 @@ pub fn rotate_outbox(
     worker_name: &str,
     max_lines: usize,
 ) -> Result<()> {
+    validate_name(team_name, "team")?;
+    validate_name(worker_name, "worker")?;
     let path = outbox_path(base_dir, team_name, worker_name);
     if !path.exists() {
         return Ok(());
@@ -68,7 +75,7 @@ pub fn rotate_outbox(
     let keep: Vec<&str> = lines[lines.len() - max_lines..].to_vec();
     let tmp_path = path.with_extension("jsonl.tmp");
     {
-        let mut tmp = OpenOptions::new()
+        let mut tmp = fs::OpenOptions::new()
             .create(true)
             .write(true)
             .truncate(true)
@@ -83,60 +90,6 @@ pub fn rotate_outbox(
     fs::rename(&tmp_path, &path)
         .with_context(|| format!("rename {} -> {}", tmp_path.display(), path.display()))?;
     Ok(())
-}
-
-/// Append a single JSON line to a file atomically.
-fn append_jsonl(path: &Path, line: &str) -> Result<()> {
-    let existing = if path.exists() {
-        fs::read_to_string(path).unwrap_or_default()
-    } else {
-        String::new()
-    };
-
-    let tmp_path = path.with_extension("jsonl.tmp");
-    let mut content = existing;
-    content.push_str(line);
-    content.push('\n');
-
-    let mut tmp = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(&tmp_path)
-        .with_context(|| format!("failed to open tmp file: {}", tmp_path.display()))?;
-    tmp.write_all(content.as_bytes())
-        .context("failed to write tmp file")?;
-    tmp.flush().context("failed to flush tmp file")?;
-    drop(tmp);
-
-    fs::rename(&tmp_path, path).with_context(|| {
-        format!(
-            "failed to rename {} -> {}",
-            tmp_path.display(),
-            path.display()
-        )
-    })?;
-    Ok(())
-}
-
-/// Read all JSON lines from a file, skipping blank lines.
-fn read_jsonl<T: serde::de::DeserializeOwned>(path: &Path) -> Result<Vec<T>> {
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-    let content =
-        fs::read_to_string(path).with_context(|| format!("failed to read: {}", path.display()))?;
-    let mut messages = Vec::new();
-    for (i, line) in content.lines().enumerate() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let msg: T = serde_json::from_str(trimmed)
-            .with_context(|| format!("failed to parse line {} in {}", i + 1, path.display()))?;
-        messages.push(msg);
-    }
-    Ok(messages)
 }
 
 #[cfg(test)]

@@ -5,6 +5,7 @@ use anyhow::Result;
 use super::inbox::write_inbox;
 use super::outbox::{read_outbox, write_outbox};
 use super::types::{DrainSignal, InboxMessage, OutboxMessage, ShutdownSignal};
+use super::validate_name;
 
 /// Routes messages between a lead agent and its worker agents via
 /// file-based inbox/outbox channels.
@@ -23,11 +24,13 @@ impl MessageRouter {
 
     /// Send a message from the lead to a specific worker's inbox.
     pub fn send_to_worker(&self, worker: &str, msg: InboxMessage) -> Result<()> {
+        validate_name(worker, "worker")?;
         write_inbox(&self.base_dir, &self.team_name, worker, &msg)
     }
 
     /// Send a message from a worker to the lead's outbox (per-worker channel).
     pub fn send_to_lead(&self, worker: &str, msg: OutboxMessage) -> Result<()> {
+        validate_name(worker, "worker")?;
         write_outbox(&self.base_dir, &self.team_name, worker, &msg)
     }
 
@@ -41,6 +44,7 @@ impl MessageRouter {
 
     /// Read all messages from a specific worker's outbox.
     pub fn read_worker_outbox(&self, worker: &str) -> Result<Vec<OutboxMessage>> {
+        validate_name(worker, "worker")?;
         read_outbox(&self.base_dir, &self.team_name, worker)
     }
 
@@ -69,6 +73,7 @@ impl MessageRouter {
                     .and_then(|s| s.to_str())
                     .unwrap_or("unknown")
                     .to_string();
+                // File names come from directory listing, not user input -- no validation needed.
                 let messages: Vec<OutboxMessage> =
                     read_outbox(&self.base_dir, &self.team_name, &worker_name)?;
                 for msg in messages {
@@ -81,18 +86,21 @@ impl MessageRouter {
 
     /// Write a shutdown signal file for a worker.
     pub fn write_shutdown_signal(&self, worker: &str, signal: &ShutdownSignal) -> Result<()> {
+        validate_name(worker, "worker")?;
         let path = signal_path(&self.base_dir, &self.team_name, worker, "shutdown");
         atomic_write_json(&path, signal)
     }
 
     /// Write a drain signal file for a worker.
     pub fn write_drain_signal(&self, worker: &str, signal: &DrainSignal) -> Result<()> {
+        validate_name(worker, "worker")?;
         let path = signal_path(&self.base_dir, &self.team_name, worker, "drain");
         atomic_write_json(&path, signal)
     }
 
     /// Check if a shutdown signal exists for a worker. Returns it and deletes the file.
     pub fn check_shutdown_signal(&self, worker: &str) -> Result<Option<ShutdownSignal>> {
+        validate_name(worker, "worker")?;
         let path = signal_path(&self.base_dir, &self.team_name, worker, "shutdown");
         read_and_consume_signal(&path)
     }

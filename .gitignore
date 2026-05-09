@@ -31,5 +31,16 @@ coverage/
 .cache/
 tmp/
 .claude/worktrees/
-.omc/team/
+.claude/agents/
+.claude/commands/
+.claude/helpers/
+.claude/skills/
+.claude/memory.db
+.claude/settings.json
+.claude/statusline.*
+.claude-flow/
+.omc/
+.swarm/
 .gitnexus
+ruvector.db
+PendingContext

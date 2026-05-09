@@ -308,12 +308,14 @@ pub async fn process_candidate(
     _manifest: &mut RunManifest,
     _project_root: &Path,
 ) -> Result<DecisionStatus> {
-    // TODO: read candidate artifact, validate, run evaluator, decide, update manifest
-    todo!("process_candidate not yet implemented")
+    Err(AutoresearchError::Runtime(
+        "process_candidate not yet implemented".into(),
+    ))
 }
 
 /// Stop an active autoresearch run.
 pub async fn stop_runtime(_project_root: &Path) -> Result<()> {
-    // TODO: read active state, finalize run, deactivate
-    todo!("stop_runtime not yet implemented")
+    Err(AutoresearchError::Runtime(
+        "stop_runtime not yet implemented".into(),
+    ))
 }
