@@ -16,6 +16,9 @@ name = "omc_mcp"
 path = "src/lib.rs"
 
 [dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+tokio = { workspace = true }
 chrono = { workspace = true }

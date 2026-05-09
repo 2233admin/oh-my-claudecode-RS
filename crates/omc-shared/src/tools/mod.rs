@@ -4,9 +4,11 @@
 
 pub mod ast_tools;
 pub mod lsp_tools;
+pub mod mcp_adapter;
 pub mod memory_tools;
 pub mod notepad_tools;
 pub mod state_tools;
+pub mod tool_trait;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

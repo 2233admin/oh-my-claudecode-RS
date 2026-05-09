@@ -7,9 +7,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+pub mod agent_handle;
 pub mod agent_lifecycle;
 pub mod background;
 pub mod fault_tolerance;
+pub mod forbidden;
 mod observability;
 mod runtimes;
 pub mod task_graph;

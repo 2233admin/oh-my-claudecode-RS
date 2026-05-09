@@ -5,6 +5,7 @@
 
 pub mod memory_tools;
 pub mod notepad_tools;
+pub mod protocol_registry;
 pub mod state_tools;
 pub mod tool_registry;
 pub mod tools;
