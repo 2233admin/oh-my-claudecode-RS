@@ -14,7 +14,7 @@ pub fn xcmd_root() -> Option<PathBuf> {
 
 /// Check if x-cmd is installed
 pub fn is_installed() -> bool {
-    xcmd_root().map(|p| p.exists()).unwrap_or(false)
+    xcmd_root().map_or(false, |p| p.exists())
 }
 
 /// x-cmd skills directory
