@@ -9,6 +9,7 @@ members = [
     "crates/omc-hooks",
     "crates/omc-installer",
     "crates/omc-interop",
+    "crates/omc-macros",
     "crates/omc-mcp",
     "crates/omc-notifications",
     "crates/omc-python",
@@ -17,6 +18,7 @@ members = [
     "crates/omc-shared",
     "crates/omc-wiki",
     "crates/omc-xcmd",
+    "tests/macro-tests",
 ]
 
 [workspace.package]
