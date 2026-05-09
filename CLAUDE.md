@@ -83,3 +83,46 @@ Follow conventional commits:
 ## Release Profile
 
 Release builds use size optimization: opt-level "z", LTO, single codegen unit, stripped, panic=abort.
+
+## gstack
+
+All web browsing MUST use gstack's `/browse` skill. **Never** use `mcp__claude-in-chrome__*` tools.
+
+### Available Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `/browse` | Headless browser browsing |
+| `/qa` | QA testing |
+| `/qa-only` | QA without follow-up |
+| `/review` | Code review |
+| `/ship` | Ship preparation |
+| `/land-and-deploy` | Land and deploy |
+| `/canary` | Canary deployment |
+| `/benchmark` | Performance benchmarking |
+| `/connect-chrome` | Connect to Chrome |
+| `/design-consultation` | Design consultation |
+| `/design-shotgun` | Rapid design iterations |
+| `/design-html` | HTML design |
+| `/design-review` | Design review |
+| `/plan-ceo-review` | CEO-level plan review |
+| `/plan-eng-review` | Engineering plan review |
+| `/plan-design-review` | Design plan review |
+| `/plan-devex-review` | Developer experience review |
+| `/devex-review` | Developer experience review |
+| `/office-hours` | Office hours |
+| `/retro` | Retrospective |
+| `/investigate` | Investigation |
+| `/document-release` | Document release |
+| `/codex` | Codex integration |
+| `/cso` | CSO integration |
+| `/autoplan` | Auto planning |
+| `/careful` | Careful mode |
+| `/freeze` | Freeze state |
+| `/guard` | Guard mode |
+| `/unfreeze` | Unfreeze state |
+| `/learn` | Learning mode |
+| `/gstack-upgrade` | Upgrade gstack |
+| `/setup-browser-cookies` | Setup browser cookies |
+| `/setup-deploy` | Setup deployment |
+| `/setup-gbrain` | Setup gbrain |

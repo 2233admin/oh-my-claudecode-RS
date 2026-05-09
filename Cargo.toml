@@ -6,6 +6,7 @@ members = [
     "crates/omc-context",
     "crates/omc-git-provider",
     "crates/omc-hud",
+    "crates/omc-host",
     "crates/omc-hooks",
     "crates/omc-installer",
     "crates/omc-interop",
