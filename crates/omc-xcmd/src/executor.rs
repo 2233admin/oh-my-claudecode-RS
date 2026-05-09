@@ -45,8 +45,7 @@ pub fn count_packages() -> Option<usize> {
             .filter(|e| {
                 e.path()
                     .extension()
-                    .map(|ext| ext == "json")
-                    .unwrap_or(false)
+                    .map_or(false, |ext| ext == "json")
             })
             .count()
     })
@@ -71,8 +70,7 @@ pub fn list_packages() -> Vec<String> {
             if entry
                 .path()
                 .extension()
-                .map(|ext| ext == "json")
-                .unwrap_or(false)
+                .map_or(false, |ext| ext == "json")
                 && let Some(name) = entry.path().file_stem()
             {
                 packages.push(name.to_string_lossy().to_string());

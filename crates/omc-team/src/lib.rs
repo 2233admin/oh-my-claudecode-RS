@@ -297,8 +297,7 @@ pub fn prepare_start_mission(
         id: task.meta.id.clone(),
         team_name: run_record
             .as_ref()
-            .map(|record| record.team_name.clone())
-            .unwrap_or_else(|| slug(&task.meta.id)),
+            .map_or_else(|| slug(&task.meta.id), |record| record.team_name.clone()),
         prompt: if opts.runtime == RuntimeKind::Claude {
             implementation_prompt(&task, &opts)
         } else {
@@ -1012,8 +1011,7 @@ Follow OMC Native Agent Discipline and repository contract discipline: preserve 
 pub(crate) fn unix_timestamp() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs())
-        .unwrap_or(0)
+        .map_or(0, |duration| duration.as_secs())
 }
 
 #[cfg(test)]
