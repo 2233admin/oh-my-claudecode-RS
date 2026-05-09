@@ -56,7 +56,7 @@ pub struct HookRegistry {
 
 impl Default for HookRegistry {
     fn default() -> Self {
-        Self::new()
+        Self { hooks: Vec::new() }
     }
 }
 
@@ -371,7 +371,7 @@ mod tests {
 
     #[test]
     fn registry_new() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         let stats = registry.stats();
         assert_eq!(stats.global_events, 0);
         assert_eq!(stats.global_hooks, 0);
@@ -382,7 +382,7 @@ mod tests {
 
     #[test]
     fn registry_register_global() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         let config = create_test_config(
             r#"{
             "hooks": {
@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn registry_register_project() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         let config = create_test_config(
             r#"{
             "hooks": {
@@ -414,12 +414,12 @@ mod tests {
 
     #[test]
     fn registry_load_config() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         registry
-            .load_global(r#"{"hooks": {"SessionEnd": [{"matcher": "*", "hooks": []}]}}"#)
+            .load_global(r#"{\"hooks\": {\"SessionEnd\": [{\"matcher\": \"*\", \"hooks\": []}]}}"#)
             .unwrap();
         registry
-            .load_project(r#"{"hooks": {"Stop": [{"matcher": "*", "hooks": []}]}}"#)
+            .load_project(r#"{\"hooks\": {\"Stop\": [{\"matcher\": \"*\", \"hooks\": []}]}}"#)
             .unwrap();
 
         let stats = registry.stats();
@@ -429,7 +429,7 @@ mod tests {
 
     #[test]
     fn registry_register_internal() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         let counter = Arc::new(AtomicUsize::new(0));
         let counter_clone = counter.clone();
 
@@ -450,7 +450,7 @@ mod tests {
 
     #[test]
     fn registry_register_internal_with_description() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         registry.register_internal_with_desc("logged_hook", "Logs all events", |_, _, _| {
             HookResult::default()
         });
@@ -460,7 +460,7 @@ mod tests {
 
     #[test]
     fn registry_unregister_internal() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         registry.register_internal("temp_hook", |_, _, _| HookResult::default());
 
         assert!(registry.has_internal("temp_hook"));
@@ -471,7 +471,7 @@ mod tests {
 
     #[test]
     fn registry_get_hooks() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         registry.register_global(create_test_config(
             r#"{
             "hooks": {
@@ -498,7 +498,7 @@ mod tests {
 
     #[test]
     fn registry_get_commands() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         registry.register_global(create_test_config(
             r#"{
             "hooks": {
@@ -526,7 +526,7 @@ mod tests {
 
     #[test]
     fn registry_call_internal_not_found() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         let result = registry.call_internal("nonexistent", &HookEvent::SessionStart, None, "");
         assert!(matches!(
             result,
@@ -536,7 +536,7 @@ mod tests {
 
     #[test]
     fn registry_execute_hooks() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         registry.register_global(create_test_config(
             r#"{
             "hooks": {
@@ -558,7 +558,7 @@ mod tests {
 
     #[test]
     fn registry_clear() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         registry.register_global(create_test_config(
             r#"{
             "hooks": {"SessionStart": [{"matcher": "*", "hooks": []}]}
@@ -581,7 +581,7 @@ mod tests {
 
     #[test]
     fn registry_clear_global_only() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         registry.register_global(create_test_config(
             r#"{
             "hooks": {"SessionStart": [{"matcher": "*", "hooks": []}]}
@@ -602,15 +602,15 @@ mod tests {
 
     #[test]
     fn registry_clear_project_only() {
-        let registry = HookRegistry::new();
+        let registry = HookRegistry::default();
         registry.register_global(create_test_config(
-            r#"{
-            "hooks": {"SessionStart": [{"matcher": "*", "hooks": []}]}
+            r#"{            
+            "hooks": {"SessionStart": [{"matcher": "*", "hooks": []}]}        
         }"#,
         ));
         registry.register_project(create_test_config(
-            r#"{
-            "hooks": {"PreToolUse": [{"matcher": "*", "hooks": []}]}
+            r#"{            
+            "hooks": {"PreToolUse": [{"matcher": "*", "hooks": []}]}        
         }"#,
         ));
 

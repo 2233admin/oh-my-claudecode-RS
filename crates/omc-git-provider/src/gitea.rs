@@ -12,7 +12,7 @@ pub struct GiteaProvider {
 
 impl Default for GiteaProvider {
     fn default() -> Self {
-        Self::new()
+        Self
     }
 }
 
@@ -32,11 +32,11 @@ impl GiteaProvider {
     }
 
     fn api_base(&self) -> Option<String> {
-        std::env::var("GITEA_URL").ok().filter(|u| !u.is_empty())
+        std::env::var(GITEA_URL).ok().filter(|u| !u.is_empty())
     }
 
     fn api_token(&self) -> Option<String> {
-        std::env::var("GITEA_TOKEN").ok().filter(|t| !t.is_empty())
+        std::env::var(GITEA_TOKEN).ok().filter(|t| !t.is_empty())
     }
 }
 
@@ -162,8 +162,7 @@ impl GitProvider for GiteaProvider {
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status()
-            .map(|s| s.success())
-            .unwrap_or(false)
+            .map_or(false, |s| s.success())
     }
 
     fn required_cli(&self) -> Option<&str> {

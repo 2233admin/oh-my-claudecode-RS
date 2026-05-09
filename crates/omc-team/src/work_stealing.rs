@@ -249,7 +249,7 @@ impl WorkStealingScheduler {
     }
 
     fn auction_select(&self, task: &ScheduledTask, weights: ScoringWeights) -> String {
-        let mut best_agent = String::new();
+        let mut best_agent = String::default();
         let mut best_score = f64::NEG_INFINITY;
 
         for agent_id in self.local_queues.keys() {
@@ -263,7 +263,7 @@ impl WorkStealingScheduler {
 
             if score > best_score {
                 best_score = score;
-                best_agent = agent_id.clone();
+                best_agent.clone_from(agent_id);
             }
         }
 
@@ -337,8 +337,7 @@ fn pop_highest_priority(queue: &mut VecDeque<ScheduledTask>) -> Option<Scheduled
 fn now_millis() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_millis() as u64)
 }
 
 fn fnv1a(input: &str) -> u64 {

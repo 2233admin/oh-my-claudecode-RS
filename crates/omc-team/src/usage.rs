@@ -102,7 +102,7 @@ impl UsageTracker {
             .entry(worker_id.to_string())
             .or_insert_with(|| WorkerUsage {
                 worker_id: worker_id.to_string(),
-                model: String::new(),
+                model: String::default(),
                 tokens: TokenUsage::default(),
                 cost: CostBreakdown::default(),
                 tasks_completed: 0,
@@ -167,7 +167,18 @@ impl UsageTracker {
 
 impl Default for UsageTracker {
     fn default() -> Self {
-        Self::new()
+        Self {
+            user: 0,
+            nice: 0,
+            system: 0,
+            idle: 0,
+            iowait: 0,
+            irq: 0,
+            softirq: 0,
+            steal: 0,
+            guest: 0,
+            guest_nice: 0,
+        }
     }
 }
 
@@ -223,7 +234,7 @@ pub fn calculate_cost(tokens: &TokenUsage, pricing: &ModelPricing) -> CostBreakd
 }
 
 pub fn render_summary_report(summary: &TeamUsageSummary) -> String {
-    let mut out = String::new();
+    let mut out = String::default();
     out.push_str(&format!("# Team Usage: {}\n\n", summary.team_name));
     out.push_str(&format!("**Phase:** {}\n", summary.phase.as_str()));
     out.push_str(&format!("**Started:** {}\n", summary.started_at));
@@ -434,7 +445,7 @@ mod tests {
 
     #[test]
     fn tracker_records_tokens_and_tasks() {
-        let mut tracker = UsageTracker::new();
+        let mut tracker = UsageTracker::default();
         tracker.record_tokens(
             "worker-1",
             "claude-sonnet-4-6",
@@ -459,7 +470,7 @@ mod tests {
 
     #[test]
     fn tracker_summary() {
-        let mut tracker = UsageTracker::new();
+        let mut tracker = UsageTracker::default();
         tracker.record_tokens(
             "w1",
             "claude-opus-4-7",
@@ -498,7 +509,7 @@ mod tests {
 
     #[test]
     fn tracker_total_cost() {
-        let mut tracker = UsageTracker::new();
+        let mut tracker = UsageTracker::default();
         tracker.record_tokens(
             "w1",
             "claude-sonnet-4-6",
@@ -514,7 +525,7 @@ mod tests {
 
     #[test]
     fn summary_report_rendering() {
-        let mut tracker = UsageTracker::new();
+        let mut tracker = UsageTracker::default();
         tracker.record_tokens(
             "worker-alpha",
             "claude-opus-4-7",

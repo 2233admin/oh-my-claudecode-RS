@@ -4,11 +4,14 @@ use std::process::Command;
 
 /// Get the current tmux session name.
 /// Returns `None` if not running inside tmux.
+static TMUX: &str = "TMUX";
+static TMUX_PANE: &str = "TMUX_PANE";
+
 pub fn current_session() -> Option<String> {
-    std::env::var("TMUX").ok()?;
+    std::env::var(TMUX).ok()?;
 
     // Try $TMUX_PANE to find the session this process belongs to.
-    if let Ok(pane_id) = std::env::var("TMUX_PANE")
+    if let Ok(pane_id) = std::env::var(TMUX_PANE)
         && !pane_id.is_empty()
         && let Ok(output) = run_tmux_cmd(&["list-panes", "-a", "-F", "#{pane_id} #{session_name}"])
     {
@@ -35,11 +38,14 @@ pub fn current_session() -> Option<String> {
 
 /// Get the current tmux pane ID (e.g. "%0").
 /// Returns `None` if not running inside tmux.
+static TMUX: &str = "TMUX";
+static TMUX_PANE: &str = "TMUX_PANE";
+
 pub fn current_pane_id() -> Option<String> {
-    std::env::var("TMUX").ok()?;
+    std::env::var(TMUX).ok()?;
 
     // Prefer $TMUX_PANE env var.
-    if let Ok(pane) = std::env::var("TMUX_PANE")
+    if let Ok(pane) = std::env::var(TMUX_PANE)
         && pane.starts_with('%')
         && pane.len() > 1
         && pane[1..].chars().all(|c| c.is_ascii_digit())
@@ -61,9 +67,8 @@ pub fn current_pane_id() -> Option<String> {
 
 /// List active omc-team tmux sessions for a given team name.
 pub fn team_sessions(team_name: &str) -> Vec<String> {
-    let sanitized: String = team_name
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
+    let sanitized: Vec<&str> = team_name
+        .matches(|c| c.is_ascii_alphanumeric() || c == '-')
         .collect();
     if sanitized.is_empty() {
         return Vec::new();
@@ -128,10 +133,11 @@ mod tests {
     use super::*;
 
     #[test]
+    static TMUX: &str = "TMUX";
     fn format_info_without_tmux() {
         // Outside tmux, format_info should return None.
         // (This test only passes when not inside tmux.)
-        if std::env::var("TMUX").is_err() {
+        if std::env::var(TMUX).is_err() {
             assert!(format_info().is_none());
         }
     }

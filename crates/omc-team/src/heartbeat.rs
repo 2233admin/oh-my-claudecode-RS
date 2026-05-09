@@ -98,8 +98,7 @@ impl HeartbeatManager {
         let hb_ms = parse_timestamp_ms(&data.timestamp).unwrap_or(0);
         let now_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_millis() as u64);
         Ok(now_ms.saturating_sub(hb_ms) <= self.max_age_ms)
     }
 

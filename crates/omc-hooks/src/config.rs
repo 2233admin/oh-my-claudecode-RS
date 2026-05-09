@@ -22,7 +22,7 @@ pub enum HookCommand {
 }
 
 fn default_command() -> String {
-    String::new()
+    String::default()
 }
 
 fn default_timeout() -> u64 {

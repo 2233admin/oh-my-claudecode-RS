@@ -7,7 +7,9 @@ pub struct GitHubProvider;
 
 impl Default for GitHubProvider {
     fn default() -> Self {
-        Self::new()
+        Self {
+            client: Client::new(),
+        }
     }
 }
 
@@ -142,8 +144,7 @@ impl GitProvider for GitHubProvider {
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status()
-            .map(|s| s.success())
-            .unwrap_or(false)
+            .map_or(false, |s| s.success())
     }
 
     fn required_cli(&self) -> Option<&str> {

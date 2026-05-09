@@ -7,7 +7,7 @@ pub struct GitLabProvider;
 
 impl Default for GitLabProvider {
     fn default() -> Self {
-        Self::new()
+        Self {}
     }
 }
 
@@ -157,8 +157,7 @@ impl GitProvider for GitLabProvider {
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status()
-            .map(|s| s.success())
-            .unwrap_or(false)
+            .map_or(false, |s| s.success())
     }
 
     fn required_cli(&self) -> Option<&str> {
@@ -170,14 +169,14 @@ fn extract_host_from_url(url: &str) -> String {
     let s = url.to_lowercase();
     if let Some(pos) = s.find("://") {
         let after = &s[pos + 3..];
-        let after_at = after.split_once('@').map(|(_, h)| h).unwrap_or(after);
+        let after_at = after.split_once('@').map_or(after, |(_, h)| h);
         return after_at.split('/').next().unwrap_or("").to_string();
     }
     if let Some(at_pos) = s.find('@') {
         let after = &s[at_pos + 1..];
         return after.split(':').next().unwrap_or("").to_string();
     }
-    String::new()
+    String::default()
 }
 
 fn host_label_matches(host: &str, label: &str) -> bool {

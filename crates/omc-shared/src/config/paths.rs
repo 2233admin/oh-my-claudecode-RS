@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_default_paths() {
-        let paths = OmcPaths::new();
+        let paths = OmcPaths::default();
 
         assert!(paths.home.ends_with(".omc"));
         assert!(paths.home.components().any(|c| c.as_os_str() == ".omc"));
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn test_user_config_path() {
-        let paths = OmcPaths::new();
+        let paths = OmcPaths::default();
         let config = paths.user_config();
 
         assert!(config.file_name().unwrap() == "config.json");
@@ -202,7 +202,7 @@ mod tests {
 
     #[test]
     fn test_project_config_path() {
-        let paths = OmcPaths::new();
+        let paths = OmcPaths::default();
         let config = paths.project_config();
 
         assert!(config.file_name().unwrap() == "omc.json");
@@ -211,7 +211,7 @@ mod tests {
 
     #[test]
     fn test_session_paths() {
-        let paths = OmcPaths::new();
+        let paths = OmcPaths::default();
         let session_id = "test-session-123";
 
         let session_path = paths.session_path(session_id);
@@ -227,7 +227,7 @@ mod tests {
     fn test_omc_home_override() {
         // This test verifies the path resolution logic
         // We can't easily test env var override in unit tests without mocking
-        let paths = OmcPaths::new();
+        let paths = OmcPaths::default();
 
         // Home should always end with .omc when using default
         assert!(

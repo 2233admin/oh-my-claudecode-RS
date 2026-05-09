@@ -115,7 +115,7 @@ fn impl_tool_derive(input: &DeriveInput) -> Result<proc_macro2::TokenStream, syn
 
         // Handle array items for Vec types
         if schema_type == "array" {
-            let items_type = vec_inner_type(&field.ty).unwrap_or("string".to_string());
+            let items_type = vec_inner_type(&field.ty).unwrap_or_else(|| "string".to_string());
             prop = quote! {
                 props.insert(#field_name_str.to_string(), serde_json::json!({
                     "type": "array",
@@ -269,7 +269,7 @@ fn rust_type_to_schema_inner(ty: &syn::Type) -> Result<(String, bool), syn::Erro
         };
     }
     // Tuple types like (usize, usize)
-    if let syn::Type::Tuple(_) = ty {
+    if matches!(ty, syn::Type::Tuple(_)) {
         return Ok(("array".to_string(), false));
     }
     Ok(("object".to_string(), false))

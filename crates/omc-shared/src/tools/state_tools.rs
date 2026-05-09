@@ -270,57 +270,7 @@ pub fn state_write(
         }
     }
 
-    let payload = StatePayload {
-        fields,
-        meta: StateMeta {
-            mode: mode.to_string(),
-            session_id: session_id.map(|s| s.to_string()),
-            updated_at: chrono::Utc::now().to_rfc3339(),
-            updated_by: "state_write_tool".into(),
-        },
-    };
-
-    let state_path = if let Some(sid) = session_id {
-        let dir = resolve_session_state_dir(&paths, sid);
-        if let Err(e) = fs::create_dir_all(&dir) {
-            return ToolResult::error(format!("Error creating session dir: {e}"));
-        }
-        dir.join(format!("{mode}-state.json"))
-    } else {
-        if let Err(e) = ensure_dir(&paths.state.join("x")) {
-            return ToolResult::error(format!("Error creating state dir: {e}"));
-        }
-        resolve_mode_state_path(&paths, mode, None)
-    };
-
-    match atomic_write_json(&state_path, &payload) {
-        Ok(()) => {
-            let session_info = session_id
-                .map(|s| format!(" (session: {s})"))
-                .unwrap_or_else(|| " (legacy path)".to_string());
-            let warning = if session_id.is_none() {
-                "\n\nWARNING: No session_id provided. State written to legacy shared path. Pass session_id for session-scoped isolation."
-            } else {
-                ""
-            };
-            let pretty = serde_json::to_string_pretty(&payload).unwrap_or_default();
-            ToolResult::text(format!(
-                "Successfully wrote state for {mode}{session_info}\nPath: {}\n\n```json\n{pretty}\n```{warning}",
-                state_path.display()
-            ))
-        }
-        Err(e) => ToolResult::error(format!("Error writing state: {e}")),
-    }
-}
-
-/// Clear/delete state for a specific mode.
-///
-/// Removes the state file and any associated marker files.
-pub fn state_clear(
-    mode: &str,
-    working_directory: Option<&str>,
-    session_id: Option<&str>,
-) -> ToolResult {
+```json\n{pretty}\n
     let mode = mode.trim();
 
     if let Err(e) = validate_mode(mode) {
@@ -444,8 +394,7 @@ pub fn state_list_active(working_directory: Option<&str>, session_id: Option<&st
 
     let count = mode_sessions.len();
     let scope = session_id
-        .map(|s| format!(" (session: {s}, {count})"))
-        .unwrap_or_else(|| format!(" ({count})"));
+        .map_or_else(|| format!(" ({count})"), |s| format!(" (session: {s}, {count})"));
     let mut output = format!("## Active Modes{scope}\n\n");
 
     for (mode, sessions) in &mode_sessions {

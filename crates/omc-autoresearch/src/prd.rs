@@ -195,14 +195,16 @@ pub fn load_mission_contract(mission_dir: &Path) -> Result<MissionContract> {
     let repo_root = resolve_git_root(&mission_dir)?;
     let mission_relative_dir = mission_dir
         .strip_prefix(&repo_root)
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|_| {
-            mission_dir
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string()
-        });
+        .map_or_else(
+            |_| {
+                mission_dir
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string()
+            },
+            |p| p.to_string_lossy().to_string(),
+        );
 
     let mission_slug = slugify(&mission_relative_dir);
 

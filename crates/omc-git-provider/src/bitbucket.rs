@@ -9,7 +9,10 @@ pub struct BitbucketProvider;
 
 impl Default for BitbucketProvider {
     fn default() -> Self {
-        Self::new()
+        Self {
+            client: Client::new(),
+            base_url: "https://api.bitbucket.org".to_string(),
+        }
     }
 }
 
@@ -18,23 +21,26 @@ impl BitbucketProvider {
         Self
     }
 
-    fn auth_header(&self) -> Option<String> {
-        if let Ok(token) = std::env::var("BITBUCKET_TOKEN")
-            && !token.is_empty()
-        {
-            return Some(format!("Bearer {token}"));
+    static BITBUCKET_TOKEN: &str = "BITBUCKET_TOKEN";
+    static BITBUCKET_USERNAME: &str = "BITBUCKET_USERNAME";
+    static BITBUCKET_APP_PASSWORD: &str = "BITBUCKET_APP_PASSWORD";
+        fn auth_header(&self) -> Option<String> {
+            if let Ok(token) = std::env::var(BITBUCKET_TOKEN)
+                && !token.is_empty()
+            {
+                return Some(format!("Bearer {token}"));
+            }
+            if let (Ok(user), Ok(pass)) = (
+                std::env::var(BITBUCKET_USERNAME),
+                std::env::var(BITBUCKET_APP_PASSWORD),
+            ) && !user.is_empty()
+                && !pass.is_empty()
+            {
+                let encoded = base64_encode(&format!("{user}:{pass}"));
+                return Some(format!("Basic {encoded}"));
+            }
+            None
         }
-        if let (Ok(user), Ok(pass)) = (
-            std::env::var("BITBUCKET_USERNAME"),
-            std::env::var("BITBUCKET_APP_PASSWORD"),
-        ) && !user.is_empty()
-            && !pass.is_empty()
-        {
-            let encoded = base64_encode(&format!("{user}:{pass}"));
-            return Some(format!("Basic {encoded}"));
-        }
-        None
-    }
 }
 
 #[async_trait]
@@ -175,8 +181,8 @@ fn base64_encode(input: &str) -> String {
     let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let b0 = chunk[0] as u32;
-        let b1 = chunk.get(1).map(|&b| b as u32).unwrap_or(0);
-        let b2 = chunk.get(2).map(|&b| b as u32).unwrap_or(0);
+        let b1 = chunk.get(1).map_or(0, |&b| b as u32);
+        let b2 = chunk.get(2).map_or(0, |&b| b as u32);
         let triple = (b0 << 16) | (b1 << 8) | b2;
         out.push(CHARS[((triple >> 18) & 0x3F) as usize] as char);
         out.push(CHARS[((triple >> 12) & 0x3F) as usize] as char);

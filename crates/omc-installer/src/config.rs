@@ -96,14 +96,16 @@ mod tests {
 
     #[test]
     fn default_paths_from_config_dir() {
-        let paths = InstallerPaths::from_config_dir(PathBuf::from("/tmp/test/.claude"));
-        assert_eq!(paths.agents_dir, PathBuf::from("/tmp/test/.claude/agents"));
-        assert_eq!(paths.skills_dir, PathBuf::from("/tmp/test/.claude/skills"));
-        assert_eq!(paths.hooks_dir, PathBuf::from("/tmp/test/.claude/hooks"));
-        assert_eq!(paths.hud_dir, PathBuf::from("/tmp/test/.claude/hud"));
+        let temp_dir = tempdir().unwrap();
+        let config_dir = temp_dir.path().join(".claude");
+        let paths = InstallerPaths::from_config_dir(config_dir.clone());
+        assert_eq!(paths.agents_dir, config_dir.join("agents"));
+        assert_eq!(paths.skills_dir, config_dir.join("skills"));
+        assert_eq!(paths.hooks_dir, config_dir.join("hooks"));
+        assert_eq!(paths.hud_dir, config_dir.join("hud"));
         assert_eq!(
             paths.settings_file,
-            PathBuf::from("/tmp/test/.claude/settings.json")
+            config_dir.join("settings.json")
         );
     }
 

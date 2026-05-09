@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tempfile::tempdir;
 
 /// Events emitted by an agent during execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,16 +58,18 @@ mod tests {
 
     #[test]
     fn test_serialize_roundtrip_tool_call() {
+        let dir = tempdir().unwrap();
+        let path_str = dir.path().to_str().unwrap();
         let event = AgentEvent::ToolCall {
             name: "read_file".to_string(),
-            arguments: serde_json::json!({ "path": "/tmp/test" }),
+            arguments: serde_json::json!({ "path": path_str }),
         };
         let json = serde_json::to_string(&event).unwrap();
         let back: AgentEvent = serde_json::from_str(&json).unwrap();
         match back {
             AgentEvent::ToolCall { name, arguments } => {
                 assert_eq!(name, "read_file");
-                assert_eq!(arguments["path"], "/tmp/test");
+                assert_eq!(arguments["path"], path_str);
             }
             _ => panic!("wrong variant"),
         }

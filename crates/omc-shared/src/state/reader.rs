@@ -94,6 +94,6 @@ impl StateReader {
 
 impl Default for StateReader {
     fn default() -> Self {
-        Self::new()
+        Self {}
     }
 }

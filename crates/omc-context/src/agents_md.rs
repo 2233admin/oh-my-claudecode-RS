@@ -6,10 +6,9 @@
 //!
 //! Ported from oh-my-claudecode's agents module.
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use dashmap::DashMap;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AgentsMdError {
@@ -40,7 +39,7 @@ pub struct AgentsMdFile {
 /// Manages AGENTS.md file discovery and parsing.
 #[derive(Clone)]
 pub struct AgentsMdManager {
-    cache: Arc<RwLock<HashMap<PathBuf, AgentsMdFile>>>,
+    cache: Arc<DashMap<PathBuf, AgentsMdFile>>,
 }
 
 impl Default for AgentsMdManager {
@@ -52,7 +51,7 @@ impl Default for AgentsMdManager {
 impl AgentsMdManager {
     pub fn new() -> Self {
         Self {
-            cache: Arc::new(RwLock::new(HashMap::new())),
+            cache: Arc::new(DashMap::new()),
         }
     }
 
@@ -99,10 +98,10 @@ impl AgentsMdManager {
     pub async fn get_merged_content(&self, project_root: &Path) -> String {
         let files = self.find_agents_files(project_root).await;
         if files.is_empty() {
-            return String::new();
+            return String::default();
         }
 
-        let mut parts = Vec::new();
+        let mut parts = Vec::default();
         for file in &files {
             parts.push(format!(
                 "[AGENTS.md: {}]\n{}",
@@ -114,10 +113,10 @@ impl AgentsMdManager {
 
     /// Parse an AGENTS.md file into sections.
     pub fn parse(content: &str) -> Vec<AgentsMdSection> {
-        let mut sections = Vec::new();
-        let mut current_heading = String::new();
+        let mut sections = Vec::default();
+        let mut current_heading = String::default();
         let mut current_level: u8 = 0;
-        let mut current_content = String::new();
+        let mut current_content = String::default();
 
         for line in content.lines() {
             if let Some((level, heading)) = parse_heading(line) {
@@ -241,7 +240,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_agents_files_nonexistent() {
-        let manager = AgentsMdManager::new();
+        let manager = AgentsMdManager::default();
         let tmp = tempfile::tempdir().unwrap();
         let files = manager.find_agents_files(tmp.path()).await;
         // May find user-level files, but no project-level ones
@@ -254,7 +253,7 @@ mod tests {
         let agents_path = tmp.path().join("AGENTS.md");
         std::fs::write(&agents_path, "# Test\nContent here\n").unwrap();
 
-        let manager = AgentsMdManager::new();
+        let manager = AgentsMdManager::default();
         let files = manager.find_agents_files(tmp.path()).await;
         let project_files: Vec<_> = files.iter().filter(|f| !f.is_global).collect();
         assert_eq!(project_files.len(), 1);

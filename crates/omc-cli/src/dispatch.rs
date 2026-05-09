@@ -84,7 +84,7 @@ fn skill_args(cmd: &Commands) -> Option<&SkillArgs> {
 
 /// Main entry point for the CLI.
 pub fn run(cli: Cli) -> Result<(), DispatchError> {
-    if let Commands::List = &cli.command {
+    if matches!(&cli.command, Commands::List) {
         list_skills();
         return Ok(());
     }
@@ -125,11 +125,13 @@ fn load_template(name: &str) -> Result<String, DispatchError> {
 }
 
 /// Build the ordered list of paths to check for a skill template.
+static OMC_SKILLS_DIR: &str = "OMC_SKILLS_DIR";
+
 fn template_search_paths(name: &str) -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
     // 1. Explicit environment override
-    if let Ok(dir) = std::env::var("OMC_SKILLS_DIR") {
+    if let Ok(dir) = std::env::var(OMC_SKILLS_DIR) {
         paths.push(PathBuf::from(dir).join(format!("{name}.md")));
     }
 
@@ -186,7 +188,7 @@ fn find_workspace_root(from: &Path) -> Option<PathBuf> {
 
 /// Resolve the OMC home directory.
 fn omc_home() -> Option<PathBuf> {
-    if let Ok(home) = std::env::var("OMC_HOME") {
+    if let Ok(home) = std::env::var(OMC_HOME) {
         return Some(PathBuf::from(home));
     }
     dirs::home_dir().map(|h| h.join(".omc"))
@@ -237,10 +239,12 @@ fn list_skills() {
 }
 
 /// Get directories to scan for skill listing.
+static OMC_SKILLS_DIR: &str = "OMC_SKILLS_DIR";
+
 fn template_search_roots() -> Vec<PathBuf> {
     let mut roots = Vec::new();
 
-    if let Ok(dir) = std::env::var("OMC_SKILLS_DIR") {
+    if let Ok(dir) = std::env::var(OMC_SKILLS_DIR) {
         roots.push(PathBuf::from(dir));
     }
 

@@ -29,8 +29,10 @@ impl std::fmt::Display for InteropMode {
 }
 
 /// Determine the interop mode from environment variables.
+static OMX_OMC_INTEROP_MODE: &str = "OMX_OMC_INTEROP_MODE";
+
 pub fn get_interop_mode() -> InteropMode {
-    let raw = env::var("OMX_OMC_INTEROP_MODE")
+    let raw = env::var(OMX_OMC_INTEROP_MODE)
         .unwrap_or_else(|_| "off".to_string())
         .to_lowercase();
 
@@ -42,13 +44,14 @@ pub fn get_interop_mode() -> InteropMode {
 }
 
 /// Check whether the OMX direct-write bridge is enabled.
+static OMX_OMC_INTEROP_ENABLED: &str = "OMX_OMC_INTEROP_ENABLED";
+static OMC_INTEROP_TOOLS_ENABLED: &str = "OMC_INTEROP_TOOLS_ENABLED";
+
 pub fn can_use_omx_direct_write_bridge() -> bool {
-    let interop_enabled = env::var("OMX_OMC_INTEROP_ENABLED").as_deref() == Ok("1");
-    let tools_enabled = env::var("OMC_INTEROP_TOOLS_ENABLED").as_deref() == Ok("1");
+    let interop_enabled = env::var(OMX_OMC_INTEROP_ENABLED).as_deref() == Ok("1");
+    let tools_enabled = env::var(OMC_INTEROP_TOOLS_ENABLED).as_deref() == Ok("1");
     interop_enabled && tools_enabled && get_interop_mode() == InteropMode::Active
 }
-
-// ============================================================================
 // MCP tool result envelope
 // ============================================================================
 
@@ -239,7 +242,7 @@ pub fn interop_read_results(args: &ReadResultsArgs) -> ToolResult {
                     lines.push(format!("- **Completed:** {completed}"));
                 }
 
-                lines.push(String::new());
+                lines.push(String::default());
             }
 
             tool_text(lines.join("\n"))
@@ -331,7 +334,7 @@ pub fn interop_read_messages(args: &ReadMessagesArgs) -> ToolResult {
                 if messages.len() > limit {
                     format!(" of {}", messages.len())
                 } else {
-                    String::new()
+                    String::default()
                 }
             )];
 
@@ -353,7 +356,7 @@ pub fn interop_read_messages(args: &ReadMessagesArgs) -> ToolResult {
                     lines.push(format!("- **Metadata:** {meta}"));
                 }
 
-                lines.push(String::new());
+                lines.push(String::default());
             }
 
             if mark_as_read {
@@ -402,7 +405,7 @@ pub fn interop_list_omx_teams(args: &ListOmxTeamsArgs) -> ToolResult {
                         let worker_names: Vec<_> =
                             config.workers.iter().map(|w| w.name.as_str()).collect();
                         lines.push(format!("- **Workers:** {}", worker_names.join(", ")));
-                        lines.push(String::new());
+                        lines.push(String::default());
                     }
                     Ok(None) => {
                         lines.push(format!("### {name} (config not readable)\n"));
@@ -540,7 +543,7 @@ pub fn interop_read_omx_messages(args: &ReadOmxMessagesArgs) -> ToolResult {
         if messages.len() > limit {
             format!(" of {}", messages.len())
         } else {
-            String::new()
+            String::default()
         }
     )];
 
@@ -558,7 +561,7 @@ pub fn interop_read_omx_messages(args: &ReadOmxMessagesArgs) -> ToolResult {
         if let Some(delivered) = msg.delivered_at {
             lines.push(format!("- **Delivered:** {delivered}"));
         }
-        lines.push(String::new());
+        lines.push(String::default());
     }
 
     tool_text(lines.join("\n"))
@@ -637,7 +640,7 @@ pub fn interop_read_omx_tasks(args: &ReadOmxTasksArgs) -> ToolResult {
                 if let Some(completed) = task.completed_at {
                     lines.push(format!("- **Completed:** {completed}"));
                 }
-                lines.push(String::new());
+                lines.push(String::default());
             }
 
             tool_text(lines.join("\n"))
@@ -676,6 +679,10 @@ pub const ALL_TOOLS: &[&str] = &[
 mod tests {
     use super::*;
 
+    static OMX_OMC_INTEROP_MODE: &str = "OMX_OMC_INTEROP_MODE";
+    static OMX_OMC_INTEROP_ENABLED: &str = "OMX_OMC_INTEROP_ENABLED";
+    static OMC_INTEROP_TOOLS_ENABLED: &str = "OMC_INTEROP_TOOLS_ENABLED";
+
     #[test]
     fn interop_mode_serde_roundtrip() {
         let modes = vec![InteropMode::Off, InteropMode::Observe, InteropMode::Active];
@@ -699,40 +706,40 @@ mod tests {
         static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
         let _guard = ENV_LOCK.lock().unwrap();
 
-        let saved_mode = std::env::var("OMX_OMC_INTEROP_MODE").ok();
-        let saved_enabled = std::env::var("OMX_OMC_INTEROP_ENABLED").ok();
-        let saved_tools = std::env::var("OMC_INTEROP_TOOLS_ENABLED").ok();
+        let saved_mode = std::env::var(OMX_OMC_INTEROP_MODE).ok();
+        let saved_enabled = std::env::var(OMX_OMC_INTEROP_ENABLED).ok();
+        let saved_tools = std::env::var(OMC_INTEROP_TOOLS_ENABLED).ok();
 
         unsafe {
-            std::env::remove_var("OMX_OMC_INTEROP_MODE");
-            std::env::remove_var("OMX_OMC_INTEROP_ENABLED");
-            std::env::remove_var("OMC_INTEROP_TOOLS_ENABLED");
+            std::env::remove_var(OMX_OMC_INTEROP_MODE);
+            std::env::remove_var(OMX_OMC_INTEROP_ENABLED);
+            std::env::remove_var(OMC_INTEROP_TOOLS_ENABLED);
         }
 
         assert_eq!(get_interop_mode(), InteropMode::Off);
         assert!(!can_use_omx_direct_write_bridge());
 
-        unsafe { std::env::set_var("OMX_OMC_INTEROP_MODE", "OBSERVE") };
+        unsafe { std::env::set_var(OMX_OMC_INTEROP_MODE, "OBSERVE") };
         assert_eq!(get_interop_mode(), InteropMode::Observe);
 
-        unsafe { std::env::set_var("OMX_OMC_INTEROP_MODE", "active") };
+        unsafe { std::env::set_var(OMX_OMC_INTEROP_MODE, "active") };
         assert_eq!(get_interop_mode(), InteropMode::Active);
 
         // Bridge requires all three flags
         unsafe {
-            std::env::set_var("OMX_OMC_INTEROP_ENABLED", "1");
-            std::env::set_var("OMC_INTEROP_TOOLS_ENABLED", "1");
+            std::env::set_var(OMX_OMC_INTEROP_ENABLED, "1");
+            std::env::set_var(OMC_INTEROP_TOOLS_ENABLED, "1");
         }
         assert!(can_use_omx_direct_write_bridge());
 
         // Missing one flag => false
-        unsafe { std::env::remove_var("OMC_INTEROP_TOOLS_ENABLED") };
+        unsafe { std::env::remove_var(OMC_INTEROP_TOOLS_ENABLED) };
         assert!(!can_use_omx_direct_write_bridge());
 
         // Mode not active => false
         unsafe {
-            std::env::set_var("OMC_INTEROP_TOOLS_ENABLED", "1");
-            std::env::set_var("OMX_OMC_INTEROP_MODE", "observe");
+            std::env::set_var(OMC_INTEROP_TOOLS_ENABLED, "1");
+            std::env::set_var(OMX_OMC_INTEROP_MODE, "observe");
         }
         assert!(!can_use_omx_direct_write_bridge());
 
@@ -745,9 +752,9 @@ mod tests {
                 }
             };
         }
-        restore!("OMX_OMC_INTEROP_MODE", saved_mode);
-        restore!("OMX_OMC_INTEROP_ENABLED", saved_enabled);
-        restore!("OMC_INTEROP_TOOLS_ENABLED", saved_tools);
+        restore!(OMX_OMC_INTEROP_MODE, saved_mode);
+        restore!(OMX_OMC_INTEROP_ENABLED, saved_enabled);
+        restore!(OMC_INTEROP_TOOLS_ENABLED, saved_tools);
     }
 
     #[test]

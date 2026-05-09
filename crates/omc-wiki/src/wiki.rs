@@ -241,7 +241,7 @@ pub fn ingest_knowledge(root: &std::path::Path, input: &WikiIngestInput) -> Wiki
         }
         page.frontmatter.tags = merged_tags;
         page.frontmatter.sources = merged_sources;
-        page.frontmatter.updated = now.clone();
+        page.frontmatter.updated.clone_from(&now);
 
         let default_conf = "medium".to_string();
         let new_conf = input.confidence.as_ref().unwrap_or(&default_conf);
@@ -252,7 +252,7 @@ pub fn ingest_knowledge(root: &std::path::Path, input: &WikiIngestInput) -> Wiki
             _ => 2,
         };
         if rank(new_conf) >= rank(&page.frontmatter.confidence) {
-            page.frontmatter.confidence = new_conf.clone();
+            page.frontmatter.confidence.clone_from(new_conf);
         }
 
         page.content = format!(
@@ -333,7 +333,7 @@ pub fn query_wiki(
     let query_lower = query_text.to_lowercase();
     let query_terms = tokenize(query_text);
 
-    let mut matches: Vec<WikiQueryMatch> = Vec::new();
+    let mut matches: Vec<WikiQueryMatch> = Vec::default();
 
     for page in &pages {
         // Category filter
@@ -344,7 +344,7 @@ pub fn query_wiki(
         }
 
         let mut score: i64 = 0;
-        let mut snippet = String::new();
+        let mut snippet = String::default();
 
         // Tag matching (weight: 3 per matching tag)
         if let Some(ref filter_tags) = options.tags {
@@ -696,10 +696,10 @@ fn extract_wiki_links(content: &str) -> Vec<String> {
 /// Tokenize text for search, with CJK bi-gram support.
 pub fn tokenize(text: &str) -> Vec<String> {
     let lower = text.to_lowercase();
-    let mut tokens: Vec<String> = Vec::new();
+    let mut tokens: Vec<String> = Vec::default();
 
     // Latin/numeric tokens
-    let mut current_word = String::new();
+    let mut current_word = String::default();
     for ch in lower.chars() {
         if ch.is_ascii_alphanumeric() {
             current_word.push(ch);
@@ -715,13 +715,12 @@ pub fn tokenize(text: &str) -> Vec<String> {
     }
 
     // CJK segments: individual chars + bi-grams
-    let cjk_chars: Vec<char> = lower
-        .chars()
-        .filter(|c| {
-            ('\u{3040}'..='\u{309F}').contains(c)  // Hiragana
-                || ('\u{30A0}'..='\u{30FF}').contains(c)  // Katakana
-                || ('\u{4E00}'..='\u{9FFF}').contains(c)  // CJK Unified Ideographs
-                || ('\u{AC00}'..='\u{D7AF}').contains(c) // Hangul
+    let cjk_chars: Vec<&str> = lower
+        .matches(|c| {
+            ('\u{3040}'..='\u{309F}').contains(&c)  // Hiragana
+                || ('\u{30A0}'..='\u{30FF}').contains(&c)  // Katakana
+                || ('\u{4E00}'..='\u{9FFF}').contains(&c)  // CJK Unified Ideographs
+                || ('\u{AC00}'..='\u{D7AF}').contains(&c) // Hangul
         })
         .collect();
 

@@ -347,7 +347,7 @@ mod tests {
             epoch: 0,
             last_resume_brief: None,
             last_handoff: None,
-            usage_rollup: Default::default(),
+            usage_rollup: UsageRollup::default(),
             created_at: 1,
             updated_at: 1,
         }

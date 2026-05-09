@@ -39,14 +39,14 @@ impl Default for ProjectMemory {
     fn default() -> Self {
         Self {
             version: "1.0.0".into(),
-            project_root: String::new(),
+            project_root: String::default(),
             last_scanned: now_ms(),
             tech_stack: Value::Null,
             build: Value::Null,
             conventions: Value::Null,
             structure: Value::Null,
-            custom_notes: Vec::new(),
-            user_directives: Vec::new(),
+            custom_notes: Vec::default(),
+            user_directives: Vec::default(),
         }
     }
 }

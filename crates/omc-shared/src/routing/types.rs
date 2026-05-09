@@ -86,19 +86,23 @@ pub fn model_type_to_tier(model_type: &str) -> ComplexityTier {
 }
 
 /// Default tier model IDs (configurable via env vars)
+static OMC_MODEL_LOW: &str = "OMC_MODEL_LOW";
+static OMC_MODEL_MEDIUM: &str = "OMC_MODEL_MEDIUM";
+static OMC_MODEL_HIGH: &str = "OMC_MODEL_HIGH";
+
 pub fn default_tier_models() -> HashMap<ComplexityTier, String> {
     let mut m = HashMap::new();
     m.insert(
         ComplexityTier::Low,
-        std::env::var("OMC_MODEL_LOW").unwrap_or_else(|_| "claude-haiku-4-5-20251001".to_string()),
+        std::env::var(OMC_MODEL_LOW).unwrap_or_else(|_| "claude-haiku-4-5-20251001".to_string()),
     );
     m.insert(
         ComplexityTier::Medium,
-        std::env::var("OMC_MODEL_MEDIUM").unwrap_or_else(|_| "claude-sonnet-4-6".to_string()),
+        std::env::var(OMC_MODEL_MEDIUM).unwrap_or_else(|_| "claude-sonnet-4-6".to_string()),
     );
     m.insert(
         ComplexityTier::High,
-        std::env::var("OMC_MODEL_HIGH").unwrap_or_else(|_| "claude-opus-4-7".to_string()),
+        std::env::var(OMC_MODEL_HIGH).unwrap_or_else(|_| "claude-opus-4-7".to_string()),
     );
     m
 }

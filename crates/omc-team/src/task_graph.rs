@@ -338,7 +338,11 @@ impl PriorityScheduler {
 
 impl Default for PriorityScheduler {
     fn default() -> Self {
-        Self::new([1.0, 1.0, 1.0, 1.0], Duration::from_secs(30), 1.0)
+        Self {
+            color: [1.0, 1.0, 1.0, 1.0],
+            duration: Duration::from_secs(30),
+            scale: 1.0,
+        }
     }
 }
 
@@ -356,17 +360,17 @@ mod tests {
 
     #[test]
     fn empty_graph_has_no_sources() {
-        let g = TaskGraph::new();
+        let g = TaskGraph::default();
         assert!(g.source_tasks().is_empty());
-        assert!(g.ready_tasks(&HashSet::new()).is_empty());
+        assert!(g.ready_tasks(&HashSet::default()).is_empty());
     }
 
     #[test]
     fn single_task_is_source_and_ready() {
-        let mut g = TaskGraph::new();
+        let mut g = TaskGraph::default();
         g.add_task(task("a", Priority::Normal, &[]));
         assert_eq!(g.source_tasks(), HashSet::from(["a".to_string()]));
-        assert_eq!(g.ready_tasks(&HashSet::new()), vec!["a".to_string()]);
+        assert_eq!(g.ready_tasks(&HashSet::default()), vec!["a".to_string()]);
     }
 
     #[test]
@@ -375,10 +379,10 @@ mod tests {
         g.add_task(task("a", Priority::Normal, &[]));
         g.add_task(task("b", Priority::Normal, &["a"]));
 
-        let ready = g.ready_tasks(&HashSet::new());
+        let ready = g.ready_tasks(&HashSet::default());
         assert_eq!(ready, vec!["a".to_string()]);
 
-        let mut completed = HashSet::new();
+        let mut completed = HashSet::default();
         completed.insert("a".to_string());
         let ready = g.ready_tasks(&completed);
         assert_eq!(ready, vec!["b".to_string()]);
@@ -391,14 +395,14 @@ mod tests {
         // b   c
         //  \ /
         //   d
-        let mut g = TaskGraph::new();
+        let mut g = TaskGraph::default();
         g.add_task(task("a", Priority::Normal, &[]));
         g.add_task(task("b", Priority::Normal, &["a"]));
         g.add_task(task("c", Priority::Normal, &["a"]));
         g.add_task(task("d", Priority::Normal, &["b", "c"]));
 
         // wave 1: a
-        let w1: HashSet<_> = g.ready_tasks(&HashSet::new()).into_iter().collect();
+        let w1: HashSet<_> = g.ready_tasks(&HashSet::default()).into_iter().collect();
         assert_eq!(w1, HashSet::from(["a".to_string()]));
 
         // wave 2: b, c
@@ -414,7 +418,7 @@ mod tests {
 
     #[test]
     fn cycle_detection_works() {
-        let mut g = TaskGraph::new();
+        let mut g = TaskGraph::default();
         g.add_task(task("a", Priority::Normal, &["b"]));
         g.add_task(task("b", Priority::Normal, &["a"]));
         assert!(g.validate().unwrap_err().contains("cycle"));
@@ -422,7 +426,7 @@ mod tests {
 
     #[test]
     fn validate_passes_for_acyclic_graph() {
-        let mut g = TaskGraph::new();
+        let mut g = TaskGraph::default();
         g.add_task(task("a", Priority::Normal, &[]));
         g.add_task(task("b", Priority::Normal, &["a"]));
         g.add_task(task("c", Priority::Normal, &["a"]));
@@ -432,7 +436,7 @@ mod tests {
 
     #[test]
     fn execute_runs_in_dependency_order() {
-        let mut g = TaskGraph::new();
+        let mut g = TaskGraph::default();
         g.add_task(task("a", Priority::Critical, &[]));
         g.add_task(task("b", Priority::High, &["a"]));
         g.add_task(task("c", Priority::Normal, &["a"]));
@@ -464,7 +468,7 @@ mod tests {
 
     #[test]
     fn execute_propagates_errors() {
-        let mut g = TaskGraph::new();
+        let mut g = TaskGraph::default();
         g.add_task(task("a", Priority::Normal, &[]));
         g.add_task(task("b", Priority::Normal, &[]));
 
@@ -489,7 +493,7 @@ mod tests {
 
     #[test]
     fn execute_rejects_cyclic_graph() {
-        let mut g = TaskGraph::new();
+        let mut g = TaskGraph::default();
         g.add_task(task("a", Priority::Normal, &["b"]));
         g.add_task(task("b", Priority::Normal, &["a"]));
 
@@ -558,7 +562,7 @@ mod tests {
 
     #[test]
     fn graph_builder_methods() {
-        let mut g = TaskGraph::new();
+        let mut g = TaskGraph::default();
         assert_eq!(g.task_count(), 0);
         g.add_task(task("x", Priority::High, &[]));
         assert_eq!(g.task_count(), 1);

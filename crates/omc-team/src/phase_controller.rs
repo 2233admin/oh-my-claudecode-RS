@@ -211,7 +211,7 @@ mod tests {
 
     #[test]
     fn starts_at_initializing() {
-        let pc = PhaseController::new();
+        let pc = PhaseController::default();
         assert_eq!(pc.current(), TeamPhase::Initializing);
         assert!(pc.history().is_empty());
     }
@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn valid_transition_initializing_to_planning() {
-        let mut pc = PhaseController::new();
+        let mut pc = PhaseController::default();
         assert!(pc.can_transition(TeamPhase::Planning));
         pc.transition(TeamPhase::Planning, "tasks assigned".into())
             .unwrap();
@@ -246,7 +246,7 @@ mod tests {
 
     #[test]
     fn valid_transition_full_lifecycle() {
-        let mut pc = PhaseController::new();
+        let mut pc = PhaseController::default();
         pc.transition(TeamPhase::Planning, "init done".into())
             .unwrap();
         pc.transition(TeamPhase::Executing, "plan approved".into())
@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn invalid_transition_rejected() {
-        let mut pc = PhaseController::new();
+        let mut pc = PhaseController::default();
         let err = pc
             .transition(TeamPhase::Completed, "skip".into())
             .unwrap_err();
@@ -281,7 +281,7 @@ mod tests {
 
     #[test]
     fn cannot_transition_from_terminal() {
-        let mut pc = PhaseController::new();
+        let mut pc = PhaseController::default();
         pc.transition(TeamPhase::Failed, "fatal".into()).unwrap();
         assert!(!pc.can_transition(TeamPhase::Executing));
         let err = pc
@@ -298,7 +298,7 @@ mod tests {
 
     #[test]
     fn pause_and_resume() {
-        let mut pc = PhaseController::new();
+        let mut pc = PhaseController::default();
         pc.transition(TeamPhase::Planning, "init done".into())
             .unwrap();
         pc.transition(TeamPhase::Paused, "blocked".into()).unwrap();
@@ -310,7 +310,7 @@ mod tests {
 
     #[test]
     fn history_tracks_transitions() {
-        let mut pc = PhaseController::new();
+        let mut pc = PhaseController::default();
         pc.transition(TeamPhase::Planning, "r1".into()).unwrap();
         pc.transition(TeamPhase::Executing, "r2".into()).unwrap();
         let history = pc.history();
@@ -325,7 +325,7 @@ mod tests {
 
     #[test]
     fn infer_initializing_to_planning() {
-        let pc = PhaseController::new();
+        let pc = PhaseController::default();
         let ctx = PhaseContext {
             all_tasks_assigned: true,
             all_tasks_completed: false,
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn infer_executing_to_completed_when_review_passes() {
-        let mut pc = PhaseController::new();
+        let mut pc = PhaseController::default();
         pc.transition(TeamPhase::Planning, "done".into()).unwrap();
         pc.transition(TeamPhase::Executing, "go".into()).unwrap();
         let ctx = PhaseContext {
@@ -357,7 +357,7 @@ mod tests {
 
     #[test]
     fn infer_executing_to_fixing_on_failure() {
-        let mut pc = PhaseController::new();
+        let mut pc = PhaseController::default();
         pc.transition(TeamPhase::Planning, "done".into()).unwrap();
         pc.transition(TeamPhase::Executing, "go".into()).unwrap();
         let ctx = PhaseContext {
@@ -374,7 +374,7 @@ mod tests {
 
     #[test]
     fn infer_fixing_exhausted_to_failed() {
-        let mut pc = PhaseController::new();
+        let mut pc = PhaseController::default();
         pc.transition(TeamPhase::Planning, "done".into()).unwrap();
         pc.transition(TeamPhase::Executing, "go".into()).unwrap();
         pc.transition(TeamPhase::Fixing, "fail".into()).unwrap();
@@ -392,7 +392,7 @@ mod tests {
 
     #[test]
     fn infer_terminal_returns_none() {
-        let mut pc = PhaseController::new();
+        let mut pc = PhaseController::default();
         pc.transition(TeamPhase::Failed, "fatal".into()).unwrap();
         let ctx = PhaseContext {
             all_tasks_assigned: true,
@@ -408,7 +408,7 @@ mod tests {
 
     #[test]
     fn infer_executing_paused_on_blockers() {
-        let mut pc = PhaseController::new();
+        let mut pc = PhaseController::default();
         pc.transition(TeamPhase::Planning, "done".into()).unwrap();
         pc.transition(TeamPhase::Executing, "go".into()).unwrap();
         let ctx = PhaseContext {

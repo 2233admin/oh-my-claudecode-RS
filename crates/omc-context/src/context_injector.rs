@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use dashmap::DashMap;
 
 /// Source identifier for context injection.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -78,32 +78,10 @@ pub struct PendingContext {
     pub merged: String,
     pub entries: Vec<ContextEntry>,
     pub has_content: bool,
-}
-
-/// Injection strategy for context.
-#[derive(Debug, Clone, Copy, Default)]
-pub enum InjectionStrategy {
-    #[default]
-    Prepend,
-    Append,
-    Wrap,
-}
-
-/// Result of an injection operation.
-#[derive(Debug, Clone)]
-pub struct InjectionResult {
-    pub injected: bool,
-    pub context_length: usize,
-    pub entry_count: usize,
-}
-
-const CONTEXT_SEPARATOR: &str = "\n\n---\n\n";
-const DEFAULT_SEPARATOR: &str = "\n\n---\n\n";
-
 /// Collects and manages context entries for sessions.
 #[derive(Debug, Clone, Default)]
 pub struct ContextCollector {
-    sessions: Arc<RwLock<HashMap<String, HashMap<String, ContextEntry>>>>,
+    sessions: Arc<DashMap<String, HashMap<String, ContextEntry>>>,
 }
 
 impl ContextCollector {
@@ -114,8 +92,7 @@ impl ContextCollector {
     /// Register a context entry for a session.
     /// If an entry with the same source:id already exists, it will be replaced.
     pub async fn register(&self, session_id: &str, options: RegisterContextOptions) {
-        let mut sessions = self.sessions.write().await;
-        let session_map = sessions
+        let session_map = self.sessions
             .entry(session_id.to_string())
             .or_insert_with(HashMap::new);
 
@@ -137,16 +114,16 @@ impl ContextCollector {
         let sessions = self.sessions.read().await;
         let Some(session_map) = sessions.get(session_id) else {
             return PendingContext {
-                merged: String::new(),
-                entries: Vec::new(),
+                merged: String::default(),
+                entries: Vec::default(),
                 has_content: false,
             };
         };
 
         if session_map.is_empty() {
             return PendingContext {
-                merged: String::new(),
-                entries: Vec::new(),
+                merged: String::default(),
+                entries: Vec::default(),
                 has_content: false,
             };
         }
@@ -270,7 +247,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_register_and_consume() {
-        let collector = ContextCollector::new();
+        let collector = ContextCollector::default();
         collector
             .register(
                 "sess-1",
@@ -292,7 +269,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_priority_ordering() {
-        let collector = ContextCollector::new();
+        let collector = ContextCollector::default();
         collector
             .register(
                 "s",
@@ -325,7 +302,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_deduplication() {
-        let collector = ContextCollector::new();
+        let collector = ContextCollector::default();
         collector
             .register(
                 "s",
@@ -358,7 +335,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_inject_context_into_text() {
-        let collector = ContextCollector::new();
+        let collector = ContextCollector::default();
         collector
             .register(
                 "s",

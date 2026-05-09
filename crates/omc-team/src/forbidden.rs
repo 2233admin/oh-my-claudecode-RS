@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn block_action_returns_err() {
-        let mut guard = ActionGuard::new();
+        let mut guard = ActionGuard::default();
         guard.add_rule(block_rule());
         let result = guard.check("agent-1", "Lead", "execute code directly");
         assert!(result.is_err());
@@ -189,7 +189,7 @@ mod tests {
 
     #[test]
     fn warn_action_returns_ok_but_logs() {
-        let mut guard = ActionGuard::new();
+        let mut guard = ActionGuard::default();
         guard.add_rule(warn_rule());
         let result = guard.check("agent-2", "Executor", "modify CI config");
         assert!(result.is_ok());
@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     fn log_action_returns_ok() {
-        let mut guard = ActionGuard::new();
+        let mut guard = ActionGuard::default();
         guard.add_rule(log_rule());
         let result = guard.check("agent-3", "Researcher", "read-only audit");
         assert!(result.is_ok());
@@ -209,7 +209,7 @@ mod tests {
 
     #[test]
     fn role_specific_rules_only_apply_to_matching_roles() {
-        let mut guard = ActionGuard::new();
+        let mut guard = ActionGuard::default();
         guard.add_rule(block_rule());
         // Executor is not blocked by a rule targeting Lead
         let result = guard.check("agent-4", "Executor", "execute code directly");
@@ -219,7 +219,7 @@ mod tests {
 
     #[test]
     fn audit_log_accumulates_entries() {
-        let mut guard = ActionGuard::new();
+        let mut guard = ActionGuard::default();
         guard.add_rule(block_rule());
         guard.add_rule(warn_rule());
         guard.add_rule(log_rule());
@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn clear_log_empties_entries() {
-        let mut guard = ActionGuard::new();
+        let mut guard = ActionGuard::default();
         guard.add_rule(block_rule());
         let _ = guard.check("a1", "Lead", "execute code directly");
         assert_eq!(guard.audit_log().len(), 1);
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn load_rules_populates_rules() {
-        let mut guard = ActionGuard::new();
+        let mut guard = ActionGuard::default();
         assert!(guard.rules().is_empty());
         guard.load_rules(vec![block_rule(), warn_rule()]);
         assert_eq!(guard.rules().len(), 2);

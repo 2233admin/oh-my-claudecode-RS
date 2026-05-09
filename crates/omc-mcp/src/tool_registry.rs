@@ -31,7 +31,7 @@ impl ToolCache {
     fn new(ttl: Duration) -> Self {
         Self {
             tools: Vec::new(),
-            fetched_at: Instant::now() - ttl,
+            fetched_at: ttl.elapsed(),
             ttl,
         }
     }
@@ -130,7 +130,7 @@ impl McpToolRegistry {
 
     /// Force-invalidate the cache so the next call to `tools()` refreshes it.
     pub fn invalidate_cache(&mut self) {
-        self.cache.fetched_at = Instant::now() - self.cache.ttl;
+        self.cache.fetched_at = self.cache.ttl.elapsed();
     }
 
     /// Collect tools from `crate::all_tools()` filtered by enabled group prefixes.
@@ -160,7 +160,7 @@ impl McpToolRegistry {
 
 impl Default for McpToolRegistry {
     fn default() -> Self {
-        Self::new()
+        Self { tool_factories: Vec::new() }
     }
 }
 
@@ -170,7 +170,7 @@ mod tests {
 
     #[test]
     fn default_groups_exist() {
-        let registry = McpToolRegistry::new();
+        let registry = McpToolRegistry::default();
         assert_eq!(registry.groups().len(), 6);
         assert!(registry.groups().contains_key("core"));
         assert!(registry.groups().contains_key("agents"));
@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn default_enabled_groups() {
-        let registry = McpToolRegistry::new();
+        let registry = McpToolRegistry::default();
         assert!(registry.is_group_enabled("core"));
         assert!(registry.is_group_enabled("memory"));
         assert!(!registry.is_group_enabled("agents"));
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn toggle_group() {
-        let mut registry = McpToolRegistry::new();
+        let mut registry = McpToolRegistry::default();
         assert!(registry.is_group_enabled("core"));
 
         registry.set_group_enabled("core", false);
@@ -205,14 +205,14 @@ mod tests {
 
     #[test]
     fn toggle_nonexistent_group_is_noop() {
-        let mut registry = McpToolRegistry::new();
+        let mut registry = McpToolRegistry::default();
         registry.set_group_enabled("nonexistent", true);
         assert!(!registry.is_group_enabled("nonexistent"));
     }
 
     #[test]
     fn tools_returns_core_and_memory_by_default() {
-        let mut registry = McpToolRegistry::new();
+        let mut registry = McpToolRegistry::default();
         let tools = registry.tools();
 
         let names: Vec<String> = tools.iter().map(|t| t.definition().name).collect();
@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn disabling_group_removes_tools() {
-        let mut registry = McpToolRegistry::new();
+        let mut registry = McpToolRegistry::default();
 
         // Sanity: memory tools present
         let names_before: Vec<String> = registry
@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn enabling_disabled_group_adds_tools() {
-        let mut registry = McpToolRegistry::new();
+        let mut registry = McpToolRegistry::default();
 
         // agents disabled by default
         let names_before: Vec<String> = registry
@@ -279,7 +279,7 @@ mod tests {
 
     #[test]
     fn register_custom_group() {
-        let mut registry = McpToolRegistry::new();
+        let mut registry = McpToolRegistry::default();
 
         registry.register_group(ToolGroup {
             name: "custom".into(),
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn cache_refreshes_after_invalidation() {
-        let mut registry = McpToolRegistry::new();
+        let mut registry = McpToolRegistry::default();
 
         // Populate cache
         let _ = registry.tools();
@@ -320,7 +320,7 @@ mod tests {
 
     #[test]
     fn empty_when_all_groups_disabled() {
-        let mut registry = McpToolRegistry::new();
+        let mut registry = McpToolRegistry::default();
         for name in ["core", "memory"] {
             registry.set_group_enabled(name, false);
         }

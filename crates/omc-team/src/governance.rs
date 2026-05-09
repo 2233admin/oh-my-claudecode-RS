@@ -242,7 +242,7 @@ pub struct AuditLog {
 
 impl Default for AuditLog {
     fn default() -> Self {
-        Self::new()
+        Self {}
     }
 }
 
@@ -308,7 +308,7 @@ impl SentinelGate {
             governance,
             permissions,
             enforcement,
-            audit_log: Mutex::new(AuditLog::new()),
+            audit_log: Mutex::new(AuditLog::default()),
         }
     }
 
@@ -342,7 +342,7 @@ impl SentinelGate {
             action: "task_dispatch".to_string(),
             target: task.to_string(),
             outcome: outcome.clone(),
-            details: delegation_check.as_ref().err().map(|e| e.to_string()),
+            details: delegation_check.as_ref().map_err(|e| e.to_string()),
         });
 
         match (delegation_check, &self.enforcement) {
@@ -392,7 +392,7 @@ impl SentinelGate {
 
         self.log_entry(AuditEntry {
             timestamp: chrono::Utc::now().to_rfc3339(),
-            actor: String::new(),
+            actor: String::default(),
             action: format!("file_{operation:?}").to_lowercase(),
             target: path.to_string(),
             outcome: outcome.clone(),
@@ -433,7 +433,7 @@ impl SentinelGate {
 
         self.log_entry(AuditEntry {
             timestamp: chrono::Utc::now().to_rfc3339(),
-            actor: String::new(),
+            actor: String::default(),
             action: "command_execution".to_string(),
             target: command.to_string(),
             outcome: outcome.clone(),
@@ -465,7 +465,7 @@ impl SentinelGate {
 
         self.log_entry(AuditEntry {
             timestamp: chrono::Utc::now().to_rfc3339(),
-            actor: String::new(),
+            actor: String::default(),
             action: "phase_transition".to_string(),
             target: format!("{from}->{to}"),
             outcome: outcome.clone(),
@@ -798,7 +798,7 @@ mod tests {
 
     #[test]
     fn audit_log_record_and_entries() {
-        let mut log = AuditLog::new();
+        let mut log = AuditLog::default();
         assert!(log.entries().is_empty());
 
         log.record(AuditEntry {
@@ -857,12 +857,12 @@ mod tests {
 
     #[test]
     fn audit_log_clear() {
-        let mut log = AuditLog::new();
+        let mut log = AuditLog::default();
         log.record(AuditEntry {
-            timestamp: String::new(),
-            actor: String::new(),
-            action: String::new(),
-            target: String::new(),
+            timestamp: String::default(),
+            actor: String::default(),
+            action: String::default(),
+            target: String::default(),
             outcome: AuditOutcome::Allowed,
             details: None,
         });
@@ -873,7 +873,7 @@ mod tests {
 
     #[test]
     fn audit_log_flush_without_path_is_noop() {
-        let log = AuditLog::new();
+        let log = AuditLog::default();
         assert!(log.flush().is_ok());
     }
 

@@ -279,7 +279,8 @@ impl BackgroundManager {
                     self.concurrency.release(key);
                 }
 
-                let task_clone = task.clone();
+                let mut task_clone = Default::default();
+                task_clone.clone_from(&*task);
                 drop(tasks);
                 self.mark_for_notification(task_clone);
                 return;
@@ -449,7 +450,7 @@ impl BackgroundManager {
         let mut lines = vec![format!(
             "Background Tasks: {running} running, {queued} queued, {total} total"
         )];
-        lines.push(String::new());
+        lines.push(String::default());
 
         for task in tasks.values() {
             let duration = Self::format_duration(task.started_at, task.completed_at);

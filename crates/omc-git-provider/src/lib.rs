@@ -120,8 +120,7 @@ fn extract_host(url: &str) -> &str {
         let after_scheme = &url[pos + 3..];
         let after_at = after_scheme
             .split_once('@')
-            .map(|(_, h)| h)
-            .unwrap_or(after_scheme);
+            .map_or(after_scheme, |(_, h)| h);
         return after_at.split('/').next().unwrap_or("");
     }
     if let Some(at_pos) = s.find('@') {

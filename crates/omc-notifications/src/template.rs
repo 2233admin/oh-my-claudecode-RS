@@ -81,8 +81,7 @@ fn project_display(payload: &NotificationPayload) -> String {
     if let Some(path) = &payload.project_path {
         return std::path::Path::new(path)
             .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "unknown".into());
+            .map_or_else(|| "unknown".into(), |n| n.to_string_lossy().into_owned());
     }
     "unknown".into()
 }
@@ -98,16 +97,7 @@ fn build_footer(payload: &NotificationPayload) -> String {
 }
 
 /// Build tmux tail block with code fence, or empty string.
-fn build_tmux_tail_block(payload: &NotificationPayload) -> String {
-    let Some(tail) = &payload.tmux_tail else {
-        return String::new();
-    };
-    let trimmed = tail.trim();
-    if trimmed.is_empty() {
-        return String::new();
-    }
-    format!("\n\n**Recent output:**\n```\n{trimmed}\n```")
-}
+```\n{trimmed}\n
 
 /// Build the full variable map from a notification payload.
 pub fn compute_variables(
@@ -231,7 +221,7 @@ pub fn compute_variables(
         "iterationDisplay".into(),
         match (payload.iteration, payload.max_iterations) {
             (Some(i), Some(m)) => format!("{i}/{m}"),
-            _ => String::new(),
+            _ => String::default(),
         },
     );
     vars.insert(
@@ -270,7 +260,7 @@ fn process_conditionals(
             let content = &caps[2];
             match vars.get(var_name) {
                 Some(val) if !val.is_empty() => content.to_string(),
-                _ => String::new(),
+                _ => String::default(),
             }
         })
         .into_owned()
@@ -393,7 +383,7 @@ mod tests {
         NotificationPayload {
             event: NotificationEvent::SessionStart,
             session_id: "test-123".into(),
-            message: String::new(),
+            message: String::default(),
             timestamp: "2026-01-15T09:30:00Z".into(),
             tmux_session: Some("my-session".into()),
             project_path: Some("/home/user/my-project".into()),

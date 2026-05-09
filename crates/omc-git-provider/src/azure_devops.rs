@@ -141,8 +141,7 @@ impl GitProvider for AzureDevOpsProvider {
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status()
-            .map(|s| s.success())
-            .unwrap_or(false)
+            .map_or(false, |s| s.success())
     }
 
     fn required_cli(&self) -> Option<&str> {

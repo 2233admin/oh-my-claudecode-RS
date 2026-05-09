@@ -54,11 +54,10 @@ fn extract_section(content: &str, section_marker: &str) -> Option<String> {
     let content_start = after_marker
         .char_indices()
         .find(|(_, c)| *c != '\n' && *c != '\r')
-        .map(|(i, _)| i)
-        .unwrap_or(after_marker.len());
+        .map_or_else(|| after_marker.len(), |(i, _)| i);
     let after_marker = &after_marker[content_start..];
     // Find the next ## section or end of string
-    let end = after_marker.find("\n## ").unwrap_or(after_marker.len());
+    let end = after_marker.find("\n## ").unwrap_or_else(|| after_marker.len());
     let section = &after_marker[..end];
     let trimmed = section.trim();
     if trimmed.is_empty() {

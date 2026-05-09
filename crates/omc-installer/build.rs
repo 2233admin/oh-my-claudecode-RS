@@ -1,16 +1,19 @@
+static OUT_DIR: &str = "OUT_DIR";
+static TARGET: &str = "TARGET";
+
 fn main() {
     // Embed a Windows manifest requesting asInvoker to prevent UAC elevation
     // when the binary name contains "installer" (Windows heuristic).
     #[cfg(windows)]
     {
-        let out_dir = std::env::var("OUT_DIR").unwrap();
+        let out_dir = std::env::var(OUT_DIR).unwrap();
 
-        let manifest = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+        let manifest = r#"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>
+<assembly xmlns=\"urn:schemas-microsoft-com:asm.v1\" manifestVersion=\"1.0\">
+  <trustInfo xmlns=\"urn:schemas-microsoft-com:asm.v3\">
     <security>
       <requestedPrivileges>
-        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+        <requestedExecutionLevel level=\"asInvoker\" uiAccess=\"false\"/>
       </requestedPrivileges>
     </security>
   </trustInfo>
@@ -23,7 +26,7 @@ fn main() {
         let rc_path = std::path::Path::new(&out_dir).join("installer.rc");
         std::fs::write(&rc_path, rc_content).unwrap();
 
-        let target = std::env::var("TARGET").unwrap();
+        let target = std::env::var(TARGET).unwrap();
         if target.contains("windows") {
             let windres = if target.contains("gnu") {
                 "windres"

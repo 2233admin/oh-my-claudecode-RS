@@ -81,7 +81,7 @@ fn extract_section(content: &str, section: &str) -> Option<String> {
     let after_header = &content[start + section_header.len()..];
 
     // Find next section header or end of file
-    let end = after_header.find("\n## ").unwrap_or(after_header.len());
+    let end = after_header.find("\n## ").unwrap_or_else(|| after_header.len());
 
     let section_content = after_header[..end].trim();
     if section_content.is_empty() {
@@ -252,7 +252,7 @@ pub fn notepad_prune(days_old: Option<u32>, working_directory: Option<&str>) -> 
 
     // Rebuild the section
     let new_section = if kept_lines.is_empty() {
-        String::new()
+        String::default()
     } else {
         kept_lines.join("\n")
     };
@@ -284,11 +284,9 @@ pub fn notepad_stats(working_directory: Option<&str>) -> ToolResult {
 
     let total_size = content.len();
     let priority_size = extract_section(&content, "Priority Context")
-        .map(|s| s.len())
-        .unwrap_or(0);
+        .map_or(0, |s| s.len());
     let working_memory_entries = extract_section(&content, "Working Memory")
-        .map(|s| s.lines().filter(|l| !l.trim().is_empty()).count())
-        .unwrap_or(0);
+        .map_or(0, |s| s.lines().filter(|l| !l.trim().is_empty()).count());
     let oldest_entry = find_oldest_entry(&content);
 
     ToolResult::text(format!(
@@ -312,12 +310,12 @@ fn resolve_paths(working_directory: Option<&str>) -> OmcPaths {
 /// Replace the content of a section (or create it if missing).
 fn replace_section(content: &str, section_name: &str, new_content: &str) -> String {
     let header = format!("## {section_name}");
-    let mut result = String::new();
+    let mut result = String::default();
 
     if let Some(start) = content.find(&header) {
         // Find the end of this section
         let after_header = &content[start + header.len()..];
-        let end = after_header.find("\n## ").unwrap_or(after_header.len());
+        let end = after_header.find("\n## ").unwrap_or_else(|| after_header.len());
 
         // Keep everything before and after this section
         let before = &content[..start];
@@ -357,12 +355,12 @@ fn append_to_section(content: &str, section_name: &str, entry: &str) -> String {
 
     if let Some(start) = content.find(&header) {
         let after_header = &content[start + header.len()..];
-        let end = after_header.find("\n## ").unwrap_or(after_header.len());
+        let end = after_header.find("\n## ").unwrap_or_else(|| after_header.len());
 
         let before = &content[..start + header.len() + end];
         let after = &content[start + header.len() + end..];
 
-        let mut result = String::new();
+        let mut result = String::default();
         result.push_str(before);
         if !before.ends_with('\n') {
             result.push('\n');
@@ -372,7 +370,7 @@ fn append_to_section(content: &str, section_name: &str, entry: &str) -> String {
         result.push_str(after);
         result
     } else {
-        let mut result = String::new();
+        let mut result = String::default();
         result.push_str(content);
         if !content.is_empty() && !content.ends_with('\n') {
             result.push('\n');

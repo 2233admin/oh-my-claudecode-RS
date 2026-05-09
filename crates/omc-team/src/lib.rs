@@ -224,8 +224,10 @@ pub fn init_project(root: &Path) -> Result<InitReport, String> {
     Ok(report)
 }
 
+static CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: &str = "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS";
+
 pub fn check_claude_ready() -> Result<(), String> {
-    if env::var("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS")
+    if env::var(CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS)
         .ok()
         .as_deref()
         != Some("1")
@@ -292,7 +294,7 @@ pub fn prepare_start_mission(
             issue_ref: imported.issue_ref,
             issue_id: imported.issue_id,
             team_name,
-            mission_path: String::new(),
+            mission_path: String::default(),
             started_at: unix_timestamp(),
             lease_comment_id: Some(lease_comment_id),
             start_comment_id: None,
@@ -313,8 +315,7 @@ pub fn prepare_start_mission(
         id: task.meta.id.clone(),
         team_name: run_record
             .as_ref()
-            .map(|record| record.team_name.clone())
-            .unwrap_or_else(|| slug(&task.meta.id)),
+            .map_or_else(|| slug(&task.meta.id), |record| record.team_name.clone()),
         prompt: if opts.runtime == RuntimeKind::Claude {
             implementation_prompt(&task, &opts)
         } else {
@@ -659,7 +660,9 @@ fn upsert_settings(root: &Path, report: &mut InitReport) -> Result<(), String> {
         "hooks": [{"type": "command", "command": "omc-team hook teammate-idle"}]
     }]);
 
-    let rendered = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())? + "\n";
+    let mut rendered = serde_json::to_string_pretty(&value)
+        .map_err(|e| e.to_string())?;
+    rendered.push('\n');
     upsert_file(path, &rendered, report)
 }
 
@@ -954,7 +957,7 @@ fn looks_like_linear_id(raw: &str) -> bool {
 }
 
 pub(crate) fn slug(raw: &str) -> String {
-    let mut out = String::new();
+    let mut out = String::default();
     for ch in raw.chars() {
         if ch.is_ascii_alphanumeric() {
             out.push(ch.to_ascii_lowercase());
@@ -1028,8 +1031,7 @@ Follow OMC Native Agent Discipline and repository contract discipline: preserve 
 pub(crate) fn unix_timestamp() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs())
-        .unwrap_or(0)
+        .map_or(0, |duration| duration.as_secs())
 }
 
 #[cfg(test)]
@@ -1086,7 +1088,7 @@ mod tests {
                 github_repo: None,
                 github_issue_number: None,
             },
-            body: String::new(),
+            body: String::default(),
         };
         assert!(ensure_ready(&task).unwrap_err().contains("verification"));
     }

@@ -94,13 +94,13 @@ pub fn parse_frontmatter(raw: &str) -> Result<(WikiPageFrontmatter, String), Wik
     let normalized = raw.replace("\r\n", "\n");
     let (yaml_block, content) = {
         let trimmed = normalized.trim_start_matches("---\n");
-        let parts: Vec<&str> = trimmed.splitn(2, "\n---\n").collect();
-        if parts.len() != 2 {
+        if let Some((block, cont)) = trimmed.split_once("\n---\n") {
+            (block.to_string(), cont.to_string())
+        } else {
             return Err(WikiError::FrontmatterParse(
                 "missing closing '---' delimiter".into(),
             ));
         }
-        (parts[0].to_string(), parts[1].to_string())
     };
 
     let fm = parse_simple_yaml(&yaml_block);
@@ -348,7 +348,7 @@ pub fn append_log(root: &Path, entry: &WikiLogEntry) -> Result<(), WikiError> {
 fn update_index(root: &Path) -> Result<(), WikiError> {
     let pages = read_all_pages(root)?;
     let mut by_category: std::collections::BTreeMap<String, Vec<&WikiPage>> =
-        std::collections::BTreeMap::new();
+        std::collections::BTreeMap::default();
 
     for page in &pages {
         by_category
@@ -359,18 +359,18 @@ fn update_index(root: &Path) -> Result<(), WikiError> {
 
     let mut lines = vec![
         "# Wiki Index".to_string(),
-        String::new(),
+        String::default(),
         format!(
             "> {} pages | Last updated: {}",
             pages.len(),
             chrono::Utc::now().to_rfc3339()
         ),
-        String::new(),
+        String::default(),
     ];
 
     for (cat, cat_pages) in &by_category {
         lines.push(format!("## {}", cat));
-        lines.push(String::new());
+        lines.push(String::default());
         for page in cat_pages {
             let summary = page
                 .content
@@ -388,7 +388,7 @@ fn update_index(root: &Path) -> Result<(), WikiError> {
                 page.frontmatter.title, page.filename, truncated
             ));
         }
-        lines.push(String::new());
+        lines.push(String::default());
     }
 
     let wiki_dir = ensure_wiki_dir(root)?;

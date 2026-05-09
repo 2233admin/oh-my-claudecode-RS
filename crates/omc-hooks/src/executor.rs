@@ -61,7 +61,13 @@ impl HookExecutor {
     }
 
     pub fn with_envs(mut self, env: HashMap<String, String>) -> Self {
-        self.env.extend(env);
+        for (key, value) in env {
+            if let Some(existing) = self.env.get_mut(&key) {
+                *existing += &value;
+            } else {
+                self.env.insert(key, value);
+            }
+        }
         self
     }
 
@@ -208,7 +214,13 @@ impl HookExecutor {
 
 impl Default for HookExecutor {
     fn default() -> Self {
-        Self::new()
+        Self {
+            stdin: Stdio::inherit(),
+            stdout: Stdio::inherit(),
+            stderr: Stdio::inherit(),
+            hooks: Vec::new(),
+            override_exit_code: None,
+        }
     }
 }
 
@@ -218,7 +230,7 @@ mod tests {
 
     #[test]
     fn hook_executor_default_creation() {
-        let executor = HookExecutor::new();
+        let executor = HookExecutor::default();
         assert_eq!(executor.default_timeout, Duration::from_secs(30));
         assert!(executor.cwd.is_none());
         assert!(executor.env.is_empty());
@@ -226,28 +238,29 @@ mod tests {
 
     #[test]
     fn hook_executor_with_timeout() {
-        let executor = HookExecutor::new().with_timeout(Duration::from_secs(60));
+        let executor = HookExecutor::default().with_timeout(Duration::from_secs(60));
         assert_eq!(executor.default_timeout, Duration::from_secs(60));
     }
 
     #[test]
     fn hook_executor_with_cwd() {
-        let executor = HookExecutor::new().with_cwd(PathBuf::from("/tmp"));
-        assert_eq!(executor.cwd, Some(PathBuf::from("/tmp")));
+        let temp_dir = tempdir().unwrap();
+        let executor = HookExecutor::default().with_cwd(temp_dir.path().to_path_buf());
+        assert_eq!(executor.cwd, Some(temp_dir.path().to_path_buf()));
     }
 
     #[test]
     fn hook_executor_with_env() {
-        let executor = HookExecutor::new().with_env("KEY", "VALUE");
+        let executor = HookExecutor::default().with_env("KEY", "VALUE");
         assert_eq!(executor.env.get("KEY"), Some(&"VALUE".to_string()));
     }
 
     #[test]
     fn hook_executor_with_envs() {
-        let mut env = HashMap::new();
+        let mut env = HashMap::default();
         env.insert("A".to_string(), "1".to_string());
         env.insert("B".to_string(), "2".to_string());
-        let executor = HookExecutor::new().with_envs(env);
+        let executor = HookExecutor::default().with_envs(env);
         assert_eq!(executor.env.get("A"), Some(&"1".to_string()));
         assert_eq!(executor.env.get("B"), Some(&"2".to_string()));
     }
@@ -273,7 +286,7 @@ mod tests {
 
     #[test]
     fn execute_echo_command() {
-        let executor = HookExecutor::new();
+        let executor = HookExecutor::default();
         let result = executor.execute("echo hello", None);
         assert!(result.error.is_none());
         assert!(result.hook_specific_output.is_some());
@@ -284,7 +297,7 @@ mod tests {
 
     #[test]
     fn execute_with_input() {
-        let executor = HookExecutor::new();
+        let executor = HookExecutor::default();
         let result = executor.execute("cat", Some("test input"));
         assert!(result.error.is_none());
         if let Some(output) = result.hook_specific_output {
@@ -294,7 +307,7 @@ mod tests {
 
     #[test]
     fn execute_chain() {
-        let executor = HookExecutor::new();
+        let executor = HookExecutor::default();
         let commands = vec!["echo hello", "cat"];
         let result = executor.execute_chain(&commands, None);
         assert!(result.error.is_none());
@@ -303,7 +316,7 @@ mod tests {
 
     #[test]
     fn execute_empty_command() {
-        let executor = HookExecutor::new();
+        let executor = HookExecutor::default();
         let result = executor.execute("", None);
         assert!(result.error.is_some());
         assert!(result.error.unwrap().contains("Empty command"));
@@ -311,7 +324,7 @@ mod tests {
 
     #[test]
     fn execute_nonexistent_command() {
-        let executor = HookExecutor::new();
+        let executor = HookExecutor::default();
         let result = executor.execute("nonexistent_command_12345", None);
         assert!(result.error.is_some());
     }

@@ -69,14 +69,14 @@ const TRACKED_TOOLS: &[&str] = &[
 #[derive(Clone)]
 pub struct RulesInjector {
     working_directory: PathBuf,
-    session_caches: Arc<RwLock<HashMap<String, SessionCache>>>,
+    session_caches: Arc<DashMap<String, SessionCache>>,
 }
 
 impl RulesInjector {
     pub fn new(working_directory: impl Into<PathBuf>) -> Self {
         Self {
             working_directory: working_directory.into(),
-            session_caches: Arc::new(RwLock::new(HashMap::new())),
+            session_caches: Arc::new(DashMap::new()),
         }
     }
 
@@ -132,12 +132,16 @@ impl RulesInjector {
 
             let relative_path = project_root
                 .as_ref()
-                .map(|root| {
-                    pathdiff::diff_paths(&candidate.path, root)
-                        .map(|p| p.to_string_lossy().to_string())
-                        .unwrap_or_else(|| candidate.path.to_string_lossy().to_string())
-                })
-                .unwrap_or_else(|| candidate.path.to_string_lossy().to_string());
+                .map_or_else(
+                    || candidate.path.to_string_lossy().to_string(),
+                    |root| {
+                        pathdiff::diff_paths(&candidate.path, root)
+                            .map_or_else(
+                                || candidate.path.to_string_lossy().to_string(),
+                                |p| p.to_string_lossy().to_string(),
+                            )
+                    },
+                );
 
             to_inject.push(RuleToInject {
                 relative_path,
@@ -157,10 +161,10 @@ impl RulesInjector {
     /// Format rules for injection into output.
     pub fn format_rules_for_injection(rules: &[RuleToInject]) -> String {
         if rules.is_empty() {
-            return String::new();
+            return String::default();
         }
 
-        let mut output = String::new();
+        let mut output = String::default();
         for rule in rules {
             output.push_str(&format!(
                 "\n\n[Rule: {}]\n[Match: {}]\n{}",
@@ -388,7 +392,7 @@ fn content_hash(content: &str) -> String {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
 
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = DefaultHasher::default();
     content.hash(&mut hasher);
     format!("{:016x}", hasher.finish())
 }
@@ -399,8 +403,10 @@ pub async fn get_rules_for_path(
     working_directory: Option<&str>,
 ) -> Vec<RuleToInject> {
     let cwd = working_directory
-        .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+        .map_or_else(
+            || std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            PathBuf::from,
+        );
 
     let injector = RulesInjector::new(cwd);
     injector

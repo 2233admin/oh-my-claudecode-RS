@@ -120,7 +120,7 @@ mod tests {
             Ok(ExecuteResult {
                 success: true,
                 stdout: "ok".into(),
-                stderr: String::new(),
+                stderr: String::default(),
                 markers: vec![],
                 timing: TimingInfo {
                     started_at: "2026-01-01T00:00:00Z".into(),
@@ -201,7 +201,7 @@ mod tests {
         let executor = MockExecutor;
         let input = PythonReplInput {
             action: ReplAction::GetState,
-            research_session_id: String::new(),
+            research_session_id: String::default(),
             code: None,
             execution_label: None,
             execution_timeout: None,

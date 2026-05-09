@@ -156,7 +156,7 @@ impl McpServer {
         let args = params
             .get("arguments")
             .cloned()
-            .unwrap_or(Value::Object(serde_json::Map::new()));
+            .unwrap_or_else(|| Value::Object(serde_json::Map::new()));
 
         // Find the tool
         let tool = match self.tools.iter().find(|t| t.definition().name == tool_name) {

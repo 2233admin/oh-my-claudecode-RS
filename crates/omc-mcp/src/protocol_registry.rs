@@ -128,13 +128,16 @@ impl ProtocolRegistry {
 
 impl Default for ProtocolRegistry {
     fn default() -> Self {
-        Self::new()
+        Self {
+            protocols: HashMap::new(),
+            names: HashMap::new(),
+        }
     }
 }
 
 /// Create a new shared (thread-safe) registry.
 pub fn new_shared() -> SharedRegistry {
-    Arc::new(RwLock::new(ProtocolRegistry::new()))
+    Arc::new(RwLock::new(ProtocolRegistry::default()))
 }
 
 #[cfg(test)]
@@ -189,7 +192,7 @@ mod tests {
 
     #[tokio::test]
     async fn register_and_list_all() {
-        let mut reg = ProtocolRegistry::new();
+        let mut reg = ProtocolRegistry::default();
         let proto = Arc::new(StubProtocol::new("mcp", &["tool_a", "tool_b"]));
         reg.register(proto).await.unwrap();
 
@@ -202,7 +205,7 @@ mod tests {
 
     #[tokio::test]
     async fn execute_routes_to_correct_protocol() {
-        let mut reg = ProtocolRegistry::new();
+        let mut reg = ProtocolRegistry::default();
         let proto = Arc::new(StubProtocol::new("mcp", &["tool_a"]));
         reg.register(proto).await.unwrap();
 
@@ -216,7 +219,7 @@ mod tests {
 
     #[tokio::test]
     async fn execute_any_auto_routes() {
-        let mut reg = ProtocolRegistry::new();
+        let mut reg = ProtocolRegistry::default();
         let mcp = Arc::new(StubProtocol::new("mcp", &["tool_a"]));
         let http = Arc::new(StubProtocol::new("http", &["tool_b"]));
         reg.register(mcp).await.unwrap();
@@ -237,7 +240,7 @@ mod tests {
 
     #[tokio::test]
     async fn unknown_protocol_returns_error() {
-        let mut reg = ProtocolRegistry::new();
+        let mut reg = ProtocolRegistry::default();
         let proto = Arc::new(StubProtocol::new("mcp", &["tool_a"]));
         reg.register(proto).await.unwrap();
 
@@ -250,7 +253,7 @@ mod tests {
 
     #[tokio::test]
     async fn unknown_tool_returns_error() {
-        let mut reg = ProtocolRegistry::new();
+        let mut reg = ProtocolRegistry::default();
         let proto = Arc::new(StubProtocol::new("mcp", &["tool_a"]));
         reg.register(proto).await.unwrap();
 
@@ -263,7 +266,7 @@ mod tests {
 
     #[tokio::test]
     async fn multiple_protocols_with_different_tools() {
-        let mut reg = ProtocolRegistry::new();
+        let mut reg = ProtocolRegistry::default();
         let mcp = Arc::new(StubProtocol::new("mcp", &["read_state", "write_state"]));
         let http = Arc::new(StubProtocol::new("http", &["fetch_url"]));
         let grpc = Arc::new(StubProtocol::new("grpc", &["call_service"]));
@@ -280,7 +283,7 @@ mod tests {
 
     #[tokio::test]
     async fn reindex_after_late_registration() {
-        let mut reg = ProtocolRegistry::new();
+        let mut reg = ProtocolRegistry::default();
         let mcp = Arc::new(StubProtocol::new("mcp", &["tool_a"]));
         reg.register(mcp).await.unwrap();
         assert_eq!(reg.tool_count(), 1);

@@ -65,7 +65,7 @@ impl NoveltyAwareStrategy {
 
 impl Default for NoveltyAwareStrategy {
     fn default() -> Self {
-        Self::new(2.5, 10)
+        Self(2.5, 10)
     }
 }
 
@@ -108,7 +108,7 @@ impl ThresholdStrategy {
 
 impl Default for ThresholdStrategy {
     fn default() -> Self {
-        Self::new(0.8)
+        Self(0.8)
     }
 }
 

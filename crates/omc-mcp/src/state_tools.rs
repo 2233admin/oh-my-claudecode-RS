@@ -406,57 +406,7 @@ impl McpTool for StateWriteTool {
             }
         }
 
-        // Merge custom state fields (explicit params take precedence)
-        if let Some(custom) = args.get("state").and_then(|v| v.as_object()) {
-            for (k, v) in custom {
-                if !built.contains_key(k) {
-                    built.insert(k.clone(), v.clone());
-                }
-            }
-        }
-
-        // Add metadata
-        let now = chrono::Utc::now().to_rfc3339();
-        built.insert(
-            "_meta".into(),
-            serde_json::json!({
-                "mode": mode,
-                "sessionId": session_id,
-                "updatedAt": now,
-                "updatedBy": "state_write_tool"
-            }),
-        );
-
-        let value = Value::Object(built);
-
-        match atomic_write_json(&path, &value) {
-            Ok(()) => {
-                let sid_info = session_id
-                    .as_deref()
-                    .map(|s| format!(" (session: {s})"))
-                    .unwrap_or_else(|| " (legacy path)".into());
-                let pretty = serde_json::to_string_pretty(&value).unwrap_or_default();
-                ToolResult::ok(format!(
-                    "Successfully wrote state for {mode}{sid_info}\nPath: {}\n\n```json\n{pretty}\n```",
-                    path.display()
-                ))
-            }
-            Err(e) => ToolResult::error(format!("Error writing state for {mode}: {e}")),
-        }
-    }
-}
-
-// ============================================================================
-// state_clear
-// ============================================================================
-
-pub struct StateClearTool;
-
-impl McpTool for StateClearTool {
-    fn definition(&self) -> ToolDefinition {
-        let mut properties = HashMap::new();
-        properties.insert(
-            "mode".into(),
+```json\n{pretty}\n
             SchemaProperty {
                 prop_type: "string".into(),
                 description: Some("The mode to clear state for".into()),
