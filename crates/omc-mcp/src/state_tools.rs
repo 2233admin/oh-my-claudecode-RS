@@ -3,12 +3,27 @@
 //! Provides tools for reading, writing, and managing mode state files.
 //! All paths are resolved relative to the OMC state directory.
 
+use omc_shared::paths::validate_path_segment;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::tools::{McpTool, SchemaProperty, ToolDefinition, ToolResult, ToolSchema};
+
+/// Validate untrusted path segments (mode / session_id) before they reach
+/// `state_path` and become joined onto the filesystem. Caller-provided
+/// strings can otherwise traverse out of `.omc/state/sessions/` via
+/// sequences like `../../etc`. Use at every tool `handle()` entry point.
+fn check_inputs(mode: Option<&str>, session_id: Option<&str>) -> std::result::Result<(), String> {
+    if let Some(m) = mode {
+        validate_path_segment(m, "mode").map_err(|e| e.to_string())?;
+    }
+    if let Some(sid) = session_id {
+        validate_path_segment(sid, "session_id").map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
 
 const STATE_TOOL_MODES: &[&str] = &[
     "autopilot",
@@ -146,6 +161,10 @@ impl McpTool for StateReadTool {
             .unwrap_or(".")
             .to_string();
         let session_id = str_arg(&args, "session_id").map(|s| s.to_string());
+
+        if let Err(e) = check_inputs(Some(mode), session_id.as_deref()) {
+            return ToolResult::error(e);
+        }
 
         let path = state_path(mode, session_id.as_deref(), &cwd);
 
@@ -383,6 +402,10 @@ impl McpTool for StateWriteTool {
             .to_string();
         let session_id = str_arg(&args, "session_id").map(|s| s.to_string());
 
+        if let Err(e) = check_inputs(Some(mode), session_id.as_deref()) {
+            return ToolResult::error(e);
+        }
+
         let path = state_path(mode, session_id.as_deref(), &cwd);
 
         // Build state from explicit params + custom state
@@ -406,7 +429,57 @@ impl McpTool for StateWriteTool {
             }
         }
 
-```json\n{pretty}\n
+        // Merge custom state fields (explicit params take precedence)
+        if let Some(custom) = args.get("state").and_then(|v| v.as_object()) {
+            for (k, v) in custom {
+                if !built.contains_key(k) {
+                    built.insert(k.clone(), v.clone());
+                }
+            }
+        }
+
+        // Add metadata
+        let now = chrono::Utc::now().to_rfc3339();
+        built.insert(
+            "_meta".into(),
+            serde_json::json!({
+                "mode": mode,
+                "sessionId": session_id,
+                "updatedAt": now,
+                "updatedBy": "state_write_tool"
+            }),
+        );
+
+        let value = Value::Object(built);
+
+        match atomic_write_json(&path, &value) {
+            Ok(()) => {
+                let sid_info = session_id
+                    .as_deref()
+                    .map(|s| format!(" (session: {s})"))
+                    .unwrap_or_else(|| " (legacy path)".into());
+                let pretty = serde_json::to_string_pretty(&value).unwrap_or_default();
+                ToolResult::ok(format!(
+                    "Successfully wrote state for {mode}{sid_info}\nPath: {}\n\n```json\n{pretty}\n```",
+                    path.display()
+                ))
+            }
+            Err(e) => ToolResult::error(format!("Error writing state for {mode}: {e}")),
+        }
+    }
+}
+
+// ============================================================================
+// state_clear
+// ============================================================================
+
+pub struct StateClearTool;
+
+impl McpTool for StateClearTool {
+    fn definition(&self) -> ToolDefinition {
+        let mut properties = HashMap::new();
+        properties.insert(
+            "mode".into(),
             SchemaProperty {
                 prop_type: "string".into(),
                 description: Some("The mode to clear state for".into()),
@@ -459,6 +532,10 @@ impl McpTool for StateWriteTool {
             .unwrap_or(".")
             .to_string();
         let session_id = str_arg(&args, "session_id").map(|s| s.to_string());
+
+        if let Err(e) = check_inputs(Some(mode), session_id.as_deref()) {
+            return ToolResult::error(e);
+        }
 
         let mut cleared_count = 0;
         let mut errors = Vec::new();
@@ -568,6 +645,10 @@ impl McpTool for StateListActiveTool {
             .unwrap_or(".")
             .to_string();
         let session_id = str_arg(&args, "session_id").map(|s| s.to_string());
+
+        if let Err(e) = check_inputs(None, session_id.as_deref()) {
+            return ToolResult::error(e);
+        }
 
         // Check each mode for active state
         let mut active_modes: Vec<String> = Vec::new();
@@ -711,6 +792,10 @@ impl McpTool for StateGetStatusTool {
             .unwrap_or(".")
             .to_string();
         let session_id = str_arg(&args, "session_id").map(|s| s.to_string());
+
+        if let Err(e) = check_inputs(mode.as_deref(), session_id.as_deref()) {
+            return ToolResult::error(e);
+        }
 
         if let Some(mode) = &mode {
             // Single mode status

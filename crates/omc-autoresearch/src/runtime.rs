@@ -47,12 +47,55 @@ pub fn parse_evaluator_result(raw: &str) -> Result<EvaluatorResult> {
     Ok(EvaluatorResult { pass, score })
 }
 
+/// Maximum byte length accepted for an evaluator command. Anything larger is
+/// almost certainly accidental (or hostile) and is rejected before reaching
+/// the shell.
+const MAX_EVALUATOR_COMMAND_BYTES: usize = 8192;
+
+/// Validate an evaluator command before handing it to `sh -c`.
+///
+/// `contract.sandbox.evaluator.command` is treated as a *trusted* input
+/// authored by the mission operator. The shell escape hatch is intentional
+/// (evaluators routinely use pipes / redirects / `&&` chains). This check is
+/// the cheap defense-in-depth layer: it rejects clearly malformed inputs
+/// (empty, NUL byte, runaway length) without touching the shell semantics
+/// the operator relies on.
+fn validate_evaluator_command(cmd: &str) -> Result<()> {
+    if cmd.trim().is_empty() {
+        return Err(AutoresearchError::Runtime(
+            "evaluator command must not be empty".into(),
+        ));
+    }
+    if cmd.contains('\0') {
+        return Err(AutoresearchError::Runtime(
+            "evaluator command contains NUL byte".into(),
+        ));
+    }
+    if cmd.len() > MAX_EVALUATOR_COMMAND_BYTES {
+        return Err(AutoresearchError::Runtime(format!(
+            "evaluator command too long: {} bytes > {} max",
+            cmd.len(),
+            MAX_EVALUATOR_COMMAND_BYTES
+        )));
+    }
+    Ok(())
+}
+
 /// Run the evaluator command and return a record.
 ///
 /// Skeleton: spawns the command and captures output. Full implementation will
 /// handle timeouts, exit-code analysis, and ledger integration.
+///
+/// SAFETY: `contract.sandbox.evaluator.command` is executed via `sh -c` to
+/// preserve shell features (pipes, redirects, chained commands) that
+/// real-world evaluators rely on. The string is treated as trusted input
+/// from the mission contract; [`validate_evaluator_command`] applies the
+/// minimal sanity checks before invocation. Do not relax that validation
+/// or accept evaluator commands from untrusted sources without a stronger
+/// sandbox.
 pub fn run_evaluator(contract: &MissionContract, worktree_path: &Path) -> Result<EvaluationRecord> {
     let cmd = &contract.sandbox.evaluator.command;
+    validate_evaluator_command(cmd)?;
     debug!(command = %cmd, worktree = %worktree_path.display(), "running evaluator");
 
     let output = std::process::Command::new("sh")

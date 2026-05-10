@@ -8,6 +8,8 @@ repository.workspace = true
 description = "Cross-tool interoperability layer for OMC/OMX communication"
 
 [dependencies]
+omc-shared = { path = "../omc-shared" }
+anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }

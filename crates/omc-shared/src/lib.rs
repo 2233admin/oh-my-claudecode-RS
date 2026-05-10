@@ -4,6 +4,7 @@ pub mod config;
 pub mod context_strategy;
 pub mod events;
 pub mod memory;
+pub mod paths;
 pub mod prelude;
 pub mod resilience;
 pub mod routing;

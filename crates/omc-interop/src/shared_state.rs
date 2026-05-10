@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
+use omc_shared::paths::validate_path_segment;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
@@ -18,6 +19,13 @@ pub enum InteropError {
 
     #[error("Message not found: {0}")]
     MessageNotFound(String),
+
+    #[error("invalid name: {0}")]
+    InvalidName(String),
+}
+
+fn check_segment(name: &str, kind: &str) -> Result<()> {
+    validate_path_segment(name, kind).map_err(|e| InteropError::InvalidName(e.to_string()))
 }
 
 pub type Result<T> = std::result::Result<T, InteropError>;
@@ -261,6 +269,7 @@ pub fn update_shared_task(
     result: Option<&str>,
     error: Option<&str>,
 ) -> Result<Option<SharedTask>> {
+    check_segment(task_id, "task_id")?;
     let task_path = interop_dir(cwd)
         .join("tasks")
         .join(format!("{task_id}.json"));
@@ -368,6 +377,7 @@ pub fn read_shared_messages(
 
 /// Mark a message as read.
 pub fn mark_message_as_read(cwd: &str, message_id: &str) -> Result<bool> {
+    check_segment(message_id, "message_id")?;
     let message_path = interop_dir(cwd)
         .join("messages")
         .join(format!("{message_id}.json"));

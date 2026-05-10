@@ -173,43 +173,43 @@ pub enum HooksConfigError {
 /// Supports:
 /// - `*` matches any sequence of characters
 /// - `?` matches any single character
+///
+/// Iterative two-pointer with star-backtracking. Worst case O(n*m), no
+/// recursion, single up-front Vec<char> allocation per call. Unicode-safe.
+/// Replaces a prior recursive implementation that re-allocated `String`
+/// at every star, exhibiting exponential blowup on patterns like
+/// `*a*b*c*` against pathological targets (gemini-code-assist HIGH).
 fn glob_match_str(pattern: &str, target: &str) -> bool {
-    // "*" matches everything
     if pattern == "*" {
         return true;
     }
 
-    // Simple glob matching
-    let mut pattern_chars = pattern.chars().peekable();
-    let mut target_chars = target.chars().peekable();
+    let p: Vec<char> = pattern.chars().collect();
+    let t: Vec<char> = target.chars().collect();
+    let (mut pi, mut ti) = (0usize, 0usize);
+    let (mut star_pi, mut star_ti): (Option<usize>, usize) = (None, 0);
 
-    while pattern_chars.peek().is_some() || target_chars.peek().is_some() {
-        match pattern_chars.next() {
-            None => {
-                // Pattern exhausted, target must also be exhausted
-                return target_chars.peek().is_none();
-            }
-            Some('*') => {
-                // Star matches zero or more characters
-                // Try matching at current position and advancing pattern
-                while target_chars.peek().is_some() {
-                    let remaining_pattern: String = pattern_chars.clone().collect();
-                    let remaining_target: String = target_chars.clone().collect();
-                    if glob_match_str(&remaining_pattern, &remaining_target) {
-                        return true;
-                    }
-                    target_chars.next();
-                }
-                // Continue with pattern
-            }
-            Some(c) => match target_chars.next() {
-                Some(tc) if tc == c => {}
-                _ => return false,
-            },
+    while ti < t.len() {
+        if pi < p.len() && p[pi] == '*' {
+            star_pi = Some(pi);
+            star_ti = ti;
+            pi += 1;
+        } else if pi < p.len() && (p[pi] == '?' || p[pi] == t[ti]) {
+            pi += 1;
+            ti += 1;
+        } else if let Some(sp) = star_pi {
+            pi = sp + 1;
+            star_ti += 1;
+            ti = star_ti;
+        } else {
+            return false;
         }
     }
 
-    true
+    while pi < p.len() && p[pi] == '*' {
+        pi += 1;
+    }
+    pi == p.len()
 }
 
 #[cfg(test)]
