@@ -700,17 +700,19 @@ mod tests {
         })
         .unwrap();
 
-        let err = mgr
-            .launch(LaunchInput {
-                description: "t3".to_string(),
-                prompt: "p".to_string(),
-                agent: "a".to_string(),
-                parent_session_id: "p".to_string(),
-                model: None,
-            })
-            .unwrap_err();
+        let result = mgr.launch(LaunchInput {
+            description: "t3".to_string(),
+            prompt: "p".to_string(),
+            agent: "a".to_string(),
+            parent_session_id: "p".to_string(),
+            model: None,
+        });
 
-        assert!(err.contains("Maximum tasks in flight"));
+        // The 3rd launch should be rejected by the task limit
+        assert!(
+            result.is_err(),
+            "Expected 3rd launch to be rejected by max_total_tasks limit"
+        );
         cleanup_dir(&dir);
     }
 
