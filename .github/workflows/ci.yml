@@ -50,7 +50,9 @@ jobs:
       - name: cargo test
         run: cargo test --workspace
       - name: Install cargo-tarpaulin
-        uses: taiki-e/install-action@cargo-tarpaulin
+        uses: taiki-e/install-action@ec28e287910af896fd98e04056d31fa68607e7ad # v2.77.4
+        with:
+          tool: cargo-tarpaulin
       - name: Generate coverage
         continue-on-error: true
         run: cargo tarpaulin --workspace --out Xml
