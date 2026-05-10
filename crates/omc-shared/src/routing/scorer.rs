@@ -171,6 +171,116 @@ pub fn calculate_complexity_tier(signals: &ComplexitySignals) -> ComplexityTier 
     score_to_tier(calculate_complexity_score(signals))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn default_signals() -> ComplexitySignals {
+        ComplexitySignals {
+            lexical: LexicalSignals {
+                word_count: 10,
+                file_path_count: 0,
+                code_block_count: 0,
+                has_architecture_keywords: false,
+                has_debugging_keywords: false,
+                has_simple_keywords: false,
+                has_risk_keywords: false,
+                question_depth: QuestionDepth::None,
+                has_implicit_requirements: false,
+            },
+            structural: StructuralSignals {
+                estimated_subtasks: 1,
+                cross_file_dependencies: false,
+                has_test_requirements: false,
+                domain_specificity: Domain::Generic,
+                requires_external_knowledge: false,
+                reversibility: Reversibility::Easy,
+                impact_scope: ImpactScope::Local,
+            },
+            context: ContextSignals {
+                previous_failures: 0,
+                conversation_turns: 0,
+                plan_complexity: 0,
+                remaining_tasks: 0,
+                agent_chain_depth: 0,
+            },
+        }
+    }
+
+    #[test]
+    fn empty_signals_score_low() {
+        let signals = default_signals();
+        let score = calculate_complexity_score(&signals);
+        assert_eq!(score, 0.0);
+        assert_eq!(score_to_tier(score), ComplexityTier::Low);
+    }
+
+    #[test]
+    fn high_complexity_signals() {
+        let mut signals = default_signals();
+        signals.lexical.word_count = 600;
+        signals.lexical.has_architecture_keywords = true;
+        signals.structural.estimated_subtasks = 5;
+        signals.structural.cross_file_dependencies = true;
+        signals.structural.impact_scope = ImpactScope::SystemWide;
+        signals.structural.reversibility = Reversibility::Difficult;
+        let score = calculate_complexity_score(&signals);
+        assert!(score >= 8.0, "expected High tier, score was {}", score);
+        assert_eq!(score_to_tier(score), ComplexityTier::High);
+    }
+
+    #[test]
+    fn simple_keywords_reduce_score() {
+        let mut signals = default_signals();
+        signals.lexical.has_simple_keywords = true;
+        let score = calculate_complexity_score(&signals);
+        assert!(score < 0.0, "simple keywords should make score negative");
+    }
+
+    #[test]
+    fn score_to_tier_thresholds() {
+        assert_eq!(score_to_tier(0.0), ComplexityTier::Low);
+        assert_eq!(score_to_tier(3.99), ComplexityTier::Low);
+        assert_eq!(score_to_tier(4.0), ComplexityTier::Medium);
+        assert_eq!(score_to_tier(7.99), ComplexityTier::Medium);
+        assert_eq!(score_to_tier(8.0), ComplexityTier::High);
+        assert_eq!(score_to_tier(20.0), ComplexityTier::High);
+    }
+
+    #[test]
+    fn previous_failures_capped_at_4() {
+        let mut signals = default_signals();
+        signals.context.previous_failures = 100;
+        let score = calculate_complexity_score(&signals);
+        assert_eq!(score, 4.0);
+    }
+
+    #[test]
+    fn calculate_confidence_high_when_far_from_threshold() {
+        let confidence = calculate_confidence(0.0, ComplexityTier::Low);
+        assert_eq!(confidence, 0.9);
+    }
+
+    #[test]
+    fn calculate_confidence_at_threshold_boundary() {
+        let confidence = calculate_confidence(4.0, ComplexityTier::Medium);
+        assert_eq!(confidence, 0.5);
+    }
+
+    #[test]
+    fn get_score_breakdown_structure() {
+        let mut signals = default_signals();
+        signals.lexical.has_architecture_keywords = true;
+        signals.structural.cross_file_dependencies = true;
+        let breakdown = get_score_breakdown(&signals);
+        assert_eq!(breakdown.lexical, 3.0);
+        assert_eq!(breakdown.structural, 2.0);
+        assert_eq!(breakdown.context, 0.0);
+        assert_eq!(breakdown.total, 5.0);
+        assert_eq!(breakdown.tier, ComplexityTier::Medium);
+    }
+}
+
 /// Score breakdown for debugging/logging
 pub struct ScoreBreakdown {
     pub lexical: f64,

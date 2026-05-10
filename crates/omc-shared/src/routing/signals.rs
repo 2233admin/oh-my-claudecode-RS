@@ -318,3 +318,197 @@ fn assess_impact_scope(prompt: &str) -> ImpactScope {
     }
     ImpactScope::Local
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_prompt() {
+        let signals = extract_lexical_signals("");
+        assert_eq!(signals.word_count, 0);
+        assert_eq!(signals.file_path_count, 0);
+        assert_eq!(signals.question_depth, QuestionDepth::None);
+    }
+
+    #[test]
+    fn word_count_basic() {
+        let signals = extract_lexical_signals("one two three four five");
+        assert_eq!(signals.word_count, 5);
+    }
+
+    #[test]
+    fn architecture_keywords_detected() {
+        let signals = extract_lexical_signals("refactor the entire architecture of this system");
+        assert!(signals.has_architecture_keywords);
+    }
+
+    #[test]
+    fn debugging_keywords_detected() {
+        let signals = extract_lexical_signals("find the root cause of this bug");
+        assert!(signals.has_debugging_keywords);
+    }
+
+    #[test]
+    fn simple_keywords_detected() {
+        let signals = extract_lexical_signals("fix the typo in readme");
+        assert!(signals.has_simple_keywords);
+    }
+
+    #[test]
+    fn risk_keywords_detected() {
+        let signals = extract_lexical_signals("run the production migration");
+        assert!(signals.has_risk_keywords);
+    }
+
+    #[test]
+    fn question_depth_why() {
+        let signals = extract_lexical_signals("why does the cache fail?");
+        assert_eq!(signals.question_depth, QuestionDepth::Why);
+    }
+
+    #[test]
+    fn question_depth_how() {
+        let signals = extract_lexical_signals("how do I configure the router?");
+        assert_eq!(signals.question_depth, QuestionDepth::How);
+    }
+
+    #[test]
+    fn question_depth_none() {
+        let signals = extract_lexical_signals("add a new button to the UI");
+        assert_eq!(signals.question_depth, QuestionDepth::None);
+    }
+
+    #[test]
+    fn file_path_counting() {
+        let prompt = "Edit src/main.rs and src/lib.rs and Cargo.toml";
+        let signals = extract_lexical_signals(prompt);
+        assert!(
+            signals.file_path_count >= 3,
+            "expected >= 3 file paths, got {}",
+            signals.file_path_count
+        );
+    }
+
+    #[test]
+    fn code_block_counting() {
+        let prompt = "Use this code:\n```\nfn main() {}\n```\nAnd also:\n```\nlet x = 1;\n```";
+        let signals = extract_lexical_signals(prompt);
+        assert!(
+            signals.code_block_count >= 2,
+            "expected >= 2 code blocks, got {}",
+            signals.code_block_count
+        );
+    }
+
+    #[test]
+    fn structural_cross_file_detection() {
+        let signals = extract_structural_signals("update multiple files across the codebase");
+        assert!(signals.cross_file_dependencies);
+    }
+
+    #[test]
+    fn structural_test_requirements() {
+        let signals = extract_structural_signals("add unit tests for this module");
+        assert!(signals.has_test_requirements);
+    }
+
+    #[test]
+    fn domain_security() {
+        let signals = extract_structural_signals("add OAuth2 authentication with JWT tokens");
+        assert_eq!(signals.domain_specificity, Domain::Security);
+    }
+
+    #[test]
+    fn domain_infrastructure() {
+        let signals = extract_structural_signals("create a Docker container for deployment");
+        assert_eq!(signals.domain_specificity, Domain::Infrastructure);
+    }
+
+    #[test]
+    fn domain_generic() {
+        let signals = extract_structural_signals("sort the list alphabetically");
+        assert_eq!(signals.domain_specificity, Domain::Generic);
+    }
+
+    #[test]
+    fn reversibility_difficult() {
+        let signals = extract_structural_signals("migrate the database schema in production");
+        assert_eq!(signals.reversibility, Reversibility::Difficult);
+    }
+
+    #[test]
+    fn reversibility_moderate() {
+        let signals = extract_structural_signals("refactor the auth module");
+        assert_eq!(signals.reversibility, Reversibility::Moderate);
+    }
+
+    #[test]
+    fn impact_scope_system_wide() {
+        let signals = extract_structural_signals("update the entire codebase with new logging");
+        assert_eq!(signals.impact_scope, ImpactScope::SystemWide);
+    }
+
+    #[test]
+    fn impact_scope_module() {
+        let signals = extract_structural_signals("change the auth service module");
+        assert_eq!(signals.impact_scope, ImpactScope::Module);
+    }
+
+    #[test]
+    fn context_signals_from_context() {
+        let ctx = RoutingContext {
+            task_prompt: String::new(),
+            previous_failures: Some(3),
+            conversation_turns: Some(10),
+            plan_tasks: Some(5),
+            remaining_tasks: Some(2),
+            agent_chain_depth: Some(4),
+            ..Default::default()
+        };
+        let signals = extract_context_signals(&ctx);
+        assert_eq!(signals.previous_failures, 3);
+        assert_eq!(signals.conversation_turns, 10);
+        assert_eq!(signals.plan_complexity, 5);
+        assert_eq!(signals.agent_chain_depth, 4);
+    }
+
+    #[test]
+    fn context_signals_defaults_to_zero() {
+        let ctx = RoutingContext::default();
+        let signals = extract_context_signals(&ctx);
+        assert_eq!(signals.previous_failures, 0);
+        assert_eq!(signals.conversation_turns, 0);
+    }
+
+    #[test]
+    fn subtask_estimation_with_bullets() {
+        let prompt = "Do these things:\n- step one\n- step two\n- step three";
+        let count = estimate_subtasks(prompt);
+        assert!(
+            count >= 4,
+            "expected >= 4 (1 base + 3 bullets), got {}",
+            count
+        );
+    }
+
+    #[test]
+    fn subtask_estimation_capped_at_10() {
+        let bullets = (0..20)
+            .map(|i| format!("- step {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let count = estimate_subtasks(&bullets);
+        assert_eq!(count, 10);
+    }
+
+    #[test]
+    fn implicit_requirements_refactor() {
+        assert!(detect_implicit_requirements("refactor this module"));
+    }
+
+    #[test]
+    fn implicit_requirements_none() {
+        assert!(!detect_implicit_requirements("add two numbers"));
+    }
+}

@@ -140,6 +140,17 @@ pub trait HostAdapter: Send + Sync {
     /// Return the path where skills are discovered.
     fn skills_dir(&self) -> PathBuf;
 
+    /// Register skill source directories into this host's skills directory.
+    ///
+    /// Creates symlinks (or copies as fallback) from each source directory
+    /// into the host skills dir. Returns the list of successfully registered
+    /// target paths.
+    fn register_skills(
+        &self,
+        root: &Path,
+        sources: &[(PathBuf, String)],
+    ) -> Result<Vec<PathBuf>, String>;
+
     // ── MCP Registration ───────────────────────────────────────────
 
     /// Generate MCP server registration entries for the host config.

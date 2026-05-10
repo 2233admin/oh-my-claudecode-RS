@@ -24,9 +24,10 @@ oh-my-claudecode-RS/
 ├── Cargo.toml             workspace root, edition 2024, opt-z + lto + strip
 ├── crates/
 │   ├── omc-shared/        core: routing, tools, state, memory, config
+│   ├── omc-host/          host abstraction: Claude + Codex adapters
 │   ├── omc-team/          orchestration: DAG, lifecycle, communication, governance
 │   ├── omc-hooks/         hook system: 15 events, executor, registry
-│   ├── omc-skills/        skill system: 38 templates, loader, executor
+│   ├── omc-skills/        skill system: 40 templates, registration, host filtering
 │   ├── omc-mcp/           MCP: tool registry, protocol routing
 │   ├── omc-hud/           HUD: 13 elements, i18n, cache
 │   ├── omc-context/       context: AGENTS.md, rules injection
@@ -43,15 +44,15 @@ oh-my-claudecode-RS/
 └── tests/macro-tests/     integration tests for proc macros
 ```
 
-17 crates + 1 integration test target. All under one `[workspace]` with shared `[profile.release]` settings.
+18 crates + 1 integration test target. All under one `[workspace]` with shared `[profile.release]` settings.
 
 ## Dependency graph
 
 ```
                     omc-shared  (foundation: config, state, types)
-                   /    |    \       \
-                  /     |     \       \
-          omc-team  omc-hooks  omc-context  omc-hud
+                   /    |    \       \       \
+                  /     |     \       \       \
+          omc-host  omc-team  omc-hooks  omc-context  omc-hud
              |         |
              v         v
         omc-cli    omc-skills

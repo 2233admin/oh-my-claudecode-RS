@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use tempfile::tempdir;
 
 /// Events emitted by an agent during execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +41,7 @@ pub enum AgentEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
 
     #[test]
     fn test_serialize_roundtrip_token() {

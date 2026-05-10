@@ -214,19 +214,14 @@ impl HookExecutor {
 
 impl Default for HookExecutor {
     fn default() -> Self {
-        Self {
-            stdin: Stdio::inherit(),
-            stdout: Stdio::inherit(),
-            stderr: Stdio::inherit(),
-            hooks: Vec::new(),
-            override_exit_code: None,
-        }
+        Self::new()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
 
     #[test]
     fn hook_executor_default_creation() {

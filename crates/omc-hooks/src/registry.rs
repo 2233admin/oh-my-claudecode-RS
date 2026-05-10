@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use parking_lot::RwLock;
@@ -56,7 +56,7 @@ pub struct HookRegistry {
 
 impl Default for HookRegistry {
     fn default() -> Self {
-        Self { hooks: Vec::new() }
+        Self::new()
     }
 }
 
@@ -77,6 +77,55 @@ impl HookRegistry {
             default_config_path: Some(path.into()),
             ..Self::new()
         }
+    }
+
+    /// Returns the host-specific project hooks config path.
+    ///
+    /// - `"claude"` → `<root>/.claude/hooks.json`
+    /// - `"codex"` → `<root>/.codex/hooks.json`
+    /// - other → `<root>/.omc/hooks/<host>.json`
+    pub fn host_config_path(root: &Path, host: &str) -> PathBuf {
+        match host {
+            "claude" => root.join(".claude").join("hooks.json"),
+            "codex" => root.join(".codex").join("hooks.json"),
+            _ => root.join(".omc").join("hooks").join(format!("{host}.json")),
+        }
+    }
+
+    /// Create a new registry and load both global and host-specific hooks.
+    ///
+    /// Global hooks are loaded from `~/.omc/hooks/hooks.json`.
+    /// Project hooks come from the host-specific path under `root`.
+    pub fn load_for_host(root: &Path, host: &str) -> Result<Self, HookRegistryError> {
+        let registry = Self::new();
+
+        // Load global hooks (best-effort — missing file is not an error).
+        if let Some(home) = dirs::home_dir() {
+            let global_path = home.join(".omc").join("hooks").join("hooks.json");
+            if global_path.exists() {
+                let config = HooksConfig::load(&global_path).map_err(|e| {
+                    HookRegistryError::ConfigError(format!(
+                        "failed to load global hooks from {}: {e}",
+                        global_path.display()
+                    ))
+                })?;
+                registry.register_global(config);
+            }
+        }
+
+        // Load host-specific project hooks (best-effort).
+        let project_path = Self::host_config_path(root, host);
+        if project_path.exists() {
+            let config = HooksConfig::load(&project_path).map_err(|e| {
+                HookRegistryError::ConfigError(format!(
+                    "failed to load project hooks from {}: {e}",
+                    project_path.display()
+                ))
+            })?;
+            registry.register_project(config);
+        }
+
+        Ok(registry)
     }
 
     /// Load global hooks from a file.
@@ -416,10 +465,10 @@ mod tests {
     fn registry_load_config() {
         let registry = HookRegistry::default();
         registry
-            .load_global(r#"{\"hooks\": {\"SessionEnd\": [{\"matcher\": \"*\", \"hooks\": []}]}}"#)
+            .load_global(r#"{"hooks": {"SessionEnd": [{"matcher": "*", "hooks": []}]}}"#)
             .unwrap();
         registry
-            .load_project(r#"{\"hooks\": {\"Stop\": [{\"matcher\": \"*\", \"hooks\": []}]}}"#)
+            .load_project(r#"{"hooks": {"Stop": [{"matcher": "*", "hooks": []}]}}"#)
             .unwrap();
 
         let stats = registry.stats();
@@ -632,5 +681,97 @@ mod tests {
     fn registry_default() {
         let registry = HookRegistry::default();
         assert_eq!(registry.stats().global_events, 0);
+    }
+
+    #[test]
+    fn host_config_path_claude() {
+        let root = PathBuf::from("/project");
+        let path = HookRegistry::host_config_path(&root, "claude");
+        assert_eq!(path, PathBuf::from("/project/.claude/hooks.json"));
+    }
+
+    #[test]
+    fn host_config_path_codex() {
+        let root = PathBuf::from("/project");
+        let path = HookRegistry::host_config_path(&root, "codex");
+        assert_eq!(path, PathBuf::from("/project/.codex/hooks.json"));
+    }
+
+    #[test]
+    fn host_config_path_other() {
+        let root = PathBuf::from("/project");
+        let path = HookRegistry::host_config_path(&root, "windsurf");
+        assert_eq!(path, PathBuf::from("/project/.omc/hooks/windsurf.json"));
+    }
+
+    #[test]
+    fn load_for_host_missing_files() {
+        let root = tempfile::tempdir().unwrap();
+        let registry = HookRegistry::load_for_host(root.path(), "claude").unwrap();
+        let stats = registry.stats();
+        assert_eq!(stats.global_events, 0);
+        assert_eq!(stats.project_events, 0);
+    }
+
+    #[test]
+    fn load_for_host_with_project_hooks() {
+        let root = tempfile::tempdir().unwrap();
+        let hooks_dir = root.path().join(".claude");
+        std::fs::create_dir_all(&hooks_dir).unwrap();
+        std::fs::write(
+            hooks_dir.join("hooks.json"),
+            r#"{"hooks":{"SessionStart":[{"matcher":"*","hooks":[]}]}}"#,
+        )
+        .unwrap();
+
+        let registry = HookRegistry::load_for_host(root.path(), "claude").unwrap();
+        assert_eq!(registry.stats().project_events, 1);
+        assert_eq!(registry.stats().global_events, 0);
+    }
+
+    #[test]
+    fn load_for_host_codex_uses_codex_dir() {
+        let root = tempfile::tempdir().unwrap();
+        let hooks_dir = root.path().join(".codex");
+        std::fs::create_dir_all(&hooks_dir).unwrap();
+        std::fs::write(
+            hooks_dir.join("hooks.json"),
+            r#"{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[]}]}}"#,
+        )
+        .unwrap();
+
+        let registry = HookRegistry::load_for_host(root.path(), "codex").unwrap();
+        assert_eq!(registry.stats().project_events, 1);
+    }
+
+    #[test]
+    fn load_for_host_other_host_uses_omc_hooks_dir() {
+        let root = tempfile::tempdir().unwrap();
+        let hooks_dir = root.path().join(".omc").join("hooks");
+        std::fs::create_dir_all(&hooks_dir).unwrap();
+        std::fs::write(
+            hooks_dir.join("cursor.json"),
+            r#"{"hooks":{"Stop":[{"matcher":"*","hooks":[]}]}}"#,
+        )
+        .unwrap();
+
+        let registry = HookRegistry::load_for_host(root.path(), "cursor").unwrap();
+        assert_eq!(registry.stats().project_events, 1);
+    }
+
+    #[test]
+    fn load_for_host_wrong_host_gets_no_project_hooks() {
+        let root = tempfile::tempdir().unwrap();
+        let hooks_dir = root.path().join(".claude");
+        std::fs::create_dir_all(&hooks_dir).unwrap();
+        std::fs::write(
+            hooks_dir.join("hooks.json"),
+            r#"{"hooks":{"SessionStart":[{"matcher":"*","hooks":[]}]}}"#,
+        )
+        .unwrap();
+
+        // Loading for "codex" should not pick up .claude/hooks.json
+        let registry = HookRegistry::load_for_host(root.path(), "codex").unwrap();
+        assert_eq!(registry.stats().project_events, 0);
     }
 }

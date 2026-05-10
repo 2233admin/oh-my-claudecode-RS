@@ -8,8 +8,9 @@
 //! - `~/.omc/prompts/` - prompt templates
 //! - `~/.omc/team/` - team configurations
 //! - `~/.omc/hooks/hooks.json` - hook registry
+//! - `~/.omc/skills/` - skills directory
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Resolves OMC directory paths with support for `OMC_HOME` environment variable.
 #[derive(Debug, Clone)]
@@ -28,6 +29,8 @@ pub struct OmcPaths {
     pub team: PathBuf,
     /// Hooks file (~/.omc/hooks/hooks.json)
     pub hooks: PathBuf,
+    /// Skills directory (~/.omc/skills/)
+    pub skills: PathBuf,
 }
 
 impl Default for OmcPaths {
@@ -54,6 +57,7 @@ impl OmcPaths {
             prompts: home.join("prompts"),
             team: home.join("team"),
             hooks: home.join("hooks/hooks.json"),
+            skills: home.join("skills"),
         }
     }
 
@@ -108,6 +112,7 @@ impl OmcPaths {
     /// - `logs` (~/.omc/logs/)
     /// - `prompts` (~/.omc/prompts/)
     /// - `team` (~/.omc/team/)
+    /// - `skills` (~/.omc/skills/)
     ///
     /// Does NOT create the hooks directory - the hooks file is created by the
     /// hooks module when initializing.
@@ -119,6 +124,7 @@ impl OmcPaths {
             &self.logs,
             &self.prompts,
             &self.team,
+            &self.skills,
         ];
 
         for dir in dirs {
@@ -152,6 +158,7 @@ impl OmcPaths {
             prompts: root.join("prompts"),
             team: root.join("team"),
             hooks: root.join("hooks/hooks.json"),
+            skills: root.join("skills"),
         }
     }
 
@@ -168,6 +175,22 @@ impl OmcPaths {
     /// Returns the team runs directory.
     pub fn team_runs_dir(&self) -> PathBuf {
         self.team.join("runs")
+    }
+
+    /// Returns the host-specific skills directory.
+    ///
+    /// Format: `~/.omc/skills/<host>/`
+    ///
+    /// e.g., `~/.omc/skills/claude/` or `~/.omc/skills/codex/`
+    pub fn host_skills_dir(&self, host: &str) -> PathBuf {
+        self.skills.join(host)
+    }
+
+    /// Returns the project-local skills directory.
+    ///
+    /// Format: `<root>/.omc/skills/`
+    pub fn project_skills_dir(root: &Path) -> PathBuf {
+        root.join(".omc").join("skills")
     }
 }
 
@@ -189,6 +212,7 @@ mod tests {
         assert!(paths.prompts.ends_with("prompts"));
         assert!(paths.team.ends_with("team"));
         assert!(paths.hooks.file_name().unwrap() == "hooks.json");
+        assert!(paths.skills.ends_with("skills"));
     }
 
     #[test]
@@ -235,5 +259,34 @@ mod tests {
             "home should end with .omc, got: {}",
             paths.home.display()
         );
+    }
+
+    #[test]
+    fn test_host_skills_dir() {
+        let paths = OmcPaths::new_with_root(PathBuf::from("/tmp/test-omc"));
+
+        let claude_skills = paths.host_skills_dir("claude");
+        assert!(claude_skills.ends_with("skills/claude"));
+        assert_eq!(claude_skills.parent().unwrap(), paths.skills);
+
+        let codex_skills = paths.host_skills_dir("codex");
+        assert!(codex_skills.ends_with("skills/codex"));
+    }
+
+    #[test]
+    fn test_project_skills_dir() {
+        let root = PathBuf::from("/home/user/my-project");
+        let skills_dir = OmcPaths::project_skills_dir(&root);
+
+        assert!(skills_dir.ends_with(".omc/skills"));
+        assert!(skills_dir
+            .components()
+            .any(|c| c.as_os_str() == ".omc"));
+    }
+
+    #[test]
+    fn test_skills_field_in_new_with_root() {
+        let paths = OmcPaths::new_with_root(PathBuf::from("/tmp/test-omc"));
+        assert_eq!(paths.skills, PathBuf::from("/tmp/test-omc/skills"));
     }
 }

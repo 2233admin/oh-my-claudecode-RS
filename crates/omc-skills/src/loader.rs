@@ -71,6 +71,7 @@ pub enum LoaderError {
 #[derive(Debug)]
 pub struct SkillLoader {
     skills_dir: PathBuf,
+    search_dirs: Vec<PathBuf>,
     cache: HashMap<String, Skill>,
     name_index: HashMap<String, String>, // alias/name -> canonical name
 }
@@ -80,6 +81,7 @@ impl SkillLoader {
     pub fn new(skills_dir: impl Into<PathBuf>) -> Self {
         Self {
             skills_dir: skills_dir.into(),
+            search_dirs: Vec::new(),
             cache: HashMap::new(),
             name_index: HashMap::new(),
         }
@@ -91,26 +93,47 @@ impl SkillLoader {
         self
     }
 
-    /// Discover all skills in the skills directory.
+    /// Add an additional search directory (lower precedence than skills_dir).
+    /// Skills in search_dirs are hidden by same-name skills in skills_dir.
+    pub fn with_search_dir(mut self, dir: impl Into<PathBuf>) -> Self {
+        self.search_dirs.push(dir.into());
+        self
+    }
+
+    /// Discover all skills in the skills directory and search directories.
     ///
     /// Supports two types of skills:
     /// - **Flat-file skills**: a single `.md` file (legacy behavior)
     /// - **Directory skills**: a directory containing `SKILL.md` plus optional companion files
     ///
-    /// Uses two-pass WalkDir:
-    /// 1. Pass 1: collect directories containing SKILL.md
-    /// 2. Pass 2: load flat-file .md skills, skipping files inside directory skills
+    /// Precedence: `skills_dir` has the highest precedence, followed by each
+    /// `search_dir` in insertion order. When a skill name already exists in the
+    /// cache, the lower-precedence instance is skipped.
     pub fn discover_all(&mut self) -> Result<Vec<SkillMetadata>, LoaderError> {
         self.cache.clear();
         self.name_index.clear();
 
-        if !self.skills_dir.exists() {
-            return Ok(Vec::new());
+        let mut dirs: Vec<PathBuf> = Vec::with_capacity(1 + self.search_dirs.len());
+        dirs.push(self.skills_dir.clone());
+        dirs.extend(self.search_dirs.clone());
+
+        for dir in dirs {
+            self.discover_in_dir(&dir);
+        }
+
+        Ok(self.cache.values().map(|s| s.metadata.clone()).collect())
+    }
+
+    /// Scan a single directory for skills, inserting new ones into the cache.
+    /// Skills whose name (or aliases) already exist are skipped.
+    fn discover_in_dir(&mut self, root: &Path) {
+        if !root.exists() {
+            return;
         }
 
         // Pass 1: collect directories containing SKILL.md
         let mut dir_skills: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
-        for entry in WalkDir::new(&self.skills_dir)
+        for entry in WalkDir::new(root)
             .follow_links(false)
             .max_depth(3)
             .into_iter()
@@ -127,6 +150,14 @@ impl SkillLoader {
             let skill_md = dir.join("SKILL.md");
             match self.load_directory_skill(dir, &skill_md) {
                 Ok(skill) => {
+                    if self.cache.contains_key(&skill.metadata.name) {
+                        tracing::debug!(
+                            name = %skill.metadata.name,
+                            path = %skill_md.display(),
+                            "Skill already loaded from higher-precedence directory, skipping"
+                        );
+                        continue;
+                    }
                     self.index_skill(&skill);
                     self.cache.insert(skill.metadata.name.clone(), skill);
                 }
@@ -141,7 +172,7 @@ impl SkillLoader {
         }
 
         // Pass 2: load flat-file .md skills (skip files inside directory skills)
-        for entry in WalkDir::new(&self.skills_dir)
+        for entry in WalkDir::new(root)
             .follow_links(false)
             .max_depth(3)
             .into_iter()
@@ -159,6 +190,14 @@ impl SkillLoader {
 
             match self.load_flat_skill(path) {
                 Ok(skill) => {
+                    if self.cache.contains_key(&skill.metadata.name) {
+                        tracing::debug!(
+                            name = %skill.metadata.name,
+                            path = %path.display(),
+                            "Skill already loaded from higher-precedence directory, skipping"
+                        );
+                        continue;
+                    }
                     self.index_skill(&skill);
                     self.cache.insert(skill.metadata.name.clone(), skill);
                 }
@@ -171,8 +210,6 @@ impl SkillLoader {
                 }
             }
         }
-
-        Ok(self.cache.values().map(|s| s.metadata.clone()).collect())
     }
 
     /// Index a skill's name and aliases into name_index
@@ -567,5 +604,95 @@ Content here
         // Only 1 skill loaded (the directory skill), not the README.md
         assert_eq!(loader.list().len(), 1);
         assert!(loader.load("my-skill").is_ok());
+    }
+
+    #[test]
+    fn test_search_dir_different_skills() {
+        let primary = TempDir::new().unwrap();
+        let secondary = TempDir::new().unwrap();
+
+        fs::write(
+            primary.path().join("alpha.md"),
+            "---\nname: alpha\ndescription: From primary\n---",
+        )
+        .unwrap();
+        fs::write(
+            secondary.path().join("beta.md"),
+            "---\nname: beta\ndescription: From secondary\n---",
+        )
+        .unwrap();
+
+        let mut loader = SkillLoader::new(primary.path()).with_search_dir(secondary.path());
+        let skills = loader.discover_all().unwrap();
+
+        assert_eq!(skills.len(), 2);
+        assert!(loader.load("alpha").is_ok());
+        assert!(loader.load("beta").is_ok());
+    }
+
+    #[test]
+    fn test_search_dir_same_name_primary_wins() {
+        let primary = TempDir::new().unwrap();
+        let secondary = TempDir::new().unwrap();
+
+        fs::write(
+            primary.path().join("shared.md"),
+            "---\nname: shared\ndescription: Primary version\n---",
+        )
+        .unwrap();
+        fs::write(
+            secondary.path().join("shared.md"),
+            "---\nname: shared\ndescription: Secondary version\n---",
+        )
+        .unwrap();
+
+        // Also add a unique skill to secondary so we can verify it still loads
+        fs::write(
+            secondary.path().join("extra.md"),
+            "---\nname: extra\ndescription: Only in secondary\n---",
+        )
+        .unwrap();
+
+        let mut loader = SkillLoader::new(primary.path()).with_search_dir(secondary.path());
+        let skills = loader.discover_all().unwrap();
+
+        assert_eq!(skills.len(), 2);
+        let shared = loader.load("shared").unwrap();
+        assert_eq!(shared.metadata.description, "Primary version");
+        assert!(loader.load("extra").is_ok());
+    }
+
+    #[test]
+    fn test_no_search_dirs_works_as_before() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(
+            temp_dir.path().join("solo.md"),
+            "---\nname: solo\ndescription: Alone\n---",
+        )
+        .unwrap();
+
+        let mut loader = SkillLoader::new(temp_dir.path());
+        let skills = loader.discover_all().unwrap();
+
+        assert_eq!(skills.len(), 1);
+        assert_eq!(loader.load("solo").unwrap().metadata.name, "solo");
+    }
+
+    #[test]
+    fn test_missing_search_dir_skipped_gracefully() {
+        let primary = TempDir::new().unwrap();
+        fs::write(
+            primary.path().join("real.md"),
+            "---\nname: real\ndescription: Exists\n---",
+        )
+        .unwrap();
+
+        let ghost = primary.path().join("does-not-exist");
+
+        let mut loader = SkillLoader::new(primary.path()).with_search_dir(&ghost);
+        let skills = loader.discover_all().unwrap();
+
+        assert_eq!(skills.len(), 1);
+        assert!(loader.load("real").is_ok());
     }
 }

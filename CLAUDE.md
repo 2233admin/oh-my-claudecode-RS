@@ -1,12 +1,12 @@
 # OMC-RS — oh-my-claudecode in Rust
 
-Rust rewrite of oh-my-claudecode: a toolkit for Claude Code that adds agent orchestration, hooks, skills, MCP routing, statusline, context injection, and multi-provider git integration. 17 crates, 42K+ lines, 816 tests.
+Rust rewrite of oh-my-claudecode: a toolkit for Claude Code that adds agent orchestration, hooks, skills, MCP routing, statusline, context injection, and multi-provider git integration. 18 crates, 42K+ lines, 933 tests.
 
 ## Build and Test
 
 ```bash
 cargo build                          # debug build
-cargo test --workspace               # run all 816 tests
+cargo test --workspace               # run all 933 tests
 cargo test -p omc-team               # single crate
 cargo clippy --workspace -- -D warnings
 cargo fmt --check
@@ -33,6 +33,8 @@ All tests must pass before committing. Clippy warnings are treated as errors.
 ```
 omc-shared          (foundation — no internal deps)
   |
+  +-- omc-host       (host abstraction — Claude + Codex adapters)
+  |
   +-- omc-macros    (proc macro, depends on omc-shared for types)
   |
   +-- omc-hooks, omc-skills, omc-context, omc-hud, omc-mcp,
@@ -55,13 +57,34 @@ omc-shared          (foundation — no internal deps)
 | Crate | Role |
 |-------|------|
 | omc-shared | Types, config, routing, tools, state, memory, resilience |
+| omc-host | Host abstraction layer — Claude + Codex adapters |
 | omc-team | Agent orchestration — DAG, lifecycle, comms, governance, fault tolerance |
 | omc-hooks | Hook system (15 events, 58 tests) |
-| omc-skills | Skill templates (40 templates) |
+| omc-skills | Skill templates (40 templates, registration, host filtering) |
 | omc-hud | Statusline elements (13 elements, 205 tests) |
 | omc-mcp | MCP tool registry + protocol routing |
 | omc-interop | MCP bridge (43 tests) |
 | omc-cli | CLI dispatch (26+ commands) |
+
+## Cross-Platform Skill Protocol
+
+Skills use YAML frontmatter with required `name` and `description` fields, plus optional `hosts` and `protocol_version` fields:
+
+```yaml
+---
+name: my-skill
+description: What this skill does
+hosts: [claude, codex]        # empty = all hosts
+protocol_version: "1.0"       # absent = v0 (legacy)
+---
+```
+
+- **Directory-based skills**: `SKILL.md` + companion files (scripts, templates) in the same directory.
+- **Flat-file skills**: single `.md` file with frontmatter.
+- **SkillRegistrar** links source directories into host skills directories via symlink/junction (platform-specific) with recursive copy as fallback.
+- **Host filtering**: the `hosts` field in frontmatter controls which host adapter loads the skill. Empty or absent means all hosts.
+- **Collision resolution**: project-local > host-local > user-global (first match wins).
+- **Codex manifest**: `SkillRegistrar::generate_codex_manifest()` produces a `skills.toml` for Codex CLI integration.
 
 ## Testing
 
@@ -69,7 +92,7 @@ omc-shared          (foundation — no internal deps)
 - Integration tests go in `tests/` directory per crate.
 - Use `tempfile` for filesystem tests, `tokio::test` for async tests.
 - Test behavior, not implementation. One logical assertion per test case.
-- Current: 816 tests, 0 failures. Do not merge code that breaks this.
+- Current: 933 tests, 0 failures. Do not merge code that breaks this.
 
 ## Commits and PRs
 

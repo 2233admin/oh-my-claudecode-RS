@@ -81,7 +81,7 @@ fn extract_section(content: &str, section: &str) -> Option<String> {
     let after_header = &content[start + section_header.len()..];
 
     // Find next section header or end of file
-    let end = after_header.find("\n## ").unwrap_or_else(|| after_header.len());
+    let end = after_header.find("\n## ").unwrap_or(after_header.len());
 
     let section_content = after_header[..end].trim();
     if section_content.is_empty() {
@@ -315,7 +315,7 @@ fn replace_section(content: &str, section_name: &str, new_content: &str) -> Stri
     if let Some(start) = content.find(&header) {
         // Find the end of this section
         let after_header = &content[start + header.len()..];
-        let end = after_header.find("\n## ").unwrap_or_else(|| after_header.len());
+        let end = after_header.find("\n## ").unwrap_or(after_header.len());
 
         // Keep everything before and after this section
         let before = &content[..start];
@@ -355,7 +355,7 @@ fn append_to_section(content: &str, section_name: &str, entry: &str) -> String {
 
     if let Some(start) = content.find(&header) {
         let after_header = &content[start + header.len()..];
-        let end = after_header.find("\n## ").unwrap_or_else(|| after_header.len());
+        let end = after_header.find("\n## ").unwrap_or(after_header.len());
 
         let before = &content[..start + header.len() + end];
         let after = &content[start + header.len() + end..];

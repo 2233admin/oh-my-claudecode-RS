@@ -270,7 +270,27 @@ pub fn state_write(
         }
     }
 
-```json\n{pretty}\n
+    let pretty = serde_json::to_string_pretty(&fields)
+        .unwrap_or_else(|_| "{}".to_string());
+    let state_path = resolve_mode_state_path(&paths, mode, session_id);
+    if let Some(parent) = state_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    match fs::write(&state_path, &pretty) {
+        Ok(()) => ToolResult::text(format!(
+            "State written for mode: {mode}\nPath: {}",
+            state_path.display()
+        )),
+        Err(e) => ToolResult::error(format!("Failed to write state: {e}")),
+    }
+}
+
+/// Clear state for a specific mode.
+pub fn state_clear(
+    mode: &str,
+    working_directory: Option<&str>,
+    session_id: Option<&str>,
+) -> ToolResult {
     let mode = mode.trim();
 
     if let Err(e) = validate_mode(mode) {

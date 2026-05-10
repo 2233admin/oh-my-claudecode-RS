@@ -93,6 +93,7 @@ impl InstallerConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
 
     #[test]
     fn default_paths_from_config_dir() {
@@ -103,10 +104,7 @@ mod tests {
         assert_eq!(paths.skills_dir, config_dir.join("skills"));
         assert_eq!(paths.hooks_dir, config_dir.join("hooks"));
         assert_eq!(paths.hud_dir, config_dir.join("hud"));
-        assert_eq!(
-            paths.settings_file,
-            config_dir.join("settings.json")
-        );
+        assert_eq!(paths.settings_file, config_dir.join("settings.json"));
     }
 
     #[test]

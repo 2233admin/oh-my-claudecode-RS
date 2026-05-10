@@ -7,6 +7,8 @@ pub mod hooks;
 pub mod init;
 
 use async_trait::async_trait;
+use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::adapter::{HookEntry, HostAdapter, HostDoctorReport, HostInitReport};
@@ -117,6 +119,35 @@ impl HostAdapter for ClaudeHostAdapter {
         PathBuf::from(".claude").join("skills")
     }
 
+    fn register_skills(
+        &self,
+        root: &Path,
+        sources: &[(PathBuf, String)],
+    ) -> Result<Vec<PathBuf>, String> {
+        let skills_dir = root.join(self.skills_dir());
+        fs::create_dir_all(&skills_dir).map_err(|e| format!("failed to create skills dir: {e}"))?;
+
+        let mut registered = Vec::new();
+        for (source_dir, link_name) in sources {
+            if !source_dir.exists() {
+                continue;
+            }
+            let link_path = skills_dir.join(link_name);
+            if link_path.exists() || link_path.symlink_metadata().is_ok() {
+                continue;
+            }
+            match create_link(source_dir, &link_path) {
+                Ok(()) => registered.push(link_path),
+                Err(_) => {
+                    copy_dir_recursive(source_dir, &link_path)
+                        .map_err(|e| format!("copy failed: {e}"))?;
+                    registered.push(link_path);
+                }
+            }
+        }
+        Ok(registered)
+    }
+
     fn generate_mcp_registration(
         &self,
         servers: &[McpServerDef],
@@ -139,5 +170,126 @@ impl HostAdapter for ClaudeHostAdapter {
             payload,
             work_dir: None,
         })
+    }
+}
+
+// ── Helper functions for register_skills ────────────────────────────────────
+
+fn create_link(source: &Path, link_path: &Path) -> Result<(), io::Error> {
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(source, link_path)
+    }
+
+    #[cfg(windows)]
+    {
+        if let Some(parent) = link_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        std::os::windows::fs::symlink_dir(source, link_path)
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (source, link_path);
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "symlink not supported on this platform",
+        ))
+    }
+}
+
+fn copy_dir_recursive(source: &Path, dest: &Path) -> Result<(), io::Error> {
+    fs::create_dir_all(dest)?;
+    for entry in fs::read_dir(source)? {
+        let entry = entry?;
+        let source_path = entry.path();
+        let dest_path = dest.join(entry.file_name());
+        if source_path.is_dir() {
+            copy_dir_recursive(&source_path, &dest_path)?;
+        } else {
+            fs::copy(&source_path, &dest_path)?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn create_test_skill(dir: &Path, name: &str) {
+        let skill_dir = dir.join(name);
+        fs::create_dir_all(&skill_dir).unwrap();
+        fs::write(
+            skill_dir.join("SKILL.md"),
+            format!("---\nname: {name}\ndescription: test\n---\n\nContent."),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn register_skills_creates_links() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path();
+        fs::create_dir_all(root.join("src")).unwrap();
+        create_test_skill(&root.join("src"), "my-skill");
+
+        let adapter = ClaudeHostAdapter::new();
+        let sources = vec![(root.join("src").join("my-skill"), "my-skill".into())];
+        let registered = adapter.register_skills(root, &sources).unwrap();
+
+        assert_eq!(registered.len(), 1);
+        assert!(root.join(".claude/skills/my-skill/SKILL.md").exists());
+    }
+
+    #[test]
+    fn register_skills_skips_nonexistent() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path();
+
+        let adapter = ClaudeHostAdapter::new();
+        let sources = vec![(root.join("nope"), "missing".into())];
+        let registered = adapter.register_skills(root, &sources).unwrap();
+
+        assert!(registered.is_empty());
+    }
+
+    #[test]
+    fn register_skills_idempotent() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path();
+        fs::create_dir_all(root.join("src")).unwrap();
+        create_test_skill(&root.join("src"), "skill-a");
+
+        let adapter = ClaudeHostAdapter::new();
+        let sources = vec![(root.join("src").join("skill-a"), "skill-a".into())];
+
+        let r1 = adapter.register_skills(root, &sources).unwrap();
+        assert_eq!(r1.len(), 1);
+
+        let r2 = adapter.register_skills(root, &sources).unwrap();
+        assert!(r2.is_empty(), "second call should skip existing link");
+    }
+
+    #[test]
+    fn register_skills_multiple_sources() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path();
+        fs::create_dir_all(root.join("src")).unwrap();
+        create_test_skill(&root.join("src"), "alpha");
+        create_test_skill(&root.join("src"), "beta");
+
+        let adapter = ClaudeHostAdapter::new();
+        let sources = vec![
+            (root.join("src").join("alpha"), "alpha".into()),
+            (root.join("src").join("beta"), "beta".into()),
+        ];
+        let registered = adapter.register_skills(root, &sources).unwrap();
+
+        assert_eq!(registered.len(), 2);
+        assert!(root.join(".claude/skills/alpha/SKILL.md").exists());
+        assert!(root.join(".claude/skills/beta/SKILL.md").exists());
     }
 }

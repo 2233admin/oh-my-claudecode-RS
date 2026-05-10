@@ -857,6 +857,7 @@ fn agent_specs(run_id: &str, plan: &CellPlan) -> Vec<AgentSpec> {
 fn provider_for_runtime(runtime: RuntimeKind) -> &'static str {
     match runtime {
         RuntimeKind::Claude => "claude-code",
+        RuntimeKind::Codex => "codex",
         RuntimeKind::Fsc => "fsc",
         RuntimeKind::Kohaku => "kohaku",
     }
