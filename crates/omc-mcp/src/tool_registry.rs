@@ -97,7 +97,7 @@ impl McpToolRegistry {
 
     /// Get the resolved tool list, refreshing the cache if expired.
     pub fn tools(&mut self) -> &[Box<dyn McpTool>] {
-        if self.cache.is_expired() {
+        if self.cache.is_expired() || self.cache.get().is_empty() {
             let tools = self.collect_enabled_tools();
             self.cache.update(tools);
         }
@@ -215,7 +215,7 @@ mod tests {
         let mut registry = McpToolRegistry::default();
         let tools = registry.tools();
 
-        let names: Vec<String> = tools.iter().map(|t| t.definition().name).collect();
+        let names: Vec<String> = tools.iter().map(|t| t.definition().name.clone()).collect();
 
         // core tools (state_, notepad_)
         assert!(names.iter().any(|n| n == "state_read"));
