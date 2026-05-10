@@ -263,6 +263,11 @@ impl Installer {
     fn install_hooks(&self, result: &mut InstallResult) {
         let settings_path = &self.paths.settings_file;
 
+        // Ensure the config directory exists
+        if let Some(parent) = settings_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+
         let mut settings: serde_json::Value = match std::fs::read_to_string(settings_path) {
             Ok(content) => serde_json::from_str(&content)
                 .unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
