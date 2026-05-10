@@ -428,12 +428,36 @@ pub fn append_omx_team_event(
     }
 
     let line = format!("{}\n", serde_json::to_string(&full)?);
+
+    // Concurrency invariant: a single `write_all` against a file opened with
+    // `O_APPEND` is atomic across concurrent writers when the payload is
+    // smaller than the OS append-atomic limit (Linux PIPE_BUF = 4096 bytes,
+    // Windows FILE_APPEND_DATA path conservatively 1024 bytes). Reject lines
+    // that exceed the conservative minimum so multi-agent writers never
+    // interleave -- this matches the contract enforced in
+    // `omc-team::communication::append_jsonl`. If a future event genuinely
+    // needs to exceed this, switch to an advisory file lock (e.g. `fs2`)
+    // rather than relaxing the guard. (gemini-code-assist HIGH.)
+    const ATOMIC_APPEND_LIMIT: usize = 1024;
+    if line.len() > ATOMIC_APPEND_LIMIT {
+        return Err(OmxTeamError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!(
+                "omx team event line ({} bytes) exceeds atomic-append limit ({} bytes); \
+                 concurrent writers could interleave",
+                line.len(),
+                ATOMIC_APPEND_LIMIT
+            ),
+        )));
+    }
+
     use std::io::Write;
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(&p)?;
     file.write_all(line.as_bytes())?;
+    file.flush()?;
 
     Ok(full)
 }
