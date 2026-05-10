@@ -1,4 +1,6 @@
+#[cfg(windows)]
 const OUT_DIR: &str = "OUT_DIR";
+#[cfg(windows)]
 const TARGET: &str = "TARGET";
 
 fn main() {
