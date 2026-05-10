@@ -1,8 +1,7 @@
 //! Skill state store module - manages runtime state for skill execution
 
 use std::collections::HashMap;
-use std::sync::Arc;
-use dashmap::DashMap;
+use std::sync::RwLock;
 
 /// Thread-safe state store for skill execution
 ///
@@ -10,25 +9,21 @@ use dashmap::DashMap;
 /// including variables set during template substitution and execution context.
 #[derive(Debug, Clone)]
 pub struct SkillStateStore {
-    store: Arc<DashMap<String, String>>,
+    store: Arc<RwLock<HashMap<String, String>>>,
 }
 
 impl SkillStateStore {
     /// Create a new empty state store
     pub fn new() -> Self {
         Self {
-            store: Arc::new(DashMap::new()),
+            store: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
     /// Create a state store with initial values
     pub fn with_values(values: HashMap<String, String>) -> Self {
-        let store = DashMap::new();
-        for (k, v) in values {
-            store.insert(k, v);
-        }
         Self {
-            store: Arc::new(store),
+            store: Arc::new(RwLock::new(values)),
         }
     }
 
@@ -39,8 +34,7 @@ impl SkillStateStore {
     /// * `key` - Variable name
     /// * `value` - Variable value
     pub fn set(&self, key: &str, value: impl Into<String>) {
-        self.store.insert(key.to_string(), value.into());
-    }
+        if let Ok(mut store) = self.store.write() {
             store.insert(key.to_string(), value.into());
         }
     }
@@ -97,7 +91,7 @@ impl SkillStateStore {
     pub fn entries(&self) -> HashMap<String, String> {
         self.store
             .read()
-            .cloned()
+            .map(|store| store.clone())
             .unwrap_or_default()
     }
 
@@ -121,9 +115,7 @@ impl SkillStateStore {
 
 impl Default for SkillStateStore {
     fn default() -> Self {
-        Self {
-            skills: Vec::new(),
-        }
+        Self::new()
     }
 }
 
@@ -141,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_set_and_get() {
-        let store = SkillStateStore::default();
+        let store = SkillStateStore::new();
 
         store.set("name", "Alice");
         store.set("age", "30");
@@ -152,13 +144,13 @@ mod tests {
 
     #[test]
     fn test_get_nonexistent() {
-        let store = SkillStateStore::default();
+        let store = SkillStateStore::new();
         assert_eq!(store.get("nonexistent"), None);
     }
 
     #[test]
     fn test_contains() {
-        let store = SkillStateStore::default();
+        let store = SkillStateStore::new();
 
         store.set("exists", "value");
 
@@ -168,7 +160,7 @@ mod tests {
 
     #[test]
     fn test_remove() {
-        let store = SkillStateStore::default();
+        let store = SkillStateStore::new();
 
         store.set("temp", "temporary");
         assert!(store.contains("temp"));
@@ -180,7 +172,7 @@ mod tests {
 
     #[test]
     fn test_clear() {
-        let store = SkillStateStore::default();
+        let store = SkillStateStore::new();
 
         store.set("a", "1");
         store.set("b", "2");
@@ -192,7 +184,7 @@ mod tests {
 
     #[test]
     fn test_keys() {
-        let store = SkillStateStore::default();
+        let store = SkillStateStore::new();
 
         store.set("foo", "1");
         store.set("bar", "2");
@@ -204,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_entries() {
-        let store = SkillStateStore::default();
+        let store = SkillStateStore::new();
 
         store.set("x", "1");
         store.set("y", "2");
@@ -217,8 +209,8 @@ mod tests {
 
     #[test]
     fn test_merge() {
-        let store1 = SkillStateStore::default();
-        let store2 = SkillStateStore::default();
+        let store1 = SkillStateStore::new();
+        let store2 = SkillStateStore::new();
 
         store1.set("a", "1");
         store1.set("b", "2");
@@ -234,7 +226,7 @@ mod tests {
 
     #[test]
     fn test_clone_independence() {
-        let store1 = SkillStateStore::default();
+        let store1 = SkillStateStore::new();
         store1.set("shared", "value");
 
         let store2 = store1.clone();
@@ -259,7 +251,7 @@ mod tests {
 
     #[test]
     fn test_len_and_is_empty() {
-        let store = SkillStateStore::default();
+        let store = SkillStateStore::new();
 
         assert!(store.is_empty());
         assert_eq!(store.len(), 0);

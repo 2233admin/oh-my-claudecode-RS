@@ -6,12 +6,14 @@
 pub mod executor;
 pub mod frontmatter;
 pub mod loader;
+pub mod register;
 pub mod state;
 pub mod templates;
 
 pub use executor::SkillExecutor;
 pub use frontmatter::parse_frontmatter;
 pub use loader::SkillLoader;
+pub use register::{RegistrationResult, SkillRegistrar};
 pub use state::SkillStateStore;
 
 // Re-export types for convenience
