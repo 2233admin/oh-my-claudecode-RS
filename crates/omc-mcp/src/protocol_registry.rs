@@ -39,6 +39,7 @@ pub trait ToolProtocol: Send + Sync {
 }
 
 /// Registry that routes tool calls to the correct protocol backend.
+#[derive(Default)]
 pub struct ProtocolRegistry {
     protocols: HashMap<String, Arc<dyn ToolProtocol>>,
     /// Maps tool name -> protocol name for auto-routing.
@@ -123,15 +124,6 @@ impl ProtocolRegistry {
     /// Total number of indexed tools.
     pub fn tool_count(&self) -> usize {
         self.tool_index.len()
-    }
-}
-
-impl Default for ProtocolRegistry {
-    fn default() -> Self {
-        Self {
-            protocols: HashMap::new(),
-            names: HashMap::new(),
-        }
     }
 }
 

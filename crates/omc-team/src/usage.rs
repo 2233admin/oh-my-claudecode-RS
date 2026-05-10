@@ -168,16 +168,8 @@ impl UsageTracker {
 impl Default for UsageTracker {
     fn default() -> Self {
         Self {
-            user: 0,
-            nice: 0,
-            system: 0,
-            idle: 0,
-            iowait: 0,
-            irq: 0,
-            softirq: 0,
-            steal: 0,
-            guest: 0,
-            guest_nice: 0,
+            workers: HashMap::new(),
+            started_at: chrono::Utc::now().to_rfc3339(),
         }
     }
 }

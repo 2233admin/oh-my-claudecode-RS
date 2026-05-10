@@ -2,7 +2,7 @@
 
 use std::fs;
 
-use super::{HudState, SessionInfo, StateError, TeamRunRecord};
+use super::{HudState, SessionInfo, SessionState, StateError, TeamRunRecord};
 use crate::config::OmcPaths;
 
 /// Writer for persisting state to disk with atomic operations.
@@ -96,6 +96,7 @@ impl Default for StateWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::{SessionInfo, SessionState};
     use tempfile::TempDir;
 
     fn writer_with_root(root: &std::path::Path) -> StateWriter {

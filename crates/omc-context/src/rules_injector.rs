@@ -6,10 +6,10 @@
 //!
 //! Ported from oh-my-claudecode's hooks/rules-injector.
 
-use std::collections::{HashMap, HashSet};
+use dashmap::DashMap;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RulesInjectorError {
@@ -98,10 +98,10 @@ impl RulesInjector {
 
         let project_root = self.find_project_root(&resolved);
         let candidates = self.find_rule_files(&project_root, &resolved);
-        let mut caches = self.session_caches.write().await;
-        let cache = caches
+        let mut cache = self
+            .session_caches
             .entry(session_id.to_string())
-            .or_insert_with(SessionCache::default);
+            .or_default();
 
         let mut to_inject = Vec::new();
 
@@ -130,18 +130,15 @@ impl RulesInjector {
                 continue;
             }
 
-            let relative_path = project_root
-                .as_ref()
-                .map_or_else(
-                    || candidate.path.to_string_lossy().to_string(),
-                    |root| {
-                        pathdiff::diff_paths(&candidate.path, root)
-                            .map_or_else(
-                                || candidate.path.to_string_lossy().to_string(),
-                                |p| p.to_string_lossy().to_string(),
-                            )
-                    },
-                );
+            let relative_path = project_root.as_ref().map_or_else(
+                || candidate.path.to_string_lossy().to_string(),
+                |root| {
+                    pathdiff::diff_paths(&candidate.path, root).map_or_else(
+                        || candidate.path.to_string_lossy().to_string(),
+                        |p| p.to_string_lossy().to_string(),
+                    )
+                },
+            );
 
             to_inject.push(RuleToInject {
                 relative_path,
@@ -181,8 +178,7 @@ impl RulesInjector {
 
     /// Clear session cache when session ends.
     pub async fn clear_session(&self, session_id: &str) {
-        let mut caches = self.session_caches.write().await;
-        caches.remove(session_id);
+        self.session_caches.remove(session_id);
     }
 
     fn resolve_file_path(&self, file_path: &str) -> Option<PathBuf> {
@@ -402,11 +398,10 @@ pub async fn get_rules_for_path(
     file_path: &str,
     working_directory: Option<&str>,
 ) -> Vec<RuleToInject> {
-    let cwd = working_directory
-        .map_or_else(
-            || std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
-            PathBuf::from,
-        );
+    let cwd = working_directory.map_or_else(
+        || std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+        PathBuf::from,
+    );
 
     let injector = RulesInjector::new(cwd);
     injector

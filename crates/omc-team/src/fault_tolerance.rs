@@ -330,7 +330,7 @@ impl FaultTolerance {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{AgentSessionState, RuntimeKind};
+    use crate::{AgentSessionState, RuntimeKind, UsageRollup};
     use std::time::Duration;
 
     fn make_session(agent_id: &str) -> AgentSessionRecord {

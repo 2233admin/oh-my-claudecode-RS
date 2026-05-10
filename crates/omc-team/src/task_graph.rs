@@ -339,9 +339,13 @@ impl PriorityScheduler {
 impl Default for PriorityScheduler {
     fn default() -> Self {
         Self {
-            color: [1.0, 1.0, 1.0, 1.0],
-            duration: Duration::from_secs(30),
-            scale: 1.0,
+            queues: Default::default(),
+            weights: [1.0; Priority::COUNT],
+            aging_threshold: Duration::from_secs(60),
+            aging_boost: 0.1,
+            enqueue_times: HashMap::new(),
+            dequeue_counts: [0; Priority::COUNT],
+            total_dequeued: 0,
         }
     }
 }

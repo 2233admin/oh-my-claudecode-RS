@@ -97,7 +97,16 @@ fn build_footer(payload: &NotificationPayload) -> String {
 }
 
 /// Build tmux tail block with code fence, or empty string.
-```\n{trimmed}\n
+fn build_tmux_tail_block(payload: &NotificationPayload) -> String {
+    let Some(tail) = &payload.tmux_tail else {
+        return String::new();
+    };
+    let trimmed = tail.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    format!("\n\n**Recent output:**\n```\n{trimmed}\n```")
+}
 
 /// Build the full variable map from a notification payload.
 pub fn compute_variables(

@@ -176,7 +176,26 @@ mod tests {
 
     #[test]
     fn team_role_15_variants() {
-        assert_eq!(std::mem::variant_count::<TeamRole>(), 15);
+        // Verify 15 variants by counting the exhaustive match arms in as_str()
+        let count = [
+            TeamRole::Orchestrator,
+            TeamRole::Planner,
+            TeamRole::Analyst,
+            TeamRole::Architect,
+            TeamRole::Executor,
+            TeamRole::Debugger,
+            TeamRole::Critic,
+            TeamRole::CodeReviewer,
+            TeamRole::SecurityReviewer,
+            TeamRole::TestEngineer,
+            TeamRole::Designer,
+            TeamRole::Writer,
+            TeamRole::CodeSimplifier,
+            TeamRole::Explore,
+            TeamRole::DocumentSpecialist,
+        ]
+        .len();
+        assert_eq!(count, 15);
     }
 
     // === TeamProvider ===

@@ -38,6 +38,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tempfile = "3"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+dashmap = "6"
 mimalloc = { version = "0.1", default-features = false }
 unicode-width = "0.2"
 dirs = "5"

@@ -662,8 +662,7 @@ fn upsert_settings(root: &Path, report: &mut InitReport) -> Result<(), String> {
         "hooks": [{"type": "command", "command": "omc-team hook teammate-idle"}]
     }]);
 
-    let mut rendered = serde_json::to_string_pretty(&value)
-        .map_err(|e| e.to_string())?;
+    let mut rendered = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
     rendered.push('\n');
     upsert_file(path, &rendered, report)
 }

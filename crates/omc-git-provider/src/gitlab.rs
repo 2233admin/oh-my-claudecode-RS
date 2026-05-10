@@ -3,13 +3,8 @@ use async_trait::async_trait;
 use crate::types::{GitProvider, IssueInfo, PRInfo, PRTerminology, ProviderError, ProviderName};
 
 /// GitLab provider using the `glab` CLI.
+#[derive(Default)]
 pub struct GitLabProvider;
-
-impl Default for GitLabProvider {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl GitLabProvider {
     pub fn new() -> Self {
@@ -157,7 +152,7 @@ impl GitProvider for GitLabProvider {
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status()
-            .map_or(false, |s| s.success())
+            .is_ok_and(|s| s.success())
     }
 
     fn required_cli(&self) -> Option<&str> {

@@ -911,8 +911,8 @@ mod tests {
 
     #[test]
     fn interop_dir_path() {
-        let dir = tempdir().unwrap();
-        let p = interop_dir(dir.path());
+        let dir = tempfile::tempdir().unwrap();
+        let p = interop_dir(dir.path().to_str().unwrap());
         assert_eq!(p, dir.path().join(".omc/state/interop"));
     }
 }

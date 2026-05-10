@@ -31,7 +31,7 @@ impl ToolCache {
     fn new(ttl: Duration) -> Self {
         Self {
             tools: Vec::new(),
-            fetched_at: ttl.elapsed(),
+            fetched_at: Instant::now(),
             ttl,
         }
     }
@@ -130,7 +130,7 @@ impl McpToolRegistry {
 
     /// Force-invalidate the cache so the next call to `tools()` refreshes it.
     pub fn invalidate_cache(&mut self) {
-        self.cache.fetched_at = self.cache.ttl.elapsed();
+        self.cache.fetched_at = Instant::now() - self.cache.ttl;
     }
 
     /// Collect tools from `crate::all_tools()` filtered by enabled group prefixes.
@@ -160,7 +160,7 @@ impl McpToolRegistry {
 
 impl Default for McpToolRegistry {
     fn default() -> Self {
-        Self { tool_factories: Vec::new() }
+        Self::new()
     }
 }
 

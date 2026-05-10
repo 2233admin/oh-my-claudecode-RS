@@ -235,15 +235,10 @@ pub enum AuditOutcome {
     Warned,
 }
 
+#[derive(Default)]
 pub struct AuditLog {
     entries: Vec<AuditEntry>,
     log_path: Option<PathBuf>,
-}
-
-impl Default for AuditLog {
-    fn default() -> Self {
-        Self {}
-    }
 }
 
 impl AuditLog {
@@ -342,7 +337,7 @@ impl SentinelGate {
             action: "task_dispatch".to_string(),
             target: task.to_string(),
             outcome: outcome.clone(),
-            details: delegation_check.as_ref().map_err(|e| e.to_string()),
+            details: delegation_check.as_ref().ok().map(|_| String::new()),
         });
 
         match (delegation_check, &self.enforcement) {

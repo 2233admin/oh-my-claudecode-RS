@@ -9,10 +9,7 @@ pub struct BitbucketProvider;
 
 impl Default for BitbucketProvider {
     fn default() -> Self {
-        Self {
-            client: Client::new(),
-            base_url: "https://api.bitbucket.org".to_string(),
-        }
+        Self
     }
 }
 
@@ -21,26 +18,26 @@ impl BitbucketProvider {
         Self
     }
 
-    static BITBUCKET_TOKEN: &str = "BITBUCKET_TOKEN";
-    static BITBUCKET_USERNAME: &str = "BITBUCKET_USERNAME";
-    static BITBUCKET_APP_PASSWORD: &str = "BITBUCKET_APP_PASSWORD";
-        fn auth_header(&self) -> Option<String> {
-            if let Ok(token) = std::env::var(BITBUCKET_TOKEN)
-                && !token.is_empty()
-            {
-                return Some(format!("Bearer {token}"));
-            }
-            if let (Ok(user), Ok(pass)) = (
-                std::env::var(BITBUCKET_USERNAME),
-                std::env::var(BITBUCKET_APP_PASSWORD),
-            ) && !user.is_empty()
-                && !pass.is_empty()
-            {
-                let encoded = base64_encode(&format!("{user}:{pass}"));
-                return Some(format!("Basic {encoded}"));
-            }
-            None
+    const BITBUCKET_TOKEN: &str = "BITBUCKET_TOKEN";
+    const BITBUCKET_USERNAME: &str = "BITBUCKET_USERNAME";
+    const BITBUCKET_APP_PASSWORD: &str = "BITBUCKET_APP_PASSWORD";
+    fn auth_header(&self) -> Option<String> {
+        if let Ok(token) = std::env::var(Self::BITBUCKET_TOKEN)
+            && !token.is_empty()
+        {
+            return Some(format!("Bearer {token}"));
         }
+        if let (Ok(user), Ok(pass)) = (
+            std::env::var(Self::BITBUCKET_USERNAME),
+            std::env::var(Self::BITBUCKET_APP_PASSWORD),
+        ) && !user.is_empty()
+            && !pass.is_empty()
+        {
+            let encoded = base64_encode(&format!("{user}:{pass}"));
+            return Some(format!("Basic {encoded}"));
+        }
+        None
+    }
 }
 
 #[async_trait]

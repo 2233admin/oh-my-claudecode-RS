@@ -45,7 +45,7 @@ impl RoleRouter {
             .filter(|rule| rule.keywords.iter().any(|kw| lower.contains(kw.as_str())))
             .map(|rule| (rule.role.as_str(), rule.priority))
             .collect();
-        matches.sort_by(|a, b| b.1.cmp(&a.1));
+        matches.sort_by_key(|b| std::cmp::Reverse(b.1));
         matches.dedup_by(|a, b| a.0 == b.0);
         matches.into_iter().map(|(role, _)| role).collect()
     }
@@ -64,11 +64,7 @@ impl RoleRouter {
             "improve-codebase-architecture",
             7,
         );
-        router.add_rule(
-            vec!["prototype", "mockup", "ui", "design"],
-            "prototype",
-            6,
-        );
+        router.add_rule(vec!["prototype", "mockup", "ui", "design"], "prototype", 6);
         router.add_rule(
             vec!["issue", "triage", "bug report", "feature request"],
             "triage",
@@ -486,16 +482,16 @@ mod tests {
     #[test]
     fn role_router_keyword_matching() {
         let router = RoleRouter::with_defaults();
-        assert_eq!(router.route("there is a bug in the parser"), Some("diagnose"));
+        assert_eq!(
+            router.route("there is a bug in the parser"),
+            Some("diagnose")
+        );
         assert_eq!(router.route("write more tests"), Some("tdd"));
         assert_eq!(
             router.route("improve architecture of this module"),
             Some("improve-codebase-architecture")
         );
-        assert_eq!(
-            router.route("build a quick prototype"),
-            Some("prototype")
-        );
+        assert_eq!(router.route("build a quick prototype"), Some("prototype"));
         assert_eq!(router.route("file an issue"), Some("triage"));
         assert_eq!(router.route("make a plan"), Some("ralplan"));
     }
@@ -527,14 +523,8 @@ mod tests {
     #[test]
     fn role_router_case_insensitive() {
         let router = RoleRouter::with_defaults();
-        assert_eq!(
-            router.route("THERE IS A BUG"),
-            Some("diagnose")
-        );
-        assert_eq!(
-            router.route("Write More Tests"),
-            Some("tdd")
-        );
+        assert_eq!(router.route("THERE IS A BUG"), Some("diagnose"));
+        assert_eq!(router.route("Write More Tests"), Some("tdd"));
     }
 
     #[test]

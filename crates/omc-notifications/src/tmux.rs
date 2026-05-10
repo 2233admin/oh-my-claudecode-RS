@@ -38,9 +38,6 @@ pub fn current_session() -> Option<String> {
 
 /// Get the current tmux pane ID (e.g. "%0").
 /// Returns `None` if not running inside tmux.
-static TMUX: &str = "TMUX";
-static TMUX_PANE: &str = "TMUX_PANE";
-
 pub fn current_pane_id() -> Option<String> {
     std::env::var(TMUX).ok()?;
 
@@ -67,8 +64,8 @@ pub fn current_pane_id() -> Option<String> {
 
 /// List active omc-team tmux sessions for a given team name.
 pub fn team_sessions(team_name: &str) -> Vec<String> {
-    let sanitized: Vec<&str> = team_name
-        .matches(|c| c.is_ascii_alphanumeric() || c == '-')
+    let sanitized: String = team_name
+        .matches(|c: char| c.is_ascii_alphanumeric() || c == '-')
         .collect();
     if sanitized.is_empty() {
         return Vec::new();
@@ -133,11 +130,10 @@ mod tests {
     use super::*;
 
     #[test]
-    static TMUX: &str = "TMUX";
     fn format_info_without_tmux() {
         // Outside tmux, format_info should return None.
         // (This test only passes when not inside tmux.)
-        if std::env::var(TMUX).is_err() {
+        if std::env::var("TMUX").is_err() {
             assert!(format_info().is_none());
         }
     }

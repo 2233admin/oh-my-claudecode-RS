@@ -5,9 +5,9 @@
 //!
 //! Ported from oh-my-claudecode's features/context-injector.
 
+use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
-use dashmap::DashMap;
 
 /// Source identifier for context injection.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -78,6 +78,28 @@ pub struct PendingContext {
     pub merged: String,
     pub entries: Vec<ContextEntry>,
     pub has_content: bool,
+}
+
+/// Injection strategy for context.
+#[derive(Debug, Clone, Copy, Default)]
+pub enum InjectionStrategy {
+    #[default]
+    Prepend,
+    Append,
+    Wrap,
+}
+
+/// Result of an injection operation.
+#[derive(Debug, Clone)]
+pub struct InjectionResult {
+    pub injected: bool,
+    pub context_length: usize,
+    pub entry_count: usize,
+}
+
+const CONTEXT_SEPARATOR: &str = "\n\n---\n\n";
+const DEFAULT_SEPARATOR: &str = "\n\n---\n\n";
+
 /// Collects and manages context entries for sessions.
 #[derive(Debug, Clone, Default)]
 pub struct ContextCollector {
@@ -92,9 +114,7 @@ impl ContextCollector {
     /// Register a context entry for a session.
     /// If an entry with the same source:id already exists, it will be replaced.
     pub async fn register(&self, session_id: &str, options: RegisterContextOptions) {
-        let session_map = self.sessions
-            .entry(session_id.to_string())
-            .or_insert_with(HashMap::new);
+        let mut session_map = self.sessions.entry(session_id.to_string()).or_default();
 
         let key = format!("{}:{}", options.source.as_str(), options.id);
         let entry = ContextEntry {
@@ -111,8 +131,7 @@ impl ContextCollector {
 
     /// Get pending context for a session without consuming it.
     pub async fn get_pending(&self, session_id: &str) -> PendingContext {
-        let sessions = self.sessions.read().await;
-        let Some(session_map) = sessions.get(session_id) else {
+        let Some(session_map) = self.sessions.get(session_id) else {
             return PendingContext {
                 merged: String::default(),
                 entries: Vec::default(),
@@ -154,26 +173,22 @@ impl ContextCollector {
 
     /// Clear all context for a session.
     pub async fn clear(&self, session_id: &str) {
-        let mut sessions = self.sessions.write().await;
-        sessions.remove(session_id);
+        self.sessions.remove(session_id);
     }
 
     /// Check if a session has pending context.
     pub async fn has_pending(&self, session_id: &str) -> bool {
-        let sessions = self.sessions.read().await;
-        sessions.get(session_id).is_some_and(|m| !m.is_empty())
+        self.sessions.get(session_id).is_some_and(|m| !m.is_empty())
     }
 
     /// Get count of entries for a session.
     pub async fn entry_count(&self, session_id: &str) -> usize {
-        let sessions = self.sessions.read().await;
-        sessions.get(session_id).map_or(0, |m| m.len())
+        self.sessions.get(session_id).map_or(0, |m| m.len())
     }
 
     /// Remove a specific entry from a session.
     pub async fn remove_entry(&self, session_id: &str, source: &str, id: &str) -> bool {
-        let mut sessions = self.sessions.write().await;
-        let Some(session_map) = sessions.get_mut(session_id) else {
+        let Some(mut session_map) = self.sessions.get_mut(session_id) else {
             return false;
         };
         let key = format!("{source}:{id}");
@@ -182,8 +197,10 @@ impl ContextCollector {
 
     /// Get all active session IDs.
     pub async fn active_sessions(&self) -> Vec<String> {
-        let sessions = self.sessions.read().await;
-        sessions.keys().cloned().collect()
+        self.sessions
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
 
     fn sort_entries(entries: &mut [ContextEntry]) {

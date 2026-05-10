@@ -6,9 +6,9 @@
 //!
 //! Ported from oh-my-claudecode's agents module.
 
+use dashmap::DashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use dashmap::DashMap;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AgentsMdError {
@@ -149,8 +149,7 @@ impl AgentsMdManager {
 
     /// Clear the file cache.
     pub async fn clear_cache(&self) {
-        let mut cache = self.cache.write().await;
-        cache.clear();
+        self.cache.clear();
     }
 
     async fn load_or_cache(
@@ -160,11 +159,8 @@ impl AgentsMdManager {
         is_global: bool,
     ) -> Result<Option<AgentsMdFile>, AgentsMdError> {
         // Check cache first
-        {
-            let cache = self.cache.read().await;
-            if let Some(file) = cache.get(path) {
-                return Ok(Some(file.clone()));
-            }
+        if let Some(file) = self.cache.get(path) {
+            return Ok(Some(file.clone()));
         }
 
         if !path.exists() {
@@ -185,8 +181,7 @@ impl AgentsMdManager {
             is_global,
         };
 
-        let mut cache = self.cache.write().await;
-        cache.insert(path.to_path_buf(), file.clone());
+        self.cache.insert(path.to_path_buf(), file.clone());
         Ok(Some(file))
     }
 }

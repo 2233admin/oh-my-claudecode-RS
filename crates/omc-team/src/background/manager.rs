@@ -279,8 +279,7 @@ impl BackgroundManager {
                     self.concurrency.release(key);
                 }
 
-                let mut task_clone = Default::default();
-                task_clone.clone_from(&*task);
+                let task_clone = task.clone();
                 drop(tasks);
                 self.mark_for_notification(task_clone);
                 return;

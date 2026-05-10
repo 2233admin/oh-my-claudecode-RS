@@ -595,9 +595,7 @@ fn check_fsc_ready_with_runner(
     Ok(messages)
 }
 
-fn check_codex_ready_with_runner(
-    runner: &dyn RuntimeCommandRunner,
-) -> Result<Vec<String>, String> {
+fn check_codex_ready_with_runner(runner: &dyn RuntimeCommandRunner) -> Result<Vec<String>, String> {
     let version = runner
         .output("codex", &["--version"], None)
         .map_err(|err| format!("{err}. Install Codex CLI and ensure `codex` is on PATH."))?;
@@ -976,10 +974,7 @@ mod tests {
         assert_eq!(RuntimeKind::parse("fsc").unwrap(), RuntimeKind::Fsc);
         assert_eq!(RuntimeKind::parse("kt").unwrap(), RuntimeKind::Kohaku);
         assert_eq!(RuntimeKind::parse("codex").unwrap(), RuntimeKind::Codex);
-        assert_eq!(
-            RuntimeKind::parse("codex-cli").unwrap(),
-            RuntimeKind::Codex
-        );
+        assert_eq!(RuntimeKind::parse("codex-cli").unwrap(), RuntimeKind::Codex);
     }
 
     #[test]
@@ -1022,7 +1017,11 @@ mod tests {
             &FakeRunner::default(),
         );
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("codex runtime is handled by Codex CLI directly"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("codex runtime is handled by Codex CLI directly")
+        );
         let _ = fs::remove_dir_all(root);
     }
 
