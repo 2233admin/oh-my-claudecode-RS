@@ -686,6 +686,9 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let installer = make_installer(&temp);
 
+        // Ensure config directory exists before writing settings
+        std::fs::create_dir_all(installer.paths.settings_file.parent().unwrap()).unwrap();
+
         let existing = serde_json::json!({
             "hooks": {
                 "Stop": [
