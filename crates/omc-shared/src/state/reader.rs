@@ -92,7 +92,6 @@ impl StateReader {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

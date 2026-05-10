@@ -19,6 +19,8 @@ pub mod heartbeat;
 pub mod idle_nudge;
 mod observability;
 pub mod phase_controller;
+pub mod ralph;
+pub mod ralplan;
 pub mod role_router;
 mod runtimes;
 pub mod task_graph;

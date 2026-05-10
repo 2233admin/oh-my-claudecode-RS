@@ -270,8 +270,7 @@ pub fn state_write(
         }
     }
 
-    let pretty = serde_json::to_string_pretty(&fields)
-        .unwrap_or_else(|_| "{}".to_string());
+    let pretty = serde_json::to_string_pretty(&fields).unwrap_or_else(|_| "{}".to_string());
     let state_path = resolve_mode_state_path(&paths, mode, session_id);
     if let Some(parent) = state_path.parent() {
         let _ = fs::create_dir_all(parent);
@@ -413,8 +412,10 @@ pub fn state_list_active(working_directory: Option<&str>, session_id: Option<&st
     }
 
     let count = mode_sessions.len();
-    let scope = session_id
-        .map_or_else(|| format!(" ({count})"), |s| format!(" (session: {s}, {count})"));
+    let scope = session_id.map_or_else(
+        || format!(" ({count})"),
+        |s| format!(" (session: {s}, {count})"),
+    );
     let mut output = format!("## Active Modes{scope}\n\n");
 
     for (mode, sessions) in &mode_sessions {

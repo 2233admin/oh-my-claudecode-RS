@@ -19,8 +19,20 @@ pub struct Cli {
 /// rendered content to stdout.
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Run OMC setup wizard
-    OmcSetup(SkillArgs),
+    /// Setup OMC for a specific host
+    OmcSetup {
+        /// Target host: claude or codex
+        #[arg(long, value_parser = ["claude", "codex"])]
+        host: Option<String>,
+
+        /// Force overwrite existing configuration
+        #[arg(long, default_value = "false")]
+        force: bool,
+
+        /// Additional arguments passed to the template (fallback mode)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
 
     /// Diagnose OMC installation and environment
     OmcDoctor(SkillArgs),

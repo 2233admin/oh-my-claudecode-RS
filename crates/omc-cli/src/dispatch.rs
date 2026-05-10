@@ -1,6 +1,8 @@
 //! Skill dispatch and template loading.
 
 use crate::commands::{Cli, Commands, SkillArgs};
+use omc_host::HostKind;
+use omc_skills::SkillRegistrar;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -17,7 +19,7 @@ pub enum DispatchError {
 /// Resolve the canonical skill name for a given command variant.
 fn skill_name(cmd: &Commands) -> Option<&'static str> {
     match cmd {
-        Commands::OmcSetup(_) => Some("omc-setup"),
+        Commands::OmcSetup { .. } => Some("omc-setup"),
         Commands::OmcDoctor(_) => Some("omc-doctor"),
         Commands::ConfigureNotifications(_) => Some("configure-notifications"),
         Commands::Hud(_) => Some("hud"),
@@ -49,10 +51,10 @@ fn skill_name(cmd: &Commands) -> Option<&'static str> {
 }
 
 /// Extract the skill args from any command variant.
-fn skill_args(cmd: &Commands) -> Option<&SkillArgs> {
+fn skill_args(cmd: &Commands) -> Option<SkillArgs> {
     match cmd {
-        Commands::OmcSetup(a)
-        | Commands::OmcDoctor(a)
+        Commands::OmcSetup { args, .. } => Some(SkillArgs { args: args.clone() }),
+        Commands::OmcDoctor(a)
         | Commands::ConfigureNotifications(a)
         | Commands::Hud(a)
         | Commands::Skill(a)
@@ -77,7 +79,7 @@ fn skill_args(cmd: &Commands) -> Option<&SkillArgs> {
         | Commands::SelfImprove(a)
         | Commands::OmcTeams(a)
         | Commands::Plan(a)
-        | Commands::DeepInterview(a) => Some(a),
+        | Commands::DeepInterview(a) => Some(a.clone()),
         Commands::List => None,
     }
 }
@@ -89,6 +91,19 @@ pub fn run(cli: Cli) -> Result<(), DispatchError> {
         return Ok(());
     }
 
+    // Intercept `omc setup --host <host>` for real setup logic
+    if let Commands::OmcSetup {
+        host: Some(host),
+        force,
+        ..
+    } = &cli.command
+    {
+        let root = std::env::current_dir().map_err(DispatchError::Io)?;
+        run_setup_host(&root, host, *force)?;
+        return Ok(());
+    }
+
+    // Default: load template and print
     let name = skill_name(&cli.command).expect("non-List command must resolve to a skill name");
     let args = skill_args(&cli.command).expect("non-List command must have skill args");
 
@@ -97,6 +112,115 @@ pub fn run(cli: Cli) -> Result<(), DispatchError> {
     print!("{rendered}");
 
     Ok(())
+}
+
+/// Execute the real host setup flow: init project dirs, bootstrap .omc/,
+/// discover and register skill sources, generate Codex manifest if needed.
+fn run_setup_host(root: &Path, host: &str, force: bool) -> Result<(), DispatchError> {
+    let host_kind = HostKind::parse(host).map_err(DispatchError::NotFound)?;
+
+    println!("Setting up OMC for host: {host_kind}");
+    println!("Project root: {}\n", root.display());
+
+    // 1. Init host project structure (.claude/ or .codex/)
+    let adapter = omc_host::create_adapter(host_kind);
+    let init_report = adapter
+        .init_project(root)
+        .map_err(DispatchError::NotFound)?;
+    println!("Host directories ({}):", host_kind.config_dir_name());
+    for p in &init_report.created {
+        println!("  + {}", p.display());
+    }
+    for p in &init_report.unchanged {
+        println!("  = {} (exists)", p.display());
+    }
+
+    // 2. Bootstrap .omc/ directory structure
+    omc_skills::bootstrap::bootstrap_omc_dir(root).map_err(DispatchError::Io)?;
+    println!("\n.omc/ directory bootstrapped.");
+
+    // 3. Discover skill sources in .omc/skills/
+    let omc_skills_dir = root.join(".omc").join("skills");
+    let sources = discover_skill_sources(&omc_skills_dir);
+
+    // 4. Register skill sources into host skills directory
+    let host_skills_dir = root.join(host_kind.config_dir_name()).join("skills");
+    let registrar = SkillRegistrar::new(&host_skills_dir);
+
+    if sources.is_empty() {
+        println!(
+            "\nNo skill sources found in {}. Add skills with `omc skill add`.",
+            omc_skills_dir.display()
+        );
+    } else {
+        println!("\nRegistering {} skill source(s):", sources.len());
+        let result = registrar.register_all(&sources);
+        for linked in &result.linked {
+            println!("  linked: {}", linked.display());
+        }
+        for copied in &result.copied {
+            println!("  copied: {}", copied.display());
+        }
+        for skipped in &result.skipped {
+            println!("  exists: {}", skipped.display());
+        }
+        for (path, err) in &result.errors {
+            println!("  error: {} — {err}", path.display());
+        }
+
+        // 5. For Codex: generate skills.toml manifest
+        if host_kind == HostKind::Codex {
+            let mut loader = omc_skills::SkillLoader::new(&host_skills_dir);
+            if let Ok(discovered) = loader.discover_all() {
+                let manifest = registrar.generate_codex_manifest(&discovered);
+                let manifest_path = root.join(".codex").join("skills.toml");
+                if force || !manifest_path.exists() {
+                    std::fs::write(&manifest_path, &manifest).map_err(DispatchError::Io)?;
+                    println!(
+                        "\nGenerated Codex manifest: {} ({} skills)",
+                        manifest_path.display(),
+                        discovered.len()
+                    );
+                } else {
+                    println!(
+                        "\nCodex manifest exists (use --force to overwrite): {}",
+                        manifest_path.display()
+                    );
+                }
+            }
+        }
+    }
+
+    println!("\nSetup complete for {host_kind}.");
+    Ok(())
+}
+
+/// Discover skill source directories under `dir`.
+///
+/// Returns `(source_dir, link_name)` pairs for directories containing SKILL.md.
+fn discover_skill_sources(dir: &Path) -> Vec<(PathBuf, String)> {
+    let mut sources = Vec::new();
+    if !dir.is_dir() {
+        return sources;
+    }
+
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return sources;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() && path.join("SKILL.md").exists() {
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+            sources.push((path, name));
+        }
+    }
+
+    sources
 }
 
 /// Load a skill template by name from the skills directory.
@@ -126,6 +250,7 @@ fn load_template(name: &str) -> Result<String, DispatchError> {
 
 /// Build the ordered list of paths to check for a skill template.
 static OMC_SKILLS_DIR: &str = "OMC_SKILLS_DIR";
+static OMC_HOME: &str = "OMC_HOME";
 
 fn template_search_paths(name: &str) -> Vec<PathBuf> {
     let mut paths = Vec::new();
@@ -239,8 +364,6 @@ fn list_skills() {
 }
 
 /// Get directories to scan for skill listing.
-static OMC_SKILLS_DIR: &str = "OMC_SKILLS_DIR";
-
 fn template_search_roots() -> Vec<PathBuf> {
     let mut roots = Vec::new();
 

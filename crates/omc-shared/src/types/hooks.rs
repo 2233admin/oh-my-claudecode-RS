@@ -1,10 +1,16 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-/// Events that can trigger hooks
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+/// Events that can trigger hooks.
+///
+/// These are divided into three categories:
+/// - Claude native events: emitted by Claude Code itself
+/// - OMC specific events: custom events added by OMC
+/// - omc-team events: events from the agent team orchestration system
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum HookEvent {
+    // Claude native events
     UserPromptSubmit,
     SessionStart,
     SessionEnd,
@@ -14,8 +20,113 @@ pub enum HookEvent {
     Stop,
     PreCompact,
     PermissionRequest,
+    Notification,
+    // OMC specific events
     SubagentStart,
     SubagentStop,
+    // omc-team events
+    TaskCreated,
+    TaskCompleted,
+    TeammateIdle,
+}
+
+impl HookEvent {
+    /// Parse a hook event from a string (case-insensitive).
+    pub fn parse_str(s: &str) -> Result<Self, String> {
+        let normalized = s.trim();
+        match normalized {
+            // Exact matches
+            "UserPromptSubmit" | "user_prompt_submit" | "user-prompt-submit" => {
+                Ok(Self::UserPromptSubmit)
+            }
+            "SessionStart" | "session_start" | "session-start" => Ok(Self::SessionStart),
+            "SessionEnd" | "session_end" | "session-end" => Ok(Self::SessionEnd),
+            "PreToolUse" | "pre_tool_use" | "pre-tool-use" => Ok(Self::PreToolUse),
+            "PostToolUse" | "post_tool_use" | "post-tool-use" => Ok(Self::PostToolUse),
+            "PostToolUseFailure" | "post_tool_use_failure" | "post-tool-use-failure" => {
+                Ok(Self::PostToolUseFailure)
+            }
+            "Stop" | "stop" => Ok(Self::Stop),
+            "PreCompact" | "pre_compact" | "pre-compact" => Ok(Self::PreCompact),
+            "PermissionRequest" | "permission_request" | "permission-request" => {
+                Ok(Self::PermissionRequest)
+            }
+            "Notification" | "notification" => Ok(Self::Notification),
+            // OMC specific
+            "SubagentStart" | "subagent_start" | "subagent-start" => Ok(Self::SubagentStart),
+            "SubagentStop" | "subagent_stop" | "subagent-stop" => Ok(Self::SubagentStop),
+            // omc-team
+            "TaskCreated" | "task_created" | "task-created" => Ok(Self::TaskCreated),
+            "TaskCompleted" | "task_completed" | "task-completed" => Ok(Self::TaskCompleted),
+            "TeammateIdle" | "teammate_idle" | "teammate-idle" => Ok(Self::TeammateIdle),
+            _ => Err(format!("unknown hook event: {s}")),
+        }
+    }
+
+    /// Convert a hook event to its canonical string representation.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::UserPromptSubmit => "UserPromptSubmit",
+            Self::SessionStart => "SessionStart",
+            Self::SessionEnd => "SessionEnd",
+            Self::PreToolUse => "PreToolUse",
+            Self::PostToolUse => "PostToolUse",
+            Self::PostToolUseFailure => "PostToolUseFailure",
+            Self::Stop => "Stop",
+            Self::PreCompact => "PreCompact",
+            Self::PermissionRequest => "PermissionRequest",
+            Self::Notification => "Notification",
+            Self::SubagentStart => "SubagentStart",
+            Self::SubagentStop => "SubagentStop",
+            Self::TaskCreated => "TaskCreated",
+            Self::TaskCompleted => "TaskCompleted",
+            Self::TeammateIdle => "TeammateIdle",
+        }
+    }
+
+    /// Check if this is a Claude native event.
+    pub fn is_native(&self) -> bool {
+        matches!(
+            self,
+            Self::UserPromptSubmit
+                | Self::SessionStart
+                | Self::SessionEnd
+                | Self::PreToolUse
+                | Self::PostToolUse
+                | Self::PostToolUseFailure
+                | Self::Stop
+                | Self::PreCompact
+                | Self::PermissionRequest
+                | Self::Notification
+        )
+    }
+
+    /// Check if this is an OMC-specific event.
+    pub fn is_omc_specific(&self) -> bool {
+        matches!(self, Self::SubagentStart | Self::SubagentStop)
+    }
+
+    /// Check if this is an omc-team event.
+    pub fn is_omc_team(&self) -> bool {
+        matches!(
+            self,
+            Self::TaskCreated | Self::TaskCompleted | Self::TeammateIdle
+        )
+    }
+}
+
+impl std::fmt::Display for HookEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl std::str::FromStr for HookEvent {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse_str(s)
+    }
 }
 
 /// Type of hook execution
@@ -90,8 +201,12 @@ mod tests {
             HookEvent::Stop,
             HookEvent::PreCompact,
             HookEvent::PermissionRequest,
+            HookEvent::Notification,
             HookEvent::SubagentStart,
             HookEvent::SubagentStop,
+            HookEvent::TaskCreated,
+            HookEvent::TaskCompleted,
+            HookEvent::TeammateIdle,
         ];
         for variant in variants {
             let json = serde_json::to_string(&variant).unwrap();
@@ -110,11 +225,141 @@ mod tests {
 
     #[test]
     fn hook_event_variant_count() {
+        // Manual count since std::mem::variant_count is unstable
+        let all = [
+            HookEvent::UserPromptSubmit,
+            HookEvent::SessionStart,
+            HookEvent::SessionEnd,
+            HookEvent::PreToolUse,
+            HookEvent::PostToolUse,
+            HookEvent::PostToolUseFailure,
+            HookEvent::Stop,
+            HookEvent::PreCompact,
+            HookEvent::PermissionRequest,
+            HookEvent::Notification,
+            HookEvent::SubagentStart,
+            HookEvent::SubagentStop,
+            HookEvent::TaskCreated,
+            HookEvent::TaskCompleted,
+            HookEvent::TeammateIdle,
+        ];
+        assert_eq!(all.len(), 15, "HookEvent should have exactly 15 variants");
+    }
+
+    // === HookEvent string parsing ===
+
+    #[test]
+    fn hook_event_parse_str_exact() {
         assert_eq!(
-            std::mem::variant_count::<HookEvent>(),
-            11,
-            "HookEvent should have exactly 11 variants"
+            HookEvent::parse_str("UserPromptSubmit").unwrap(),
+            HookEvent::UserPromptSubmit
         );
+        assert_eq!(
+            HookEvent::parse_str("Notification").unwrap(),
+            HookEvent::Notification
+        );
+        assert_eq!(
+            HookEvent::parse_str("TaskCreated").unwrap(),
+            HookEvent::TaskCreated
+        );
+        assert_eq!(
+            HookEvent::parse_str("TeammateIdle").unwrap(),
+            HookEvent::TeammateIdle
+        );
+    }
+
+    #[test]
+    fn hook_event_parse_str_snake_case() {
+        assert_eq!(
+            HookEvent::parse_str("user_prompt_submit").unwrap(),
+            HookEvent::UserPromptSubmit
+        );
+        assert_eq!(
+            HookEvent::parse_str("post_tool_use_failure").unwrap(),
+            HookEvent::PostToolUseFailure
+        );
+        assert_eq!(
+            HookEvent::parse_str("task_completed").unwrap(),
+            HookEvent::TaskCompleted
+        );
+    }
+
+    #[test]
+    fn hook_event_parse_str_kebab_case() {
+        assert_eq!(
+            HookEvent::parse_str("user-prompt-submit").unwrap(),
+            HookEvent::UserPromptSubmit
+        );
+        assert_eq!(
+            HookEvent::parse_str("subagent-stop").unwrap(),
+            HookEvent::SubagentStop
+        );
+    }
+
+    #[test]
+    fn hook_event_parse_str_invalid() {
+        assert!(HookEvent::parse_str("InvalidEvent").is_err());
+        assert!(HookEvent::parse_str("").is_err());
+    }
+
+    #[test]
+    fn hook_event_as_str_roundtrip() {
+        for event in [
+            HookEvent::UserPromptSubmit,
+            HookEvent::SessionStart,
+            HookEvent::SessionEnd,
+            HookEvent::PreToolUse,
+            HookEvent::PostToolUse,
+            HookEvent::PostToolUseFailure,
+            HookEvent::Stop,
+            HookEvent::PreCompact,
+            HookEvent::PermissionRequest,
+            HookEvent::Notification,
+            HookEvent::SubagentStart,
+            HookEvent::SubagentStop,
+            HookEvent::TaskCreated,
+            HookEvent::TaskCompleted,
+            HookEvent::TeammateIdle,
+        ] {
+            assert_eq!(HookEvent::parse_str(event.as_str()).unwrap(), event);
+        }
+    }
+
+    // === HookEvent Display / FromStr ===
+
+    #[test]
+    fn hook_event_display() {
+        assert_eq!(
+            format!("{}", HookEvent::UserPromptSubmit),
+            "UserPromptSubmit"
+        );
+        assert_eq!(format!("{}", HookEvent::TaskCreated), "TaskCreated");
+    }
+
+    #[test]
+    fn hook_event_from_str_trait() {
+        let event: HookEvent = "PostToolUse".parse().unwrap();
+        assert_eq!(event, HookEvent::PostToolUse);
+
+        let result: Result<HookEvent, _> = "Invalid".parse();
+        assert!(result.is_err());
+    }
+
+    // === HookEvent category checks ===
+
+    #[test]
+    fn hook_event_category_checks() {
+        assert!(HookEvent::UserPromptSubmit.is_native());
+        assert!(!HookEvent::UserPromptSubmit.is_omc_specific());
+        assert!(!HookEvent::UserPromptSubmit.is_omc_team());
+
+        assert!(HookEvent::SubagentStart.is_omc_specific());
+        assert!(!HookEvent::SubagentStart.is_native());
+        assert!(!HookEvent::SubagentStart.is_omc_team());
+
+        assert!(HookEvent::TaskCreated.is_omc_team());
+        assert!(!HookEvent::TaskCreated.is_native());
+        assert!(!HookEvent::TaskCreated.is_omc_specific());
     }
 
     // === HookType serialization ===

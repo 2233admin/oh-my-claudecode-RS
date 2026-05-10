@@ -15,6 +15,9 @@ dirs = { workspace = true }
 thiserror = { workspace = true }
 walkdir = "2.4"
 regex = "1"
+omc-host = { path = "../omc-host" }
+omc-skills = { path = "../omc-skills" }
+tracing = { workspace = true }
 
 [[bin]]
 name = "omc"

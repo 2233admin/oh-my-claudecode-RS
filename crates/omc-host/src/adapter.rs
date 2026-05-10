@@ -9,6 +9,7 @@ use crate::types::{
     McpServerDef, SpawnDirective, TeamSpawnOpts,
 };
 use crate::unified_hooks::UnifiedHookEvent;
+use omc_shared::types::team::TeamProvider;
 
 // ── HostKind ───────────────────────────────────────────────────────────────
 
@@ -48,6 +49,27 @@ impl HostKind {
 impl std::fmt::Display for HostKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
+    }
+}
+
+impl HostKind {
+    /// Convert from [`TeamProvider`].
+    ///
+    /// Returns `None` for providers that have no host equivalent (e.g. Gemini).
+    pub fn from_team_provider(provider: TeamProvider) -> Option<Self> {
+        match provider {
+            TeamProvider::Claude => Some(Self::Claude),
+            TeamProvider::Codex => Some(Self::Codex),
+            TeamProvider::Gemini => None,
+        }
+    }
+
+    /// Convert to [`TeamProvider`].
+    pub fn to_team_provider(self) -> TeamProvider {
+        match self {
+            Self::Claude => TeamProvider::Claude,
+            Self::Codex => TeamProvider::Codex,
+        }
     }
 }
 
@@ -228,6 +250,50 @@ mod tests {
             let json = serde_json::to_string(&kind).unwrap();
             let back: HostKind = serde_json::from_str(&json).unwrap();
             assert_eq!(back, kind);
+        }
+    }
+
+    // === TeamProvider <-> HostKind conversion ===
+
+    #[test]
+    fn from_team_provider_claude() {
+        assert_eq!(
+            HostKind::from_team_provider(TeamProvider::Claude),
+            Some(HostKind::Claude),
+        );
+    }
+
+    #[test]
+    fn from_team_provider_codex() {
+        assert_eq!(
+            HostKind::from_team_provider(TeamProvider::Codex),
+            Some(HostKind::Codex),
+        );
+    }
+
+    #[test]
+    fn from_team_provider_gemini_returns_none() {
+        assert_eq!(HostKind::from_team_provider(TeamProvider::Gemini), None,);
+    }
+
+    #[test]
+    fn to_team_provider_claude() {
+        assert_eq!(HostKind::Claude.to_team_provider(), TeamProvider::Claude,);
+    }
+
+    #[test]
+    fn to_team_provider_codex() {
+        assert_eq!(HostKind::Codex.to_team_provider(), TeamProvider::Codex,);
+    }
+
+    #[test]
+    fn team_provider_roundtrip() {
+        // Converting HostKind -> TeamProvider -> HostKind should be identity
+        // for variants that have a mapping.
+        for kind in [HostKind::Claude, HostKind::Codex] {
+            let provider = kind.to_team_provider();
+            let back = HostKind::from_team_provider(provider);
+            assert_eq!(back, Some(kind), "roundtrip failed for {:?}", kind);
         }
     }
 }

@@ -1,5 +1,90 @@
 use serde::{Deserialize, Serialize};
 
+/// Keyword-based role router.
+/// Maps keywords/phrases in user input to recommended agent roles.
+pub struct RoleRouter {
+    rules: Vec<RoleRule>,
+}
+
+struct RoleRule {
+    keywords: Vec<String>,
+    role: String,
+    priority: u8,
+}
+
+impl RoleRouter {
+    pub fn new() -> Self {
+        Self { rules: Vec::new() }
+    }
+
+    /// Add a routing rule.
+    pub fn add_rule(&mut self, keywords: Vec<&str>, role: &str, priority: u8) {
+        self.rules.push(RoleRule {
+            keywords: keywords.into_iter().map(|k| k.to_lowercase()).collect(),
+            role: role.to_string(),
+            priority,
+        });
+    }
+
+    /// Route user input to the best matching role.
+    pub fn route(&self, input: &str) -> Option<&str> {
+        let lower = input.to_lowercase();
+        self.rules
+            .iter()
+            .filter(|rule| rule.keywords.iter().any(|kw| lower.contains(kw.as_str())))
+            .max_by_key(|rule| rule.priority)
+            .map(|rule| rule.role.as_str())
+    }
+
+    /// Get all matching roles sorted by priority (highest first).
+    pub fn route_all(&self, input: &str) -> Vec<&str> {
+        let lower = input.to_lowercase();
+        let mut matches: Vec<(&str, u8)> = self
+            .rules
+            .iter()
+            .filter(|rule| rule.keywords.iter().any(|kw| lower.contains(kw.as_str())))
+            .map(|rule| (rule.role.as_str(), rule.priority))
+            .collect();
+        matches.sort_by(|a, b| b.1.cmp(&a.1));
+        matches.dedup_by(|a, b| a.0 == b.0);
+        matches.into_iter().map(|(role, _)| role).collect()
+    }
+
+    /// Create a router with default OMC rules.
+    pub fn with_defaults() -> Self {
+        let mut router = Self::new();
+        router.add_rule(
+            vec!["bug", "error", "broken", "failing", "crash"],
+            "diagnose",
+            10,
+        );
+        router.add_rule(vec!["test", "tdd", "red-green", "refactor"], "tdd", 8);
+        router.add_rule(
+            vec!["architecture", "refactor", "deepen", "module"],
+            "improve-codebase-architecture",
+            7,
+        );
+        router.add_rule(
+            vec!["prototype", "mockup", "ui", "design"],
+            "prototype",
+            6,
+        );
+        router.add_rule(
+            vec!["issue", "triage", "bug report", "feature request"],
+            "triage",
+            5,
+        );
+        router.add_rule(vec!["plan", "ralplan", "consensus"], "ralplan", 4);
+        router
+    }
+}
+
+impl Default for RoleRouter {
+    fn default() -> Self {
+        Self::with_defaults()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LaneIntent {
     Implementation,
@@ -396,5 +481,66 @@ mod tests {
     #[test]
     fn infer_lane_unknown() {
         assert_eq!(infer_lane_intent("Something random"), LaneIntent::Unknown);
+    }
+
+    #[test]
+    fn role_router_keyword_matching() {
+        let router = RoleRouter::with_defaults();
+        assert_eq!(router.route("there is a bug in the parser"), Some("diagnose"));
+        assert_eq!(router.route("write more tests"), Some("tdd"));
+        assert_eq!(
+            router.route("improve architecture of this module"),
+            Some("improve-codebase-architecture")
+        );
+        assert_eq!(
+            router.route("build a quick prototype"),
+            Some("prototype")
+        );
+        assert_eq!(router.route("file an issue"), Some("triage"));
+        assert_eq!(router.route("make a plan"), Some("ralplan"));
+    }
+
+    #[test]
+    fn role_router_priority_ordering() {
+        let mut router = RoleRouter::new();
+        router.add_rule(vec!["fix"], "low-priority", 2);
+        router.add_rule(vec!["fix", "crash"], "high-priority", 10);
+        // "crash" matches both, but high-priority wins
+        assert_eq!(router.route("fix the crash"), Some("high-priority"));
+    }
+
+    #[test]
+    fn role_router_no_match_returns_none() {
+        let router = RoleRouter::new();
+        assert_eq!(router.route("hello world"), None);
+    }
+
+    #[test]
+    fn role_router_multi_keyword() {
+        let mut router = RoleRouter::new();
+        router.add_rule(vec!["alpha", "beta"], "role-a", 5);
+        router.add_rule(vec!["gamma"], "role-b", 3);
+        let all = router.route_all("alpha and gamma");
+        assert_eq!(all, vec!["role-a", "role-b"]);
+    }
+
+    #[test]
+    fn role_router_case_insensitive() {
+        let router = RoleRouter::with_defaults();
+        assert_eq!(
+            router.route("THERE IS A BUG"),
+            Some("diagnose")
+        );
+        assert_eq!(
+            router.route("Write More Tests"),
+            Some("tdd")
+        );
+    }
+
+    #[test]
+    fn role_router_default_impl() {
+        let router = RoleRouter::default();
+        assert!(router.route("something random").is_none());
+        assert_eq!(router.route("bug"), Some("diagnose"));
     }
 }

@@ -283,8 +283,7 @@ pub fn notepad_stats(working_directory: Option<&str>) -> ToolResult {
     };
 
     let total_size = content.len();
-    let priority_size = extract_section(&content, "Priority Context")
-        .map_or(0, |s| s.len());
+    let priority_size = extract_section(&content, "Priority Context").map_or(0, |s| s.len());
     let working_memory_entries = extract_section(&content, "Working Memory")
         .map_or(0, |s| s.lines().filter(|l| !l.trim().is_empty()).count());
     let oldest_entry = find_oldest_entry(&content);

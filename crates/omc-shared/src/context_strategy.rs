@@ -65,7 +65,10 @@ impl NoveltyAwareStrategy {
 
 impl Default for NoveltyAwareStrategy {
     fn default() -> Self {
-        Self { entropy_threshold: 2.5, min_messages: 10 }
+        Self {
+            entropy_threshold: 2.5,
+            min_messages: 10,
+        }
     }
 }
 

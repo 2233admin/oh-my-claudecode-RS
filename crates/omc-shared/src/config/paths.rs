@@ -279,9 +279,7 @@ mod tests {
         let skills_dir = OmcPaths::project_skills_dir(&root);
 
         assert!(skills_dir.ends_with(".omc/skills"));
-        assert!(skills_dir
-            .components()
-            .any(|c| c.as_os_str() == ".omc"));
+        assert!(skills_dir.components().any(|c| c.as_os_str() == ".omc"));
     }
 
     #[test]
