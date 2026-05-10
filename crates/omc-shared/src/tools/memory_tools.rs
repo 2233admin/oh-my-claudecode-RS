@@ -128,20 +128,14 @@ fn merge_memory(base: ProjectMemory, update: &HashMap<String, Value>) -> Project
 
     for (key, value) in update {
         match key.as_str() {
-            "techStack" | "tech_stack" => {
-                if !value.is_null() {
-                    result.tech_stack = merge_json(&result.tech_stack, value);
-                }
+            "techStack" | "tech_stack" if !value.is_null() => {
+                result.tech_stack = merge_json(&result.tech_stack, value);
             }
-            "build" => {
-                if !value.is_null() {
-                    result.build = merge_json(&result.build, value);
-                }
+            "build" if !value.is_null() => {
+                result.build = merge_json(&result.build, value);
             }
-            "conventions" => {
-                if !value.is_null() {
-                    result.conventions = merge_json(&result.conventions, value);
-                }
+            "conventions" if !value.is_null() => {
+                result.conventions = merge_json(&result.conventions, value);
             }
             "structure" if !value.is_null() => {
                 result.structure = merge_json(&result.structure, value);
