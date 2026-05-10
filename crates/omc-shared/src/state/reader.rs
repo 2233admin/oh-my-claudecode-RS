@@ -2,7 +2,7 @@
 
 use std::fs;
 
-use super::{HudState, SessionInfo, SessionState, StateError, TeamRunRecord};
+use super::{HudState, SessionInfo, StateError, TeamRunRecord};
 use crate::config::OmcPaths;
 
 /// Reader for accessing persisted state files.
@@ -95,6 +95,7 @@ impl StateReader {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::SessionState;
     use tempfile::TempDir;
 
     fn reader_with_root(root: &std::path::Path) -> StateReader {

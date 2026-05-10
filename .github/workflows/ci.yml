@@ -47,10 +47,9 @@ jobs:
       - name: cargo test
         run: cargo test --workspace
       - name: Generate coverage
-        uses: actions-rs/tarpaulin@v1
-        with:
-          version: '0.20.10'
-          args: '--workspace --out Xml'
+        run: |
+          cargo install cargo-tarpaulin --version 0.27.3
+          cargo tarpaulin --workspace --out Xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:

@@ -2,7 +2,7 @@
 
 use std::fs;
 
-use super::{HudState, SessionInfo, SessionState, StateError, TeamRunRecord};
+use super::{HudState, SessionInfo, StateError, TeamRunRecord};
 use crate::config::OmcPaths;
 
 /// Writer for persisting state to disk with atomic operations.
