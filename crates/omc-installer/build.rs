@@ -1,5 +1,5 @@
-static OUT_DIR: &str = "OUT_DIR";
-static TARGET: &str = "TARGET";
+const OUT_DIR: &str = "OUT_DIR";
+const TARGET: &str = "TARGET";
 
 fn main() {
     // Embed a Windows manifest requesting asInvoker to prevent UAC elevation
