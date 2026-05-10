@@ -336,18 +336,19 @@ mod tests {
         // Iteration count is preserved — the partial cycle did not complete
         assert_eq!(cfg.current_iteration, 0);
 
-        // Complete the first cycle
+        // Complete the first cycle (Gathering → Planning → Executing → Reviewing → Gathering)
+        cfg.advance();
         cfg.advance();
         cfg.advance();
         cfg.advance();
         assert_eq!(cfg.current_iteration, 1);
         assert_eq!(cfg.state, RalphState::Gathering);
 
-        // Second cycle completes
-        cfg.advance();
-        cfg.advance();
-        cfg.advance();
-        assert!(!cfg.advance());
+        // Second cycle: G→P→E→R→Complete (iteration reaches max_iterations=2)
+        assert!(cfg.advance()); // G→P
+        assert!(cfg.advance()); // P→E
+        assert!(cfg.advance()); // E→R
+        assert!(!cfg.advance()); // R→Complete (iteration=2 >= max=2)
         assert_eq!(cfg.state, RalphState::Complete);
         assert_eq!(cfg.current_iteration, 2);
     }
