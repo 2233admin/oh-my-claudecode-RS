@@ -49,11 +49,11 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: cargo test
         run: cargo test --workspace
+      - name: Install cargo-tarpaulin
+        uses: taiki-e/install-action@cargo-tarpaulin
       - name: Generate coverage
         continue-on-error: true
-        run: |
-          cargo install cargo-tarpaulin --version 0.27.3
-          cargo tarpaulin --workspace --out Xml
+        run: cargo tarpaulin --workspace --out Xml
       - name: Upload coverage to Codecov
         continue-on-error: true
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0

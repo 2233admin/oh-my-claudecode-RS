@@ -95,7 +95,7 @@ mod tests {
             input,
             cache,
             color_level: level,
-            strings: i18n::strings(i18n::detect_locale()),
+            strings: i18n::strings(i18n::Locale::En),
         }
     }
 

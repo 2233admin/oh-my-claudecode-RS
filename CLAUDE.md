@@ -1,12 +1,12 @@
 # OMC-RS — oh-my-claudecode in Rust
 
-Rust rewrite of oh-my-claudecode: a toolkit for Claude Code that adds agent orchestration, hooks, skills, MCP routing, statusline, context injection, and multi-provider git integration. 18 crates, 42K+ lines, 933 tests.
+Rust rewrite of oh-my-claudecode: a toolkit for Claude Code that adds agent orchestration, hooks, skills, MCP routing, statusline, context injection, and multi-provider git integration. 18 crates, 51K+ lines, 392 tests.
 
 ## Build and Test
 
 ```bash
 cargo build                          # debug build
-cargo test --workspace               # run all 933 tests
+cargo test --workspace               # run all 392 tests
 cargo test -p omc-team               # single crate
 cargo clippy --workspace -- -D warnings
 cargo fmt --check
@@ -57,10 +57,10 @@ omc-shared          (foundation — no internal deps)
 | Crate | Role |
 |-------|------|
 | omc-shared | Types, config, routing, tools, state, memory, resilience |
-| omc-host | Host abstraction layer — Claude + Codex adapters |
+| omc-host | Host abstraction layer — Claude + Codex adapters (68 tests) |
 | omc-team | Agent orchestration — DAG, lifecycle, comms, governance, fault tolerance |
-| omc-hooks | Hook system (15 events, 58 tests) |
-| omc-skills | Skill templates (40 templates, registration, host filtering) |
+| omc-hooks | Hook system (15 events, 66 tests) |
+| omc-skills | Skill templates (40 templates, registration, host filtering, 64 tests) |
 | omc-hud | Statusline elements (13 elements, 205 tests) |
 | omc-mcp | MCP tool registry + protocol routing |
 | omc-interop | MCP bridge (43 tests) |
@@ -92,7 +92,7 @@ protocol_version: "1.0"       # absent = v0 (legacy)
 - Integration tests go in `tests/` directory per crate.
 - Use `tempfile` for filesystem tests, `tokio::test` for async tests.
 - Test behavior, not implementation. One logical assertion per test case.
-- Current: 933 tests, 0 failures. Do not merge code that breaks this.
+- Current: 392 tests, 0 failures. Do not merge code that breaks this.
 
 ## Commits and PRs
 
@@ -102,6 +102,10 @@ Follow conventional commits:
 - `docs:`, `refactor:`, `test:`, `chore:` for other types
 - Branches: `dev` for active work, `master` for stable
 - Keep PRs focused. One concern per PR.
+
+## CI Status
+
+CI runs on GitHub Actions: fmt, clippy, check, test all pass. Coverage via tarpaulin + Codecov.
 
 ## Release Profile
 
@@ -150,41 +154,6 @@ All web browsing MUST use gstack's `/browse` skill. **Never** use `mcp__claude-i
 | `/setup-deploy` | Setup deployment |
 | `/setup-gbrain` | Setup gbrain |
 
-## Skill routing
-
-When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
-
-Key routing rules:
-- Product ideas/brainstorming → invoke /office-hours
-- Strategy/scope → invoke /plan-ceo-review
-- Architecture → invoke /plan-eng-review
-- Design system/plan review → invoke /design-consultation or /plan-design-review
-- Full review pipeline → invoke /autoplan
-- Bugs/errors → invoke /investigate
-- QA/testing site behavior → invoke /qa or /qa-only
-- Code review/diff check → invoke /review
-- Visual polish → invoke /design-review
-- Ship/deploy/PR → invoke /ship or /land-and-deploy
-- Save progress → invoke /context-save
-- Resume context → invoke /context-restore
-
-## Skill routing
-
-When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
-
-Key routing rules:
-- Product ideas/brainstorming → invoke /office-hours
-- Strategy/scope → invoke /plan-ceo-review
-- Architecture → invoke /plan-eng-review
-- Design system/plan review → invoke /design-consultation or /plan-design-review
-- Full review pipeline → invoke /autoplan
-- Bugs/errors → invoke /investigate
-- QA/testing site behavior → invoke /qa or /qa-only
-- Code review/diff check → invoke /review
-- Visual polish → invoke /design-review
-- Ship/deploy/PR → invoke /ship or /land-and-deploy
-- Save progress → invoke /context-save
-- Resume context → invoke /context-restore
 
 ## Skill routing
 

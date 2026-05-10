@@ -44,3 +44,20 @@ tmp/
 .gitnexus
 ruvector.db
 PendingContext
+
+# ── Garbage files from shell glob expansion in hook pipeline (see #1342) ──
+# Rust type names/tokens get created as files when bash processes hook output.
+/Closed
+/Decision
+/Executing
+/PathBuf
+/Result
+/String
+/TearingDown
+/TokenStream
+/ToolResult
+/usize
+/verify
+/1000
+/`*
+/')
