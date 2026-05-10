@@ -69,7 +69,7 @@ pub fn search_skills(term: &str) -> Vec<Skill> {
             s.name.to_lowercase().contains(&term)
                 || s.description
                     .as_ref()
-                    .map_or(false, |d| d.to_lowercase().contains(&term))
+                    .is_some_and(|d| d.to_lowercase().contains(&term))
         })
         .collect()
 }
