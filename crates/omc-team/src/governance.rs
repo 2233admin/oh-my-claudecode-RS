@@ -552,6 +552,7 @@ fn is_valid_phase_transition(from: &str, to: &str) -> bool {
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
 

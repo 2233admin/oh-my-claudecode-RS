@@ -541,7 +541,9 @@ mod tests {
         std::fs::create_dir_all(&ext).unwrap();
         std::fs::write(ext.join("README.md"), "v1").unwrap();
 
-        let r1 = installer.register_external_skills(&[ext.clone()]).unwrap();
+        let r1 = installer
+            .register_external_skills(std::slice::from_ref(&ext))
+            .unwrap();
         assert_eq!(r1.len(), 1);
 
         let r2 = installer.register_external_skills(&[ext]).unwrap();
@@ -557,7 +559,9 @@ mod tests {
         std::fs::create_dir_all(&ext).unwrap();
         std::fs::write(ext.join("README.md"), "v1").unwrap();
 
-        let r1 = installer.register_external_skills(&[ext.clone()]).unwrap();
+        let r1 = installer
+            .register_external_skills(std::slice::from_ref(&ext))
+            .unwrap();
         assert_eq!(r1.len(), 1);
 
         std::fs::write(ext.join("README.md"), "v2").unwrap();

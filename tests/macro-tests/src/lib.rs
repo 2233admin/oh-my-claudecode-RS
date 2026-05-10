@@ -23,13 +23,11 @@ mod tests {
     }
 
     impl ReadFileTool {
-        fn run(&self) -> impl std::future::Future<Output = anyhow::Result<ExecResult>> + Send + '_ {
-            async move {
-                Ok(ExecResult::ok(format!(
-                    "Read {} (range: {:?})",
-                    self.path, self.line_range
-                )))
-            }
+        async fn run(&self) -> anyhow::Result<ExecResult> {
+            Ok(ExecResult::ok(format!(
+                "Read {} (range: {:?})",
+                self.path, self.line_range
+            )))
         }
     }
 
@@ -51,13 +49,11 @@ mod tests {
     }
 
     impl DeleteFileTool {
-        fn run(&self) -> impl std::future::Future<Output = anyhow::Result<ExecResult>> + Send + '_ {
-            async move {
-                if self.force {
-                    Ok(ExecResult::ok(format!("Deleted {}", self.path)))
-                } else {
-                    Ok(ExecResult::err("Confirmation required"))
-                }
+        async fn run(&self) -> anyhow::Result<ExecResult> {
+            if self.force {
+                Ok(ExecResult::ok(format!("Deleted {}", self.path)))
+            } else {
+                Ok(ExecResult::err("Confirmation required"))
             }
         }
     }
@@ -78,13 +74,11 @@ mod tests {
     }
 
     impl SearchTool {
-        fn run(&self) -> impl std::future::Future<Output = anyhow::Result<ExecResult>> + Send + '_ {
-            async move {
-                Ok(ExecResult::ok(format!(
-                    "Searched: {} (glob: {:?}, limit: {:?})",
-                    self.query, self.glob, self.limit
-                )))
-            }
+        async fn run(&self) -> anyhow::Result<ExecResult> {
+            Ok(ExecResult::ok(format!(
+                "Searched: {} (glob: {:?}, limit: {:?})",
+                self.query, self.glob, self.limit
+            )))
         }
     }
 
@@ -100,13 +94,11 @@ mod tests {
     }
 
     impl BatchTool {
-        fn run(&self) -> impl std::future::Future<Output = anyhow::Result<ExecResult>> + Send + '_ {
-            async move {
-                Ok(ExecResult::ok(format!(
-                    "Ran {} commands",
-                    self.commands.len()
-                )))
-            }
+        async fn run(&self) -> anyhow::Result<ExecResult> {
+            Ok(ExecResult::ok(format!(
+                "Ran {} commands",
+                self.commands.len()
+            )))
         }
     }
 

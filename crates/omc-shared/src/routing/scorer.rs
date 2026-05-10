@@ -171,6 +171,48 @@ pub fn calculate_complexity_tier(signals: &ComplexitySignals) -> ComplexityTier 
     score_to_tier(calculate_complexity_score(signals))
 }
 
+/// Score breakdown for debugging/logging
+pub struct ScoreBreakdown {
+    pub lexical: f64,
+    pub structural: f64,
+    pub context: f64,
+    pub total: f64,
+    pub tier: ComplexityTier,
+}
+
+/// Get detailed score breakdown
+pub fn get_score_breakdown(signals: &ComplexitySignals) -> ScoreBreakdown {
+    let lexical = score_lexical(&signals.lexical);
+    let structural = score_structural(&signals.structural);
+    let context = score_context(&signals.context);
+    let total = lexical + structural + context;
+
+    ScoreBreakdown {
+        lexical,
+        structural,
+        context,
+        total,
+        tier: score_to_tier(total),
+    }
+}
+
+/// Calculate confidence in the tier assignment.
+/// Higher confidence when score is far from thresholds.
+pub fn calculate_confidence(score: f64, tier: ComplexityTier) -> f64 {
+    let min_distance = match tier {
+        ComplexityTier::Low => TIER_THRESHOLD_MEDIUM - score,
+        ComplexityTier::Medium => {
+            let d_low = (score - TIER_THRESHOLD_MEDIUM).abs();
+            let d_high = (score - TIER_THRESHOLD_HIGH).abs();
+            d_low.min(d_high)
+        }
+        ComplexityTier::High => score - TIER_THRESHOLD_HIGH,
+    };
+
+    let confidence = 0.5 + (min_distance.min(4.0) / 4.0) * 0.4;
+    (confidence * 100.0).round() / 100.0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -279,46 +321,4 @@ mod tests {
         assert_eq!(breakdown.total, 5.0);
         assert_eq!(breakdown.tier, ComplexityTier::Medium);
     }
-}
-
-/// Score breakdown for debugging/logging
-pub struct ScoreBreakdown {
-    pub lexical: f64,
-    pub structural: f64,
-    pub context: f64,
-    pub total: f64,
-    pub tier: ComplexityTier,
-}
-
-/// Get detailed score breakdown
-pub fn get_score_breakdown(signals: &ComplexitySignals) -> ScoreBreakdown {
-    let lexical = score_lexical(&signals.lexical);
-    let structural = score_structural(&signals.structural);
-    let context = score_context(&signals.context);
-    let total = lexical + structural + context;
-
-    ScoreBreakdown {
-        lexical,
-        structural,
-        context,
-        total,
-        tier: score_to_tier(total),
-    }
-}
-
-/// Calculate confidence in the tier assignment.
-/// Higher confidence when score is far from thresholds.
-pub fn calculate_confidence(score: f64, tier: ComplexityTier) -> f64 {
-    let min_distance = match tier {
-        ComplexityTier::Low => TIER_THRESHOLD_MEDIUM - score,
-        ComplexityTier::Medium => {
-            let d_low = (score - TIER_THRESHOLD_MEDIUM).abs();
-            let d_high = (score - TIER_THRESHOLD_HIGH).abs();
-            d_low.min(d_high)
-        }
-        ComplexityTier::High => score - TIER_THRESHOLD_HIGH,
-    };
-
-    let confidence = 0.5 + (min_distance.min(4.0) / 4.0) * 0.4;
-    (confidence * 100.0).round() / 100.0
 }
