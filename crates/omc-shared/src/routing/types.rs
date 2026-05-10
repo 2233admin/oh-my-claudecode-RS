@@ -333,7 +333,7 @@ impl ComplexityKeywords {
 
     pub const SIMPLE: &'static [&'static str] = &[
         "find", "search", "locate", "list", "show", "where is", "what is", "get", "fetch",
-        "display", "print",
+        "display", "print", "fix", "typo", "rename", "update", "change", "add", "remove",
     ];
 
     pub const RISK: &'static [&'static str] = &[
