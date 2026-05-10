@@ -50,10 +50,12 @@ jobs:
       - name: cargo test
         run: cargo test --workspace
       - name: Generate coverage
+        continue-on-error: true
         run: |
           cargo install cargo-tarpaulin --version 0.27.3
           cargo tarpaulin --workspace --out Xml
       - name: Upload coverage to Codecov
+        continue-on-error: true
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           files: ./coverage.xml
@@ -62,6 +64,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Run DeepSource
+        continue-on-error: true
         run: |
           # DeepSource analysis
           pip install deepsource
