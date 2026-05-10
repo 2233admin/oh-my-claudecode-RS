@@ -13,10 +13,7 @@ pub fn generate_claude_config(opts: &ConfigGenOptions) -> Result<GeneratedConfig
     if opts.enable_teams || !opts.env.is_empty() {
         let mut env = serde_json::Map::new();
         if opts.enable_teams {
-            env.insert(
-                "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS".into(),
-                json!("1"),
-            );
+            env.insert("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS".into(), json!("1"));
         }
         for (k, v) in &opts.env {
             env.insert(k.clone(), json!(v));
@@ -60,8 +57,8 @@ pub fn generate_claude_config(opts: &ConfigGenOptions) -> Result<GeneratedConfig
         settings.insert("customInstructions".into(), json!(instructions));
     }
 
-    let content =
-        serde_json::to_string_pretty(&serde_json::Value::Object(settings)).map_err(|e| e.to_string())?;
+    let content = serde_json::to_string_pretty(&serde_json::Value::Object(settings))
+        .map_err(|e| e.to_string())?;
 
     Ok(GeneratedConfig {
         files: vec![GeneratedFile {

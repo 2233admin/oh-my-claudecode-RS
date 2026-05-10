@@ -1,6 +1,6 @@
 //! Claude Code hook format mapping.
 
-use crate::adapter::{HostKind, HookEntry};
+use crate::adapter::{HookEntry, HostKind};
 use crate::unified_hooks::UnifiedHookEvent;
 
 /// Map a unified event to a Claude Code hook entry.

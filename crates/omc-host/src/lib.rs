@@ -13,7 +13,7 @@ pub mod types;
 pub mod unified_hooks;
 
 // Re-exports for convenience
-pub use adapter::{HostAdapter, HostDoctorReport, HostInitReport, HostKind, HookEntry};
+pub use adapter::{HookEntry, HostAdapter, HostDoctorReport, HostInitReport, HostKind};
 pub use claude::ClaudeHostAdapter;
 pub use codex::CodexHostAdapter;
 pub use types::{

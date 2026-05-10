@@ -10,9 +10,10 @@ pub fn generate_codex_agent(
     _opts: &AgentGenOptions,
 ) -> Result<GeneratedAgentFile, String> {
     if let Some(ref hosts) = role.hosts
-        && !hosts.contains(&HostKind::Codex) {
-            return Err(format!("agent '{}' is not available for Codex", role.name));
-        }
+        && !hosts.contains(&HostKind::Codex)
+    {
+        return Err(format!("agent '{}' is not available for Codex", role.name));
+    }
 
     let mut toml_map = toml::map::Map::new();
     toml_map.insert("name".into(), toml::Value::String(role.name.clone()));
@@ -55,7 +56,8 @@ pub fn generate_codex_agent(
         toml::Value::String(role.system_prompt.clone()),
     );
 
-    let content = toml::to_string_pretty(&toml::Value::Table(toml_map)).map_err(|e| e.to_string())?;
+    let content =
+        toml::to_string_pretty(&toml::Value::Table(toml_map)).map_err(|e| e.to_string())?;
 
     let filename = format!("{}.toml", role.name);
 

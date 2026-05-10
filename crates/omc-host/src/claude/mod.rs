@@ -9,7 +9,7 @@ pub mod init;
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 
-use crate::adapter::{HostAdapter, HostDoctorReport, HostInitReport, HookEntry};
+use crate::adapter::{HookEntry, HostAdapter, HostDoctorReport, HostInitReport};
 use crate::mcp_reg;
 use crate::types::{
     AgentGenOptions, AgentRole, ConfigGenOptions, GeneratedAgentFile, GeneratedConfig,
@@ -130,10 +130,7 @@ impl HostAdapter for ClaudeHostAdapter {
         opts: &TeamSpawnOpts,
     ) -> Result<SpawnDirective, String> {
         // Claude Code uses the native Agent tool
-        let role_hint = opts
-            .role
-            .as_deref()
-            .unwrap_or("executor");
+        let role_hint = opts.role.as_deref().unwrap_or("executor");
         let payload = format!(
             "You are {role_hint}. Mission: {mission}. Work autonomously. Report when done."
         );

@@ -11,9 +11,10 @@ pub fn generate_claude_agent(
 ) -> Result<GeneratedAgentFile, String> {
     // Check host filter
     if let Some(ref hosts) = role.hosts
-        && !hosts.contains(&HostKind::Claude) {
-            return Err(format!("agent '{}' is not available for Claude", role.name));
-        }
+        && !hosts.contains(&HostKind::Claude)
+    {
+        return Err(format!("agent '{}' is not available for Claude", role.name));
+    }
 
     let mut frontmatter = String::new();
     frontmatter.push_str("---\n");
@@ -56,7 +57,10 @@ mod tests {
         let file = generate_claude_agent(&sample_role(), &AgentGenOptions::default()).unwrap();
         assert!(file.content.starts_with("---\n"));
         assert!(file.content.contains("name: planner"));
-        assert!(file.content.contains("description: Split missions into tasks"));
+        assert!(
+            file.content
+                .contains("description: Split missions into tasks")
+        );
         assert!(file.content.contains("routing_role: planner"));
         assert!(file.content.contains("You are a planner."));
     }

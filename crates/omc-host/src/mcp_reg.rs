@@ -1,6 +1,6 @@
 //! MCP server registration generation for both hosts.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::types::McpServerDef;
 
@@ -14,9 +14,10 @@ pub fn claude_mcp_json(servers: &[McpServerDef]) -> Value {
             entry.insert("args".into(), json!(s.args));
         }
         if let Some(ref env) = s.env
-            && !env.is_empty() {
-                entry.insert("env".into(), json!(env));
-            }
+            && !env.is_empty()
+        {
+            entry.insert("env".into(), json!(env));
+        }
         map.insert(s.name.clone(), Value::Object(entry));
     }
     Value::Object(map)
@@ -37,13 +38,14 @@ pub fn codex_mcp_toml(servers: &[McpServerDef]) -> Result<String, String> {
             server_map.insert("args".into(), toml::Value::Array(args));
         }
         if let Some(ref env) = s.env
-            && !env.is_empty() {
-                let env_map: toml::map::Map<String, toml::Value> = env
-                    .iter()
-                    .map(|(k, v)| (k.clone(), toml::Value::String(v.clone())))
-                    .collect();
-                server_map.insert("env".into(), toml::Value::Table(env_map));
-            }
+            && !env.is_empty()
+        {
+            let env_map: toml::map::Map<String, toml::Value> = env
+                .iter()
+                .map(|(k, v)| (k.clone(), toml::Value::String(v.clone())))
+                .collect();
+            server_map.insert("env".into(), toml::Value::Table(env_map));
+        }
         toml_map.insert(s.name.clone(), toml::Value::Table(server_map));
     }
     let mut root = toml::map::Map::new();
@@ -67,9 +69,7 @@ mod tests {
                 name: "omc-memory".into(),
                 command: "omc-mcp".into(),
                 args: vec!["--memory".into()],
-                env: Some(
-                    [("DEBUG".into(), "1".into())].into_iter().collect(),
-                ),
+                env: Some([("DEBUG".into(), "1".into())].into_iter().collect()),
             },
         ]
     }

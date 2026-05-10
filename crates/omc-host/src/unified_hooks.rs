@@ -86,9 +86,7 @@ impl UnifiedHookEvent {
                 &[HostKind::Claude, HostKind::Codex]
             }
             // Claude + Codex
-            Self::UserPromptSubmit | Self::PreCompact => {
-                &[HostKind::Claude, HostKind::Codex]
-            }
+            Self::UserPromptSubmit | Self::PreCompact => &[HostKind::Claude, HostKind::Codex],
             // Claude-only
             Self::SessionEnd
             | Self::PostToolUseFailure

@@ -14,8 +14,7 @@ pub fn claude_init_project(root: &Path) -> Result<HostInitReport, String> {
 
     // Create .claude/ directory
     if !claude_dir.exists() {
-        std::fs::create_dir_all(&claude_dir)
-            .map_err(|e| format!("create .claude/: {e}"))?;
+        std::fs::create_dir_all(&claude_dir).map_err(|e| format!("create .claude/: {e}"))?;
         created.push(claude_dir.clone());
     } else {
         unchanged.push(claude_dir.clone());
@@ -34,8 +33,7 @@ pub fn claude_init_project(root: &Path) -> Result<HostInitReport, String> {
     // Create agents/ directory
     let agents_dir = claude_dir.join("agents");
     if !agents_dir.exists() {
-        std::fs::create_dir_all(&agents_dir)
-            .map_err(|e| format!("create agents/: {e}"))?;
+        std::fs::create_dir_all(&agents_dir).map_err(|e| format!("create agents/: {e}"))?;
         created.push(agents_dir);
     } else {
         unchanged.push(agents_dir);
@@ -44,8 +42,7 @@ pub fn claude_init_project(root: &Path) -> Result<HostInitReport, String> {
     // Create skills/ directory
     let skills_dir = claude_dir.join("skills");
     if !skills_dir.exists() {
-        std::fs::create_dir_all(&skills_dir)
-            .map_err(|e| format!("create skills/: {e}"))?;
+        std::fs::create_dir_all(&skills_dir).map_err(|e| format!("create skills/: {e}"))?;
         created.push(skills_dir);
     } else {
         unchanged.push(skills_dir);

@@ -15,10 +15,7 @@ pub fn generate_codex_config(opts: &ConfigGenOptions) -> Result<GeneratedConfig,
         let mut mcp_section = toml::map::Map::new();
         for s in &opts.mcp_servers {
             let mut server_map = toml::map::Map::new();
-            server_map.insert(
-                "command".into(),
-                toml::Value::String(s.command.clone()),
-            );
+            server_map.insert("command".into(), toml::Value::String(s.command.clone()));
             if !s.args.is_empty() {
                 let args: Vec<toml::Value> = s
                     .args
@@ -28,13 +25,14 @@ pub fn generate_codex_config(opts: &ConfigGenOptions) -> Result<GeneratedConfig,
                 server_map.insert("args".into(), toml::Value::Array(args));
             }
             if let Some(ref env) = s.env
-                && !env.is_empty() {
-                    let env_map: toml::map::Map<String, toml::Value> = env
-                        .iter()
-                        .map(|(k, v)| (k.clone(), toml::Value::String(v.clone())))
-                        .collect();
-                    server_map.insert("env".into(), toml::Value::Table(env_map));
-                }
+                && !env.is_empty()
+            {
+                let env_map: toml::map::Map<String, toml::Value> = env
+                    .iter()
+                    .map(|(k, v)| (k.clone(), toml::Value::String(v.clone())))
+                    .collect();
+                server_map.insert("env".into(), toml::Value::Table(env_map));
+            }
             mcp_section.insert(s.name.clone(), toml::Value::Table(server_map));
         }
         toml_map.insert("mcp_servers".into(), toml::Value::Table(mcp_section));

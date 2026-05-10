@@ -9,7 +9,7 @@ pub mod init;
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 
-use crate::adapter::{HostAdapter, HostDoctorReport, HostInitReport, HookEntry};
+use crate::adapter::{HookEntry, HostAdapter, HostDoctorReport, HostInitReport};
 use crate::mcp_reg;
 use crate::types::{
     AgentGenOptions, AgentRole, ConfigGenOptions, GeneratedAgentFile, GeneratedConfig,
@@ -132,9 +132,7 @@ impl HostAdapter for CodexHostAdapter {
         // Codex uses tmux pane spawning
         let role_hint = opts.role.as_deref().unwrap_or("executor");
         let worktree_flag = if opts.use_worktree { " --worktree" } else { "" };
-        let payload = format!(
-            "codex --model o3 \"{mission}\" --role {role_hint}{worktree_flag}"
-        );
+        let payload = format!("codex --model o3 \"{mission}\" --role {role_hint}{worktree_flag}");
         Ok(SpawnDirective {
             mechanism: "tmux_pane".into(),
             payload,

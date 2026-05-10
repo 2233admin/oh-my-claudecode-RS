@@ -11,7 +11,8 @@ pub fn claude_doctor(root: &Path) -> HostDoctorReport {
     // Check if .claude directory exists
     let claude_dir = root.join(".claude");
     if !claude_dir.exists() {
-        messages.push("'.claude/' directory not found — run `omc setup --host claude` first".into());
+        messages
+            .push("'.claude/' directory not found — run `omc setup --host claude` first".into());
         ready = false;
     }
 
@@ -28,7 +29,14 @@ pub fn claude_doctor(root: &Path) -> HostDoctorReport {
     let agents_dir = claude_dir.join("agents");
     if agents_dir.exists() {
         let count = std::fs::read_dir(&agents_dir)
-            .map(|rd| rd.filter(|e| e.as_ref().map(|e| e.path().extension().is_some()).unwrap_or(false)).count())
+            .map(|rd| {
+                rd.filter(|e| {
+                    e.as_ref()
+                        .map(|e| e.path().extension().is_some())
+                        .unwrap_or(false)
+                })
+                .count()
+            })
             .unwrap_or(0);
         messages.push(format!("agents directory: {count} agent files"));
     }
@@ -76,11 +84,7 @@ mod tests {
     fn doctor_with_settings() {
         let tmp = TempDir::new().unwrap();
         std::fs::create_dir_all(tmp.path().join(".claude")).unwrap();
-        std::fs::write(
-            tmp.path().join(".claude/settings.json"),
-            "{}",
-        )
-        .unwrap();
+        std::fs::write(tmp.path().join(".claude/settings.json"), "{}").unwrap();
         let report = claude_doctor(tmp.path());
         assert!(report.ready);
     }

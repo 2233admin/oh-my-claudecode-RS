@@ -13,8 +13,7 @@ pub fn codex_init_project(root: &Path) -> Result<HostInitReport, String> {
 
     // Create .codex/ directory
     if !codex_dir.exists() {
-        std::fs::create_dir_all(&codex_dir)
-            .map_err(|e| format!("create .codex/: {e}"))?;
+        std::fs::create_dir_all(&codex_dir).map_err(|e| format!("create .codex/: {e}"))?;
         created.push(codex_dir.clone());
     } else {
         unchanged.push(codex_dir.clone());
@@ -33,8 +32,7 @@ pub fn codex_init_project(root: &Path) -> Result<HostInitReport, String> {
     // Create agents/ directory
     let agents_dir = codex_dir.join("agents");
     if !agents_dir.exists() {
-        std::fs::create_dir_all(&agents_dir)
-            .map_err(|e| format!("create agents/: {e}"))?;
+        std::fs::create_dir_all(&agents_dir).map_err(|e| format!("create agents/: {e}"))?;
         created.push(agents_dir);
     } else {
         unchanged.push(agents_dir);
@@ -43,8 +41,7 @@ pub fn codex_init_project(root: &Path) -> Result<HostInitReport, String> {
     // Create skills/ directory
     let skills_dir = codex_dir.join("skills");
     if !skills_dir.exists() {
-        std::fs::create_dir_all(&skills_dir)
-            .map_err(|e| format!("create skills/: {e}"))?;
+        std::fs::create_dir_all(&skills_dir).map_err(|e| format!("create skills/: {e}"))?;
         created.push(skills_dir);
     } else {
         unchanged.push(skills_dir);
@@ -53,8 +50,7 @@ pub fn codex_init_project(root: &Path) -> Result<HostInitReport, String> {
     // Create hooks.json if missing
     let hooks_path = codex_dir.join("hooks.json");
     if !hooks_path.exists() {
-        std::fs::write(&hooks_path, "{}\n")
-            .map_err(|e| format!("write hooks.json: {e}"))?;
+        std::fs::write(&hooks_path, "{}\n").map_err(|e| format!("write hooks.json: {e}"))?;
         created.push(hooks_path);
     } else {
         unchanged.push(hooks_path);

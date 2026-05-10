@@ -57,7 +57,7 @@ omc-shared          (foundation — no internal deps)
 | omc-shared | Types, config, routing, tools, state, memory, resilience |
 | omc-team | Agent orchestration — DAG, lifecycle, comms, governance, fault tolerance |
 | omc-hooks | Hook system (15 events, 58 tests) |
-| omc-skills | Skill templates (38 templates) |
+| omc-skills | Skill templates (40 templates) |
 | omc-hud | Statusline elements (13 elements, 205 tests) |
 | omc-mcp | MCP tool registry + protocol routing |
 | omc-interop | MCP bridge (43 tests) |
