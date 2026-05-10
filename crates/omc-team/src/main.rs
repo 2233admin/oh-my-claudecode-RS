@@ -57,12 +57,10 @@ fn run() -> Result<(), String> {
                 None
             };
             if opts.runtime == RuntimeKind::Claude {
-                let run_id = tracker_record
-                    .as_ref()
-                    .map_or_else(
-                        || new_run_id(&prepared.mission.team_name),
-                        |record| record.run_id.clone(),
-                    );
+                let run_id = tracker_record.as_ref().map_or_else(
+                    || new_run_id(&prepared.mission.team_name),
+                    |record| record.run_id.clone(),
+                );
                 let observability = record_team_launch(
                     &root,
                     &run_id,
