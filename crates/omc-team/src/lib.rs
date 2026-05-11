@@ -901,7 +901,7 @@ Rules:
 "#,
         discipline = native_agent_discipline_prompt(),
         team_size = opts.team_size,
-        lenses = bullets(&lenses.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        lenses = bullets(&lenses.iter().map(std::string::ToString::to_string).collect::<Vec<_>>())
     )
 }
 
@@ -1037,8 +1037,7 @@ pub(crate) fn unix_timestamp() -> u64 {
 fn unix_timestamp_nanos() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0)
+        .map_or(0, |duration| duration.as_nanos())
 }
 
 #[cfg(test)]

@@ -41,7 +41,7 @@ pub fn count_packages() -> Option<usize> {
 
     std::fs::read_dir(&lock_dir).ok().map(|entries| {
         entries
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .filter(|e| e.path().extension().is_some_and(|ext| ext == "json"))
             .count()
     })
@@ -62,7 +62,7 @@ pub fn list_packages() -> Vec<String> {
 
     let mut packages = vec![];
     if let Ok(entries) = std::fs::read_dir(&lock_dir) {
-        for entry in entries.filter_map(|e| e.ok()) {
+        for entry in entries.filter_map(std::result::Result::ok) {
             if entry.path().extension().is_some_and(|ext| ext == "json")
                 && let Some(name) = entry.path().file_stem()
             {

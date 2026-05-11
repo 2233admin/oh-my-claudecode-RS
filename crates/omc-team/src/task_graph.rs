@@ -209,7 +209,7 @@ impl PriorityScheduler {
 
     /// Returns the total number of tasks across all queues.
     pub fn pending_count(&self) -> usize {
-        self.queues.iter().map(|q| q.len()).sum()
+        self.queues.iter().map(std::collections::VecDeque::len).sum()
     }
 
     /// Dequeue the next task, applying aging to promote long-waiting lower-priority tasks.
@@ -358,7 +358,7 @@ mod tests {
         Task {
             id: id.to_string(),
             priority,
-            dependencies: deps.iter().map(|d| d.to_string()).collect(),
+            dependencies: deps.iter().map(std::string::ToString::to_string).collect(),
         }
     }
 
@@ -410,12 +410,12 @@ mod tests {
         assert_eq!(w1, HashSet::from(["a".to_string()]));
 
         // wave 2: b, c
-        let mut done: HashSet<_> = ["a"].iter().map(|s| s.to_string()).collect();
+        let mut done: HashSet<_> = ["a"].iter().map(std::string::ToString::to_string).collect();
         let w2: HashSet<_> = g.ready_tasks(&done).into_iter().collect();
         assert_eq!(w2, HashSet::from(["b".to_string(), "c".to_string()]));
 
         // wave 3: d (after b+c)
-        done.extend(["b", "c"].iter().map(|s| s.to_string()));
+        done.extend(["b", "c"].iter().map(std::string::ToString::to_string));
         let w3: HashSet<_> = g.ready_tasks(&done).into_iter().collect();
         assert_eq!(w3, HashSet::from(["d".to_string()]));
     }

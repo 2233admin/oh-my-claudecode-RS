@@ -132,7 +132,7 @@ pub fn parse_sandbox_contract(content: &str) -> Result<ParsedSandboxContract> {
         .get("keep_policy")
         .or_else(|| evaluator_map.get("evaluator_keep_policy"));
 
-    let keep_policy = match keep_policy_raw.map(|s| s.as_str()) {
+    let keep_policy = match keep_policy_raw.map(std::string::String::as_str) {
         Some("pass_only") => Some(KeepPolicy::PassOnly),
         Some("score_improvement") => Some(KeepPolicy::ScoreImprovement),
         Some(other) => {

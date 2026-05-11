@@ -20,7 +20,7 @@ impl RoleRouter {
     /// Add a routing rule.
     pub fn add_rule(&mut self, keywords: Vec<&str>, role: &str, priority: u8) {
         self.rules.push(RoleRule {
-            keywords: keywords.into_iter().map(|k| k.to_lowercase()).collect(),
+            keywords: keywords.into_iter().map(str::to_lowercase).collect(),
             role: role.to_string(),
             priority,
         });

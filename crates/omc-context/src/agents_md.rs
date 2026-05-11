@@ -168,9 +168,7 @@ impl AgentsMdManager {
         }
 
         let raw_content = tokio::fs::read_to_string(path).await?;
-        let relative_path = pathdiff::diff_paths(path, root)
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|| path.to_string_lossy().to_string());
+        let relative_path = pathdiff::diff_paths(path, root).map_or_else(|| path.to_string_lossy().to_string(), |p| p.to_string_lossy().to_string());
 
         let sections = Self::parse(&raw_content);
         let file = AgentsMdFile {

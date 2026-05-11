@@ -17,7 +17,7 @@ use tempfile::TempDir;
 /// when walking with `follow_links(false)`.
 fn register_skills_from_source(registrar: &SkillRegistrar, source: &Path) -> usize {
     let mut count = 0;
-    for entry in fs::read_dir(source).unwrap().filter_map(|e| e.ok()) {
+    for entry in fs::read_dir(source).unwrap().filter_map(std::result::Result::ok) {
         let path = entry.path();
         if path.is_dir() && path.join("SKILL.md").exists() {
             let link_name = entry.file_name().to_string_lossy().to_string();

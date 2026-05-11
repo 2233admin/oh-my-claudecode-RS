@@ -96,8 +96,7 @@ impl HostAdapter for ClaudeHostAdapter {
             let start_idx = existing.find(marker_start).unwrap();
             let end_idx = existing
                 .find(marker_end)
-                .map(|i| i + marker_end.len())
-                .unwrap_or(existing.len());
+                .map_or(existing.len(), |i| i + marker_end.len());
             let mut result = String::with_capacity(existing.len() + block.len());
             result.push_str(&existing[..start_idx]);
             result.push_str(&new_section);

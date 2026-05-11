@@ -155,7 +155,7 @@ impl SkillRegistrar {
     pub fn list_registered(&self) -> Vec<PathBuf> {
         let mut entries = Vec::new();
         if let Ok(read_dir) = fs::read_dir(&self.host_skills_dir) {
-            for entry in read_dir.filter_map(|e| e.ok()) {
+            for entry in read_dir.filter_map(std::result::Result::ok) {
                 entries.push(entry.path());
             }
         }

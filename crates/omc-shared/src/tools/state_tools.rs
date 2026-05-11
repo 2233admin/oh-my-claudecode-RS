@@ -557,7 +557,7 @@ pub fn state_update_key(
                     fields: HashMap::new(),
                     meta: StateMeta {
                         mode: mode.to_string(),
-                        session_id: session_id.map(|s| s.to_string()),
+                        session_id: session_id.map(std::string::ToString::to_string),
                         updated_at: chrono::Utc::now().to_rfc3339(),
                         updated_by: "state_update_key_tool".into(),
                     },
@@ -567,7 +567,7 @@ pub fn state_update_key(
                 fields: HashMap::new(),
                 meta: StateMeta {
                     mode: mode.to_string(),
-                    session_id: session_id.map(|s| s.to_string()),
+                    session_id: session_id.map(std::string::ToString::to_string),
                     updated_at: chrono::Utc::now().to_rfc3339(),
                     updated_by: "state_update_key_tool".into(),
                 },
@@ -578,7 +578,7 @@ pub fn state_update_key(
             fields: HashMap::new(),
             meta: StateMeta {
                 mode: mode.to_string(),
-                session_id: session_id.map(|s| s.to_string()),
+                session_id: session_id.map(std::string::ToString::to_string),
                 updated_at: chrono::Utc::now().to_rfc3339(),
                 updated_by: "state_update_key_tool".into(),
             },
@@ -621,7 +621,7 @@ fn is_mode_active_file(path: &Path) -> bool {
     match fs::read_to_string(path) {
         Ok(content) => serde_json::from_str::<Value>(&content)
             .ok()
-            .and_then(|v| v.get("active").and_then(|a| a.as_bool()))
+            .and_then(|v| v.get("active").and_then(serde_json::Value::as_bool))
             .unwrap_or(false),
         Err(_) => false,
     }

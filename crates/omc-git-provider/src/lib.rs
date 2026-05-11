@@ -45,7 +45,7 @@ fn init_registry() -> Registry {
 /// Get a provider instance by name.
 pub fn get_provider(name: &ProviderName) -> Option<&'static dyn GitProvider> {
     let registry = REGISTRY.get_or_init(init_registry);
-    registry.get(name).map(|p| p.as_ref())
+    registry.get(name).map(std::convert::AsRef::as_ref)
 }
 
 /// Detect the provider from a git remote URL.

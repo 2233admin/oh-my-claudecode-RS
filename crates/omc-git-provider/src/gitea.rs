@@ -80,8 +80,7 @@ impl GitProvider for GiteaProvider {
             .head(&gitea_url)
             .send()
             .await
-            .map(|r| r.status().is_success())
-            .unwrap_or(false)
+            .is_ok_and(|r| r.status().is_success())
     }
 
     async fn view_pr(

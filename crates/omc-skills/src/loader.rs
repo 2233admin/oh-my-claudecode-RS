@@ -137,7 +137,7 @@ impl SkillLoader {
             .follow_links(false)
             .max_depth(3)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
         {
             let path = entry.path();
             if path.is_dir() && path.join("SKILL.md").exists() {
@@ -176,7 +176,7 @@ impl SkillLoader {
             .follow_links(false)
             .max_depth(3)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
         {
             let path = entry.path();
             if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("md") {
@@ -230,7 +230,7 @@ impl SkillLoader {
         // Collect companion files (all files except SKILL.md)
         let mut companions = Vec::new();
         if let Ok(entries) = std::fs::read_dir(dir) {
-            for entry in entries.filter_map(|e| e.ok()) {
+            for entry in entries.filter_map(std::result::Result::ok) {
                 let path = entry.path();
                 if path == skill_md {
                     continue;

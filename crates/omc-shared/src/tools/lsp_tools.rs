@@ -209,7 +209,7 @@ pub async fn lsp_find_references(args: Value) -> ToolResult {
     };
     let include_declaration = args
         .get("includeDeclaration")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(true);
 
     let client = match require_lsp_client("find references") {
@@ -591,10 +591,10 @@ pub async fn lsp_formatting(args: Value) -> ToolResult {
         Ok(v) => v,
         Err(e) => return e,
     };
-    let tab_size = args.get("tabSize").and_then(|v| v.as_i64()).unwrap_or(4);
+    let tab_size = args.get("tabSize").and_then(serde_json::Value::as_i64).unwrap_or(4);
     let insert_spaces = args
         .get("insertSpaces")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(true);
 
     let client = match require_lsp_client("formatting") {
@@ -972,7 +972,7 @@ pub fn set_lsp_client(client: Box<dyn LspClient>) {
 
 /// Get a reference to the registered LSP client, if any.
 pub fn get_lsp_client() -> Option<&'static dyn LspClient> {
-    LSP_CLIENT.get().map(|c| c.as_ref())
+    LSP_CLIENT.get().map(std::convert::AsRef::as_ref)
 }
 
 // ---------------------------------------------------------------------------
@@ -999,7 +999,7 @@ fn required_str(args: &Value, key: &str) -> Result<String, ToolResult> {
 
 fn required_i64(args: &Value, key: &str) -> Result<i64, ToolResult> {
     args.get(key)
-        .and_then(|v| v.as_i64())
+        .and_then(serde_json::Value::as_i64)
         .ok_or_else(|| ToolResult::error(format!("Missing required parameter: {key}")))
 }
 

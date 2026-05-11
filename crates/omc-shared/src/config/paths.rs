@@ -77,9 +77,7 @@ impl OmcPaths {
         }
 
         // Fallback to ~/.omc
-        dirs::home_dir()
-            .map(|h| h.join(".omc"))
-            .unwrap_or_else(|| PathBuf::from(".omc"))
+        dirs::home_dir().map_or_else(|| PathBuf::from(".omc"), |h| h.join(".omc"))
     }
 
     /// Returns the user-level configuration path.

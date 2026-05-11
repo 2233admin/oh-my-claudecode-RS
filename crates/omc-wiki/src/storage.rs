@@ -247,7 +247,7 @@ pub fn list_pages(root: &Path) -> Result<Vec<String>, WikiError> {
         return Ok(vec![]);
     }
     let mut pages: Vec<String> = std::fs::read_dir(&wiki_dir)?
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .filter_map(|e| {
             let name = e.file_name().to_string_lossy().to_string();
             if name.ends_with(".md") && !is_reserved(&name) {

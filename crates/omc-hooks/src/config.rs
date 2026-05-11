@@ -144,7 +144,7 @@ impl HooksConfig {
 
     /// Check if this configuration has any hooks.
     pub fn is_empty(&self) -> bool {
-        self.hooks.values().all(|v| v.is_empty())
+        self.hooks.values().all(std::vec::Vec::is_empty)
     }
 
     /// Get the number of events with hooks.
@@ -154,7 +154,7 @@ impl HooksConfig {
 
     /// Get the total number of hook entries across all events.
     pub fn total_hook_count(&self) -> usize {
-        self.hooks.values().map(|v| v.len()).sum()
+        self.hooks.values().map(std::vec::Vec::len).sum()
     }
 }
 

@@ -667,8 +667,7 @@ pub fn observability_doctor(root: &Path) -> ObservabilityDoctorReport {
         messages.push("missing usage ledger: .omc/team/usage.jsonl".to_string());
     }
     if dirs::home_dir()
-        .map(|home| home.join(".x-cmd.root/X").exists())
-        .unwrap_or(false)
+        .is_some_and(|home| home.join(".x-cmd.root/X").exists())
     {
         messages.push("x-cmd detected: optional usage/session reference available".to_string());
     } else {

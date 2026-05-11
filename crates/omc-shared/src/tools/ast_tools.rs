@@ -166,10 +166,10 @@ pub async fn ast_grep_search(args: Value) -> ToolResult {
         .and_then(|v| v.as_str())
         .unwrap_or(".")
         .to_string();
-    let context = args.get("context").and_then(|v| v.as_i64()).unwrap_or(2);
+    let context = args.get("context").and_then(serde_json::Value::as_i64).unwrap_or(2);
     let max_results = args
         .get("maxResults")
-        .and_then(|v| v.as_i64())
+        .and_then(serde_json::Value::as_i64)
         .unwrap_or(20);
 
     let sg = match require_ast_grep("search") {
@@ -269,7 +269,7 @@ pub async fn ast_grep_replace(args: Value) -> ToolResult {
         .and_then(|v| v.as_str())
         .unwrap_or(".")
         .to_string();
-    let dry_run = args.get("dryRun").and_then(|v| v.as_bool()).unwrap_or(true);
+    let dry_run = args.get("dryRun").and_then(serde_json::Value::as_bool).unwrap_or(true);
 
     let sg = match require_ast_grep("replace") {
         Ok(s) => s,
@@ -323,7 +323,7 @@ pub fn set_ast_grep(sg: Box<dyn AstGrep>) {
 
 /// Get a reference to the registered ast-grep implementation, if any.
 pub fn get_ast_grep() -> Option<&'static dyn AstGrep> {
-    AST_GREP.get().map(|c| c.as_ref())
+    AST_GREP.get().map(std::convert::AsRef::as_ref)
 }
 
 // ---------------------------------------------------------------------------

@@ -65,7 +65,7 @@ fn list_session_ids(cwd: &str) -> Vec<String> {
     fs::read_dir(&sessions_dir)
         .into_iter()
         .flatten()
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .filter(|e| e.path().is_dir())
         .filter_map(|e| e.file_name().into_string().ok())
         .collect()
@@ -95,7 +95,7 @@ fn str_arg<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
 
 /// Build the mode enum list for the schema.
 fn mode_enum() -> Vec<String> {
-    STATE_TOOL_MODES.iter().map(|s| s.to_string()).collect()
+    STATE_TOOL_MODES.iter().map(std::string::ToString::to_string).collect()
 }
 
 // ============================================================================
@@ -160,7 +160,7 @@ impl McpTool for StateReadTool {
         let cwd = str_arg(&args, "workingDirectory")
             .unwrap_or(".")
             .to_string();
-        let session_id = str_arg(&args, "session_id").map(|s| s.to_string());
+        let session_id = str_arg(&args, "session_id").map(std::string::ToString::to_string);
 
         if let Err(e) = check_inputs(Some(mode), session_id.as_deref()) {
             return ToolResult::error(e);
@@ -400,7 +400,7 @@ impl McpTool for StateWriteTool {
         let cwd = str_arg(&args, "workingDirectory")
             .unwrap_or(".")
             .to_string();
-        let session_id = str_arg(&args, "session_id").map(|s| s.to_string());
+        let session_id = str_arg(&args, "session_id").map(std::string::ToString::to_string);
 
         if let Err(e) = check_inputs(Some(mode), session_id.as_deref()) {
             return ToolResult::error(e);
@@ -455,9 +455,7 @@ impl McpTool for StateWriteTool {
         match atomic_write_json(&path, &value) {
             Ok(()) => {
                 let sid_info = session_id
-                    .as_deref()
-                    .map(|s| format!(" (session: {s})"))
-                    .unwrap_or_else(|| " (legacy path)".into());
+                    .as_deref().map_or_else(|| " (legacy path)".into(), |s| format!(" (session: {s})"));
                 let pretty = serde_json::to_string_pretty(&value).unwrap_or_default();
                 ToolResult::ok(format!(
                     "Successfully wrote state for {mode}{sid_info}\nPath: {}\n\n```json\n{pretty}\n```",
@@ -531,7 +529,7 @@ impl McpTool for StateClearTool {
         let cwd = str_arg(&args, "workingDirectory")
             .unwrap_or(".")
             .to_string();
-        let session_id = str_arg(&args, "session_id").map(|s| s.to_string());
+        let session_id = str_arg(&args, "session_id").map(std::string::ToString::to_string);
 
         if let Err(e) = check_inputs(Some(mode), session_id.as_deref()) {
             return ToolResult::error(e);
@@ -644,7 +642,7 @@ impl McpTool for StateListActiveTool {
         let cwd = str_arg(&args, "workingDirectory")
             .unwrap_or(".")
             .to_string();
-        let session_id = str_arg(&args, "session_id").map(|s| s.to_string());
+        let session_id = str_arg(&args, "session_id").map(std::string::ToString::to_string);
 
         if let Err(e) = check_inputs(None, session_id.as_deref()) {
             return ToolResult::error(e);
@@ -724,7 +722,7 @@ fn is_mode_active_at(path: &Path) -> bool {
     match fs::read_to_string(path) {
         Ok(content) => serde_json::from_str::<Value>(&content)
             .ok()
-            .and_then(|v| v.get("active").and_then(|a| a.as_bool()))
+            .and_then(|v| v.get("active").and_then(serde_json::Value::as_bool))
             .unwrap_or(false),
         Err(_) => false,
     }
@@ -787,11 +785,11 @@ impl McpTool for StateGetStatusTool {
     }
 
     fn handle(&self, args: Value) -> ToolResult {
-        let mode = str_arg(&args, "mode").map(|s| s.to_string());
+        let mode = str_arg(&args, "mode").map(std::string::ToString::to_string);
         let cwd = str_arg(&args, "workingDirectory")
             .unwrap_or(".")
             .to_string();
-        let session_id = str_arg(&args, "session_id").map(|s| s.to_string());
+        let session_id = str_arg(&args, "session_id").map(std::string::ToString::to_string);
 
         if let Err(e) = check_inputs(mode.as_deref(), session_id.as_deref()) {
             return ToolResult::error(e);

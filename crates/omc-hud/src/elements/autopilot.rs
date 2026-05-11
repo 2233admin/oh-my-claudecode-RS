@@ -18,22 +18,22 @@ fn extract_state(ctx: &RenderContext<'_>) -> Option<AutopilotState> {
     let mode = state
         .get("mode")
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .filter(|s| !s.is_empty())?;
 
     let iteration = state
         .get("iteration")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .map(|v| v as u32);
 
     let max_iterations = state
         .get("max_iterations")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .map(|v| v as u32);
 
     let worker_count = state
         .get("worker_count")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .map(|v| v as u32);
 
     Some(AutopilotState {

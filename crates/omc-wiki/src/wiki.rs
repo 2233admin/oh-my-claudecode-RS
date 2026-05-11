@@ -478,7 +478,7 @@ pub fn lint_wiki(root: &std::path::Path) -> WikiLintReport {
     for page in &pages {
         // 1. Orphan detection
         let incoming = incoming_links.get(&page.filename);
-        if incoming.is_none_or(|s| s.is_empty()) {
+        if incoming.is_none_or(std::collections::HashSet::is_empty) {
             issues.push(WikiLintIssue {
                 page: page.filename.clone(),
                 severity: WikiLintSeverity::Info,

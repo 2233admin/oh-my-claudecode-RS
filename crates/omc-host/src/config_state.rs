@@ -50,7 +50,7 @@ impl HostConfigState for JsonConfigState {
     }
 
     fn keys(&self) -> Vec<&str> {
-        self.inner.keys().map(|s| s.as_str()).collect()
+        self.inner.keys().map(std::string::String::as_str).collect()
     }
 }
 
@@ -84,7 +84,7 @@ impl HostConfigState for TomlConfigState {
     }
 
     fn keys(&self) -> Vec<&str> {
-        self.inner.keys().map(|s| s.as_str()).collect()
+        self.inner.keys().map(std::string::String::as_str).collect()
     }
 }
 

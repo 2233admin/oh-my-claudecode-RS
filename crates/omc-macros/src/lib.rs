@@ -335,7 +335,7 @@ fn field_description(field: &syn::Field) -> String {
         field
             .ident
             .as_ref()
-            .map(|i| i.to_string())
+            .map(std::string::ToString::to_string)
             .unwrap_or_default()
     } else {
         doc

@@ -672,8 +672,7 @@ fn write_temp_json_body(body: &Value) -> Result<PathBuf, String> {
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|duration| duration.as_nanos())
-            .unwrap_or(0)
+            .map_or(0, |duration| duration.as_nanos())
     ));
     fs::write(
         &path,
@@ -852,9 +851,7 @@ fn github_issue_comments(api: &GitHubApi, number: u64) -> Result<Vec<TrackerComm
         comments.extend(items.iter().map(|item| {
             TrackerComment {
                 id: item
-                    .get("id")
-                    .map(value_id)
-                    .unwrap_or_else(|| "".to_string()),
+                    .get("id").map_or_else(|| "".to_string(), value_id),
                 body: item
                     .get("body")
                     .and_then(Value::as_str)
@@ -1167,8 +1164,7 @@ fn linear_team_states(api: &LinearApi, team_id: &str) -> Result<HashSet<String>,
     )?;
     Ok(data["team"]["states"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .filter_map(|item| item.get("name").and_then(Value::as_str))
         .map(ToString::to_string)
@@ -1189,8 +1185,7 @@ fn linear_team_labels(api: &LinearApi, team_id: &str) -> Result<HashSet<String>,
     )?;
     Ok(data["team"]["labels"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .filter_map(|item| item.get("name").and_then(Value::as_str))
         .map(ToString::to_string)
@@ -1332,16 +1327,14 @@ fn linear_team_issues(
 fn linear_value_to_issue(value: &Value) -> Result<ExternalIssue, String> {
     let labels = value["labels"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .filter_map(|label| label.get("name").and_then(Value::as_str))
         .map(ToString::to_string)
         .collect::<Vec<_>>();
     let comments = value["comments"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .map(|item| TrackerComment {
             id: item
@@ -1569,8 +1562,7 @@ fn linear_update_state_by_name(
     )?;
     let Some(state_id) = states_data["team"]["states"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .find(|state| state.get("name").and_then(Value::as_str) == Some(state_name))
         .and_then(|state| state.get("id").and_then(Value::as_str))

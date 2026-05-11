@@ -39,10 +39,10 @@ pub fn parse_evaluator_result(raw: &str) -> Result<EvaluatorResult> {
 
     let pass = obj
         .get("pass")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .ok_or_else(|| AutoresearchError::Evaluator("pass (boolean) is required".into()))?;
 
-    let score = obj.get("score").and_then(|v| v.as_f64());
+    let score = obj.get("score").and_then(serde_json::Value::as_f64);
 
     Ok(EvaluatorResult { pass, score })
 }

@@ -217,9 +217,7 @@ pub fn read_omx_team_config(team_name: &str, cwd: &str) -> Result<Option<OmxTeam
             task: manifest.task,
             agent_type: manifest
                 .workers
-                .first()
-                .map(|w| w.role.clone())
-                .unwrap_or_else(|| "executor".to_string()),
+                .first().map_or_else(|| "executor".to_string(), |w| w.role.clone()),
             worker_count: manifest.worker_count,
             max_workers: 20,
             workers: manifest.workers,

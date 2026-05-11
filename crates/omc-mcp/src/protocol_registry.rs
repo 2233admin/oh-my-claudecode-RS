@@ -118,7 +118,7 @@ impl ProtocolRegistry {
 
     /// Names of all registered protocols.
     pub fn protocol_names(&self) -> Vec<&str> {
-        self.protocols.keys().map(|k| k.as_str()).collect()
+        self.protocols.keys().map(std::string::String::as_str).collect()
     }
 
     /// Total number of indexed tools.

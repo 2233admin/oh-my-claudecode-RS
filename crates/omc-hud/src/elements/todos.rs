@@ -32,14 +32,14 @@ fn extract_from_hooks(ctx: &RenderContext<'_>) -> Option<(u32, u32)> {
     // Try primary key-pair
     let completed = state
         .get("todos_completed")
-        .and_then(|v| v.as_u64())
-        .or_else(|| state.get("completed").and_then(|v| v.as_u64()))
+        .and_then(serde_json::Value::as_u64)
+        .or_else(|| state.get("completed").and_then(serde_json::Value::as_u64))
         .map(|v| v as u32);
 
     let total = state
         .get("todos_total")
-        .and_then(|v| v.as_u64())
-        .or_else(|| state.get("total").and_then(|v| v.as_u64()))
+        .and_then(serde_json::Value::as_u64)
+        .or_else(|| state.get("total").and_then(serde_json::Value::as_u64))
         .map(|v| v as u32);
 
     let completed = completed?;

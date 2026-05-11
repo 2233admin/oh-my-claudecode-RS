@@ -100,7 +100,7 @@ fn str_arg<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
 }
 
 fn section_enum() -> Vec<String> {
-    SECTION_NAMES.iter().map(|s| s.to_string()).collect()
+    SECTION_NAMES.iter().map(std::string::ToString::to_string).collect()
 }
 
 // ============================================================================

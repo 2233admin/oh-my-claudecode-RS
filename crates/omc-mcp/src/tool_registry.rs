@@ -83,7 +83,7 @@ impl McpToolRegistry {
                         name: name.to_string(),
                         enabled: *enabled,
                         source: source.to_string(),
-                        prefixes: prefixes.iter().map(|s| s.to_string()).collect(),
+                        prefixes: prefixes.iter().map(std::string::ToString::to_string).collect(),
                     },
                 )
             })
@@ -139,7 +139,7 @@ impl McpToolRegistry {
             .groups
             .values()
             .filter(|g| g.enabled)
-            .flat_map(|g| g.prefixes.iter().map(|p| p.as_str()))
+            .flat_map(|g| g.prefixes.iter().map(std::string::String::as_str))
             .collect();
 
         if enabled_prefixes.is_empty() {
