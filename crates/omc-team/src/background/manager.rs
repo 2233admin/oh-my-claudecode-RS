@@ -497,24 +497,19 @@ mod tests {
         }
     }
 
-    fn temp_dir() -> PathBuf {
-        let ts = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let dir = std::env::temp_dir().join(format!("omc-bg-test-{ts}"));
-        let _ = fs::create_dir_all(&dir);
-        dir
-    }
-
-    fn test_manager(config: BackgroundTaskConfig) -> (BackgroundManager, PathBuf) {
-        let dir = temp_dir();
-        let mgr = BackgroundManager::with_dir(config, dir.clone());
+    fn test_manager(config: BackgroundTaskConfig) -> (BackgroundManager, tempfile::TempDir) {
+        // tempfile guarantees uniqueness via OS-level mkdtemp.
+        // Previous nanosecond-stamp impl collided under Linux CI parallel tests
+        // (multiple tests sharing the same temp dir -> max_total_tasks bleed
+        // across tests). Local Windows escaped due to 100ns clock precision.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mgr = BackgroundManager::with_dir(config, dir.path().to_path_buf());
         (mgr, dir)
     }
 
-    fn cleanup_dir(dir: &PathBuf) {
-        let _ = fs::remove_dir_all(dir);
+    fn cleanup_dir(_dir: &tempfile::TempDir) {
+        // No-op: tempfile::TempDir auto-removes on drop.
+        // Kept for call-site compatibility.
     }
 
     #[test]
