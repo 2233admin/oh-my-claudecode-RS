@@ -97,7 +97,7 @@ impl SkillStateStore {
 
     /// Get the number of stored variables
     pub fn len(&self) -> usize {
-        self.store.read().map(|store| store.len()).unwrap_or(0)
+        self.store.read().map_or(0, |store| store.len())
     }
 
     /// Check if the store is empty

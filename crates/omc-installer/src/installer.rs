@@ -270,7 +270,7 @@ impl Installer {
 
         let mut settings: serde_json::Value = match std::fs::read_to_string(settings_path) {
             Ok(content) => serde_json::from_str(&content)
-                .unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
+                .unwrap_or_else(|_| serde_json::Value::Object(serde_json::Map::new())),
             Err(_) => serde_json::Value::Object(serde_json::Map::new()),
         };
 
