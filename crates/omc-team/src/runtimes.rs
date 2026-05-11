@@ -486,9 +486,10 @@ fn base_runtime_record(
     tracker_record: Option<&RunRecord>,
     mission_path: &Path,
 ) -> Result<RuntimeRunRecord, String> {
-    let run_id = tracker_record
-        .map(|record| format!("{}-{}", record.run_id, opts.runtime.as_str()))
-        .unwrap_or_else(|| new_run_id(&format!("{}-{}", mission.id, opts.runtime.as_str())));
+    let run_id = tracker_record.map_or_else(
+        || new_run_id(&format!("{}-{}", mission.id, opts.runtime.as_str())),
+        |record| format!("{}-{}", record.run_id, opts.runtime.as_str()),
+    );
     let artifact_path = root
         .join(format!(".omc/team/{}/{}", opts.runtime.as_str(), run_id))
         .display()
@@ -627,12 +628,12 @@ fn detect_fsc_root(root: &Path) -> Result<PathBuf, String> {
 
     let candidates = [
         root.join("full-self-coding"),
+        root.parent().map_or_else(
+            || root.join("../full-self-coding"),
+            |parent| parent.join("full-self-coding"),
+        ),
         root.parent()
-            .map(|parent| parent.join("full-self-coding"))
-            .unwrap_or_else(|| root.join("../full-self-coding")),
-        root.parent()
-            .map(|parent| parent.join("FSC"))
-            .unwrap_or_else(|| root.join("../FSC")),
+            .map_or_else(|| root.join("../FSC"), |parent| parent.join("FSC")),
     ];
     candidates
         .into_iter()
