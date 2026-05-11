@@ -591,7 +591,10 @@ pub async fn lsp_formatting(args: Value) -> ToolResult {
         Ok(v) => v,
         Err(e) => return e,
     };
-    let tab_size = args.get("tabSize").and_then(serde_json::Value::as_i64).unwrap_or(4);
+    let tab_size = args
+        .get("tabSize")
+        .and_then(serde_json::Value::as_i64)
+        .unwrap_or(4);
     let insert_spaces = args
         .get("insertSpaces")
         .and_then(serde_json::Value::as_bool)

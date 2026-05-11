@@ -83,7 +83,10 @@ impl McpToolRegistry {
                         name: name.to_string(),
                         enabled: *enabled,
                         source: source.to_string(),
-                        prefixes: prefixes.iter().map(std::string::ToString::to_string).collect(),
+                        prefixes: prefixes
+                            .iter()
+                            .map(std::string::ToString::to_string)
+                            .collect(),
                     },
                 )
             })

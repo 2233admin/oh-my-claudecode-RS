@@ -129,7 +129,10 @@ mod tests {
         // Read via child
         {
             let state = child.shared().read().await;
-            assert_eq!(state.memory.get("key").map(std::string::String::as_str), Some("value"));
+            assert_eq!(
+                state.memory.get("key").map(std::string::String::as_str),
+                Some("value")
+            );
         }
     }
 
@@ -160,7 +163,13 @@ mod tests {
         }
 
         let state = parent.shared().read().await;
-        assert_eq!(state.memory.get("a-key").map(std::string::String::as_str), Some("a-val"));
-        assert_eq!(state.memory.get("b-key").map(std::string::String::as_str), Some("b-val"));
+        assert_eq!(
+            state.memory.get("a-key").map(std::string::String::as_str),
+            Some("a-val")
+        );
+        assert_eq!(
+            state.memory.get("b-key").map(std::string::String::as_str),
+            Some("b-val")
+        );
     }
 }

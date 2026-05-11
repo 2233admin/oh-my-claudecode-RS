@@ -166,7 +166,10 @@ pub async fn ast_grep_search(args: Value) -> ToolResult {
         .and_then(|v| v.as_str())
         .unwrap_or(".")
         .to_string();
-    let context = args.get("context").and_then(serde_json::Value::as_i64).unwrap_or(2);
+    let context = args
+        .get("context")
+        .and_then(serde_json::Value::as_i64)
+        .unwrap_or(2);
     let max_results = args
         .get("maxResults")
         .and_then(serde_json::Value::as_i64)
@@ -269,7 +272,10 @@ pub async fn ast_grep_replace(args: Value) -> ToolResult {
         .and_then(|v| v.as_str())
         .unwrap_or(".")
         .to_string();
-    let dry_run = args.get("dryRun").and_then(serde_json::Value::as_bool).unwrap_or(true);
+    let dry_run = args
+        .get("dryRun")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(true);
 
     let sg = match require_ast_grep("replace") {
         Ok(s) => s,

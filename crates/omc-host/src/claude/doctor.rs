@@ -28,14 +28,10 @@ pub fn claude_doctor(root: &Path) -> HostDoctorReport {
     // Check if agents directory exists
     let agents_dir = claude_dir.join("agents");
     if agents_dir.exists() {
-        let count = std::fs::read_dir(&agents_dir)
-            .map_or(0, |rd| {
-                rd.filter(|e| {
-                    e.as_ref()
-                        .is_ok_and(|e| e.path().extension().is_some())
-                })
+        let count = std::fs::read_dir(&agents_dir).map_or(0, |rd| {
+            rd.filter(|e| e.as_ref().is_ok_and(|e| e.path().extension().is_some()))
                 .count()
-            });
+        });
         messages.push(format!("agents directory: {count} agent files"));
     }
 

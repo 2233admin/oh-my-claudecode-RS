@@ -58,9 +58,7 @@ impl SkillStateStore {
 
     /// Check if a variable exists
     pub fn contains(&self, key: &str) -> bool {
-        self.store
-            .read()
-            .is_ok_and(|store| store.contains_key(key))
+        self.store.read().is_ok_and(|store| store.contains_key(key))
     }
 
     /// Remove a variable

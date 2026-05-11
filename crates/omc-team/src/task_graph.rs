@@ -209,7 +209,10 @@ impl PriorityScheduler {
 
     /// Returns the total number of tasks across all queues.
     pub fn pending_count(&self) -> usize {
-        self.queues.iter().map(std::collections::VecDeque::len).sum()
+        self.queues
+            .iter()
+            .map(std::collections::VecDeque::len)
+            .sum()
     }
 
     /// Dequeue the next task, applying aging to promote long-waiting lower-priority tasks.

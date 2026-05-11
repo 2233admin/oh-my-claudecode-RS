@@ -51,7 +51,12 @@ struct TokenCounts {
 
 fn extract_tokens(ctx: &RenderContext<'_>) -> Option<TokenCounts> {
     let state = ctx.input.hooks_state.as_ref()?;
-    let get_u64 = |key: &str| -> u64 { state.get(key).and_then(serde_json::Value::as_u64).unwrap_or(0) };
+    let get_u64 = |key: &str| -> u64 {
+        state
+            .get(key)
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0)
+    };
 
     Some(TokenCounts {
         input: get_u64("input_tokens"),

@@ -561,7 +561,12 @@ mod tests {
         swarm.redistribute_tasks(&"a".to_string());
 
         // Failed agent's tasks are removed
-        assert!(swarm.active_tasks.get("a").is_none_or(std::vec::Vec::is_empty));
+        assert!(
+            swarm
+                .active_tasks
+                .get("a")
+                .is_none_or(std::vec::Vec::is_empty)
+        );
 
         // All tasks redistributed to remaining agents (order-independent)
         let b_tasks = swarm.active_tasks.get("b").map_or(0, std::vec::Vec::len);

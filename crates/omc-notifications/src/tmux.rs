@@ -80,7 +80,8 @@ pub fn team_sessions(team_name: &str) -> Vec<String> {
         .lines()
         .filter_map(|s| {
             let s = s.trim();
-            s.strip_prefix(&prefix).map(std::string::ToString::to_string)
+            s.strip_prefix(&prefix)
+                .map(std::string::ToString::to_string)
         })
         .collect()
 }

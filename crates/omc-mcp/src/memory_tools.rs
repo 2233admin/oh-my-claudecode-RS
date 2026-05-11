@@ -57,7 +57,10 @@ fn str_arg<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
 }
 
 fn section_enum() -> Vec<String> {
-    SECTIONS.iter().map(std::string::ToString::to_string).collect()
+    SECTIONS
+        .iter()
+        .map(std::string::ToString::to_string)
+        .collect()
 }
 
 // ============================================================================
@@ -212,7 +215,10 @@ impl McpTool for ProjectMemoryWriteTool {
                 );
             }
         };
-        let merge = args.get("merge").and_then(serde_json::Value::as_bool).unwrap_or(false);
+        let merge = args
+            .get("merge")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
         let cwd = str_arg(&args, "workingDirectory")
             .unwrap_or(".")
             .to_string();

@@ -27,14 +27,13 @@ pub fn codex_doctor(root: &Path) -> HostDoctorReport {
     // Check agents directory
     let agents_dir = codex_dir.join("agents");
     if agents_dir.exists() {
-        let count = std::fs::read_dir(&agents_dir)
-            .map_or(0, |rd| {
-                rd.filter(|e| {
-                    e.as_ref()
-                        .is_ok_and(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
-                })
-                .count()
-            });
+        let count = std::fs::read_dir(&agents_dir).map_or(0, |rd| {
+            rd.filter(|e| {
+                e.as_ref()
+                    .is_ok_and(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
+            })
+            .count()
+        });
         messages.push(format!("agents directory: {count} TOML agent files"));
     }
 

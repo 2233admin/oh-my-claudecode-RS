@@ -850,8 +850,7 @@ fn github_issue_comments(api: &GitHubApi, number: u64) -> Result<Vec<TrackerComm
         }
         comments.extend(items.iter().map(|item| {
             TrackerComment {
-                id: item
-                    .get("id").map_or_else(|| "".to_string(), value_id),
+                id: item.get("id").map_or_else(|| "".to_string(), value_id),
                 body: item
                     .get("body")
                     .and_then(Value::as_str)

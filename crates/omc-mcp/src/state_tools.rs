@@ -95,7 +95,10 @@ fn str_arg<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
 
 /// Build the mode enum list for the schema.
 fn mode_enum() -> Vec<String> {
-    STATE_TOOL_MODES.iter().map(std::string::ToString::to_string).collect()
+    STATE_TOOL_MODES
+        .iter()
+        .map(std::string::ToString::to_string)
+        .collect()
 }
 
 // ============================================================================
@@ -455,7 +458,8 @@ impl McpTool for StateWriteTool {
         match atomic_write_json(&path, &value) {
             Ok(()) => {
                 let sid_info = session_id
-                    .as_deref().map_or_else(|| " (legacy path)".into(), |s| format!(" (session: {s})"));
+                    .as_deref()
+                    .map_or_else(|| " (legacy path)".into(), |s| format!(" (session: {s})"));
                 let pretty = serde_json::to_string_pretty(&value).unwrap_or_default();
                 ToolResult::ok(format!(
                     "Successfully wrote state for {mode}{sid_info}\nPath: {}\n\n```json\n{pretty}\n```",

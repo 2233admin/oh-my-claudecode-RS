@@ -901,7 +901,12 @@ Rules:
 "#,
         discipline = native_agent_discipline_prompt(),
         team_size = opts.team_size,
-        lenses = bullets(&lenses.iter().map(std::string::ToString::to_string).collect::<Vec<_>>())
+        lenses = bullets(
+            &lenses
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect::<Vec<_>>()
+        )
     )
 }
 
