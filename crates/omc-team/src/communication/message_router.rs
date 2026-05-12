@@ -59,10 +59,10 @@ impl MessageRouter {
             .join("outbox");
 
         if !inbox_dir.exists() {
-            return Ok(Vec::new());
+            return Ok(Vec::default());
         }
 
-        let mut all_messages = Vec::new();
+        let mut all_messages = Vec::default();
         let entries = std::fs::read_dir(&inbox_dir)?;
         for entry in entries {
             let entry = entry?;

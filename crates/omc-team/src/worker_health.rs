@@ -50,9 +50,9 @@ pub struct HealthMonitor {
 impl HealthMonitor {
     pub fn new(heartbeat_timeout_ms: u64, unhealthy_threshold: u32) -> Self {
         Self {
-            workers: HashMap::new(),
-            registered_at: HashMap::new(),
-            last_heartbeat_instant: HashMap::new(),
+            workers: HashMap::default(),
+            registered_at: HashMap::default(),
+            last_heartbeat_instant: HashMap::default(),
             heartbeat_timeout_ms,
             unhealthy_threshold,
         }
@@ -68,7 +68,7 @@ impl HealthMonitor {
             tasks_completed: 0,
             tasks_failed: 0,
             uptime_seconds: 0,
-            capabilities: Vec::new(),
+            capabilities: Vec::default(),
             high_priority_completed: 0,
         };
         self.workers.insert(worker_id.clone(), health);
@@ -112,7 +112,7 @@ impl HealthMonitor {
     }
 
     pub fn check_health(&mut self) -> Vec<WorkerHealthReport> {
-        let mut reports = Vec::new();
+        let mut reports = Vec::default();
         let timeout = Duration::from_millis(self.heartbeat_timeout_ms);
 
         for (worker_id, health) in self.workers.iter_mut() {
@@ -198,8 +198,8 @@ impl RestartManager {
     pub fn new(policy: RestartPolicy) -> Self {
         Self {
             policy,
-            restart_counts: HashMap::new(),
-            last_restart: HashMap::new(),
+            restart_counts: HashMap::default(),
+            last_restart: HashMap::default(),
         }
     }
 

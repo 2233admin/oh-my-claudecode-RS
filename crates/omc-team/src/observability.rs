@@ -297,7 +297,7 @@ struct AgentSpec {
 }
 
 pub fn init_observability(root: &Path) -> Result<Vec<PathBuf>, String> {
-    let mut touched = Vec::new();
+    let mut touched = Vec::default();
     for dir in [
         ".omc/team/sessions",
         ".omc/team/invocations",
@@ -399,7 +399,7 @@ pub fn record_team_launch(
 pub fn build_cell_plan(total_agents: u8) -> CellPlan {
     let total_agents = total_agents.max(1);
     let mut remaining = total_agents.saturating_sub(1);
-    let mut cells = Vec::new();
+    let mut cells = Vec::default();
     let roles = ["builder", "reviewer", "verifier"];
     let mut cell_index = 1;
     while remaining > 0 {
@@ -502,7 +502,7 @@ pub fn mark_session_handoff(
 
 pub fn load_sessions(root: &Path) -> Result<Vec<AgentSessionRecord>, String> {
     let dir = root.join(".omc/team/sessions");
-    let mut records = Vec::new();
+    let mut records = Vec::default();
     if !dir.exists() {
         return Ok(records);
     }
@@ -557,7 +557,7 @@ pub fn usage_report(
     group_by: UsageGroupBy,
 ) -> Result<UsageReport, String> {
     let invocations = load_invocations(root)?;
-    let mut groups: BTreeMap<String, (usize, UsageRollup, Vec<String>)> = BTreeMap::new();
+    let mut groups: BTreeMap<String, (usize, UsageRollup, Vec<String>)> = BTreeMap::default();
     for invocation in invocations
         .into_iter()
         .filter(|item| run_id.is_none_or(|wanted| item.run_id == wanted))
@@ -573,7 +573,7 @@ pub fn usage_report(
         };
         let entry = groups
             .entry(key)
-            .or_insert_with(|| (0, UsageRollup::default(), Vec::new()));
+            .or_insert_with(|| (0, UsageRollup::default(), Vec::default()));
         entry.0 += 1;
         entry.1.input_tokens += invocation.usage.input_tokens;
         entry.1.output_tokens += invocation.usage.output_tokens;
@@ -642,7 +642,7 @@ pub fn top_snapshot(root: &Path) -> Result<ObservabilityTopSnapshot, String> {
 }
 
 pub fn observability_doctor(root: &Path) -> ObservabilityDoctorReport {
-    let mut messages = Vec::new();
+    let mut messages = Vec::default();
     let mut ok = true;
     for dir in [
         ".omc/team/sessions",
@@ -710,7 +710,7 @@ fn save_invocation(root: &Path, record: &AgentInvocationRecord) -> Result<(), St
 
 fn load_invocations(root: &Path) -> Result<Vec<AgentInvocationRecord>, String> {
     let dir = root.join(".omc/team/invocations");
-    let mut records = Vec::new();
+    let mut records = Vec::default();
     if !dir.exists() {
         return Ok(records);
     }
@@ -760,10 +760,10 @@ fn planned_invocation(session: &AgentSessionRecord, now: u64) -> AgentInvocation
         usage: UsageMeasurement::default(),
         context_percent: None,
         rate_limit: None,
-        tool_calls: Vec::new(),
-        mcp_calls: Vec::new(),
-        skill_calls: Vec::new(),
-        evidence: Vec::new(),
+        tool_calls: Vec::default(),
+        mcp_calls: Vec::default(),
+        skill_calls: Vec::default(),
+        evidence: Vec::default(),
     }
 }
 
@@ -870,7 +870,7 @@ fn render_briefing(
     cell_plan: &CellPlan,
 ) -> String {
     format!(
-        r#"# OMC Team Briefing: {team}
+        r"# OMC Team Briefing: {team}
 
 Run: `{run_id}`
 Tracker run: `{tracker_run}`
@@ -910,7 +910,7 @@ Mission path: `{mission_path}`
 ## Mission Prompt
 
 {prompt}
-"#,
+",
         team = mission.team_name,
         tracker_run = tracker_run_id.unwrap_or("none"),
         runtime = opts.runtime.as_str(),
@@ -927,7 +927,7 @@ Mission path: `{mission_path}`
 }
 
 fn render_exit_contract() -> &'static str {
-    r#"# Subagent Exit Contract
+    r"# Subagent Exit Contract
 
 Before a subagent can be considered completed, it must leave:
 
@@ -938,7 +938,7 @@ Before a subagent can be considered completed, it must leave:
 - `next_action.md`: first concrete next step if resumed.
 
 Without a handoff, OMC may only mark the session `abandoned` or `resumable`, never `completed`.
-"#
+"
 }
 
 fn render_cell_plan(plan: &CellPlan) -> String {
@@ -1129,10 +1129,10 @@ mod tests {
             },
             context_percent: Some(12.0),
             rate_limit: None,
-            tool_calls: Vec::new(),
-            mcp_calls: Vec::new(),
-            skill_calls: Vec::new(),
-            evidence: Vec::new(),
+            tool_calls: Vec::default(),
+            mcp_calls: Vec::default(),
+            skill_calls: Vec::default(),
+            evidence: Vec::default(),
         };
         save_invocation(&root, &invocation).unwrap();
         let report = usage_report(&root, Some("run-1"), UsageGroupBy::Agent).unwrap();

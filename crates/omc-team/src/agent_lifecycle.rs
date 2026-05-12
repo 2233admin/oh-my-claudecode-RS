@@ -397,8 +397,8 @@ mod tests {
 
     #[test]
     fn retry_exhausted() {
-        let mut a =
-            AgentLifecycle::new(AgentId("fragile".to_string()), HashSet::new()).with_max_retries(1);
+        let mut a = AgentLifecycle::new(AgentId("fragile".to_string()), HashSet::default())
+            .with_max_retries(1);
 
         a.mark_ready().unwrap();
         a.receive_task().unwrap();
@@ -466,7 +466,7 @@ mod tests {
 
     #[test]
     fn heartbeat_detection() {
-        let mut a = AgentLifecycle::new(AgentId("hb-test".to_string()), HashSet::new())
+        let mut a = AgentLifecycle::new(AgentId("hb-test".to_string()), HashSet::default())
             .with_heartbeat_interval(Duration::from_millis(50))
             .with_stale_threshold(Duration::from_millis(200));
 

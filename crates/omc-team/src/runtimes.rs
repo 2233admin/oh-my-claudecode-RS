@@ -616,6 +616,7 @@ fn check_codex_ready_with_runner(runner: &dyn RuntimeCommandRunner) -> Result<Ve
 
 fn detect_fsc_root(root: &Path) -> Result<PathBuf, String> {
     for key in ["OMC_FSC_ROOT", "FSC_ROOT", "FULL_SELF_CODING_ROOT"] {
+        // skipcq: RS-W1015
         if let Ok(value) = env::var(key)
             && !value.trim().is_empty()
         {
@@ -660,48 +661,48 @@ terrariums:
 
 fn render_kohaku_terrarium(team_size: u8) -> String {
     let mut creatures = vec![
-        r#"    - name: developer
+        r"    - name: developer
       config: ./creatures/developer/
       output_wiring: [reviewer]
       channels:
         listen: [tasks, feedback, team_chat]
         can_send: [review, status, team_chat]
-"#
+"
         .to_string(),
-        r#"    - name: reviewer
+        r"    - name: reviewer
       config: ./creatures/reviewer/
       channels:
         listen: [review, test_results, security_findings, team_chat]
         can_send: [feedback, approved, status, team_chat]
-"#
+"
         .to_string(),
-        r#"    - name: tester
+        r"    - name: tester
       config: ./creatures/tester/
       channels:
         listen: [approved, team_chat]
         can_send: [test_results, results, status, team_chat]
-"#
+"
         .to_string(),
     ];
     if team_size >= 4 {
         creatures.push(
-            r#"    - name: security
+            r"    - name: security
       config: ./creatures/security/
       channels:
         listen: [review, approved, team_chat]
         can_send: [security_findings, feedback, status, team_chat]
-"#
+"
             .to_string(),
         );
     }
     if team_size >= 5 {
         creatures.push(
-            r#"    - name: integrator
+            r"    - name: integrator
       config: ./creatures/integrator/
       channels:
         listen: [results, status, team_chat]
         can_send: [results, status, team_chat]
-"#
+"
             .to_string(),
         );
     }
@@ -786,7 +787,7 @@ system_prompt_file: prompts/system.md
 
 fn render_kohaku_root_prompt(task: &TaskCard, mission_path: &Path) -> String {
     format!(
-        r#"You are the OMC Lead running a KohakuTerrarium team.
+        r"You are the OMC Lead running a KohakuTerrarium team.
 
 Mission: {id} — {title}
 Mission file: {mission_path}
@@ -804,7 +805,7 @@ Operating contract:
 - Require reviewer approval before validation.
 - Require final results to include summary, changed files, validation, risks, and follow-ups.
 - Do not modify KohakuTerrarium upstream or open an upstream PR from this run.
-"#,
+",
         id = task.meta.id,
         title = task.meta.title,
         mission_path = mission_path.display()
@@ -817,7 +818,7 @@ fn render_kohaku_creature_prompt(
     mission_path: &Path,
 ) -> String {
     format!(
-        r#"You are the OMC Kohaku creature `{name}`.
+        r"You are the OMC Kohaku creature `{name}`.
 
 Role: {role}
 Mission: {id} — {title}
@@ -833,7 +834,7 @@ OMC discipline:
 - Think before coding, keep changes simple, and touch only task-relevant files.
 - Preserve user changes and unrelated code.
 - Report verification evidence before marking work complete.
-"#,
+",
         name = creature.name,
         role = creature.role,
         id = task.meta.id,
@@ -844,7 +845,7 @@ OMC discipline:
 
 fn runtime_mission_body(task: &TaskCard, opts: &StartOptions, runtime_name: &str) -> String {
     format!(
-        r#"# OMC Runtime Mission
+        r"# OMC Runtime Mission
 
 Runtime: {runtime_name}
 Team size: {team_size}
@@ -878,7 +879,7 @@ Team size: {team_size}
 - Include validation commands and results.
 - Call out residual risks, blockers, and follow-ups.
 - Do not create upstream FSC or Kohaku PRs from this run.
-"#,
+",
         runtime_name = runtime_name,
         team_size = opts.team_size,
         id = task.meta.id,

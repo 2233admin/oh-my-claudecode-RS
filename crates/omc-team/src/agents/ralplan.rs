@@ -39,7 +39,7 @@ impl Ralplan {
     pub fn new(title: impl Into<String>) -> Self {
         Self {
             title: title.into(),
-            phases: Vec::new(),
+            phases: Vec::default(),
             current_phase: 0,
             status: ConsensusStatus::Draft,
         }
@@ -50,7 +50,7 @@ impl Ralplan {
             name: name.into(),
             description: description.into(),
             status: PhaseStatus::Pending,
-            blockers: Vec::new(),
+            blockers: Vec::default(),
         });
     }
 

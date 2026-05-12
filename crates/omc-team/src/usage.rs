@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Write as FmtWrite;
 
 use serde::{Deserialize, Serialize};
 
@@ -68,7 +69,7 @@ pub struct UsageTracker {
 impl UsageTracker {
     pub fn new() -> Self {
         Self {
-            workers: HashMap::new(),
+            workers: HashMap::default(),
             started_at: chrono::Utc::now().to_rfc3339(),
         }
     }
@@ -168,7 +169,7 @@ impl UsageTracker {
 impl Default for UsageTracker {
     fn default() -> Self {
         Self {
-            workers: HashMap::new(),
+            workers: HashMap::default(),
             started_at: chrono::Utc::now().to_rfc3339(),
         }
     }
@@ -227,19 +228,21 @@ pub fn calculate_cost(tokens: &TokenUsage, pricing: &ModelPricing) -> CostBreakd
 
 pub fn render_summary_report(summary: &TeamUsageSummary) -> String {
     let mut out = String::default();
-    out.push_str(&format!("# Team Usage: {}\n\n", summary.team_name));
-    out.push_str(&format!("**Phase:** {}\n", summary.phase.as_str()));
-    out.push_str(&format!("**Started:** {}\n", summary.started_at));
+    writeln!(out, "# Team Usage: {}\n", summary.team_name).unwrap();
+    writeln!(out, "**Phase:** {}", summary.phase.as_str()).unwrap();
+    writeln!(out, "**Started:** {}", summary.started_at).unwrap();
     if let Some(ref ended) = summary.ended_at {
-        out.push_str(&format!("**Ended:** {ended}\n"));
+        writeln!(out, "**Ended:** {ended}").unwrap();
     }
-    out.push_str(&format!("**Duration:** {} ms\n\n", summary.duration_ms));
+    writeln!(out, "**Duration:** {} ms\n", summary.duration_ms).unwrap();
 
     out.push_str("## Tasks\n\n");
-    out.push_str(&format!(
-        "| Metric | Count |\n|--------|-------|\n| Total | {} |\n| Completed | {} |\n| Failed | {} |\n\n",
+    writeln!(
+        out,
+        "| Metric | Count |\n|--------|-------|\n| Total | {} |\n| Completed | {} |\n| Failed | {} |\n",
         summary.total_tasks, summary.completed_tasks, summary.failed_tasks,
-    ));
+    )
+    .unwrap();
 
     if !summary.workers.is_empty() {
         out.push_str("## Per-Worker Breakdown\n\n");
@@ -250,8 +253,9 @@ pub fn render_summary_report(summary: &TeamUsageSummary) -> String {
             "|--------|-------|-------|--------|------------|-------------|--------------|----------|\n",
         );
         for w in &summary.workers {
-            out.push_str(&format!(
-                "| {} | {} | {} | {} | {} | {} | {} | {:.6} |\n",
+            writeln!(
+                out,
+                "| {} | {} | {} | {} | {} | {} | {} | {:.6} |",
                 w.worker_id,
                 w.model,
                 w.tokens.input_tokens,
@@ -260,40 +264,26 @@ pub fn render_summary_report(summary: &TeamUsageSummary) -> String {
                 w.tokens.cache_write_tokens,
                 w.tokens.total(),
                 w.cost.total_cost,
-            ));
+            )
+            .unwrap();
         }
         out.push('\n');
     }
 
     out.push_str("## Totals\n\n");
-    out.push_str(&format!(
-        "- **Input tokens:** {}\n",
-        summary.total_tokens.input_tokens
-    ));
-    out.push_str(&format!(
-        "- **Output tokens:** {}\n",
-        summary.total_tokens.output_tokens
-    ));
-    out.push_str(&format!(
-        "- **Cache read tokens:** {}\n",
-        summary.total_tokens.cache_read_tokens
-    ));
-    out.push_str(&format!(
-        "- **Cache write tokens:** {}\n",
-        summary.total_tokens.cache_write_tokens
-    ));
-    out.push_str(&format!(
-        "- **Total tokens:** {}\n",
-        summary.total_tokens.total()
-    ));
-    out.push_str(&format!(
-        "- **Cache write cost:** ${:.6}\n",
+    writeln!(out, "- **Input tokens:** {}", summary.total_tokens.input_tokens).unwrap();
+    writeln!(out, "- **Output tokens:** {}", summary.total_tokens.output_tokens).unwrap();
+    writeln!(out, "- **Cache read tokens:** {}", summary.total_tokens.cache_read_tokens).unwrap();
+    writeln!(out, "- **Cache write tokens:** {}", summary.total_tokens.cache_write_tokens)
+        .unwrap();
+    writeln!(out, "- **Total tokens:** {}", summary.total_tokens.total()).unwrap();
+    writeln!(
+        out,
+        "- **Cache write cost:** ${:.6}",
         summary.total_cost.cache_write_cost
-    ));
-    out.push_str(&format!(
-        "- **Total cost:** ${:.6}\n",
-        summary.total_cost.total_cost
-    ));
+    )
+    .unwrap();
+    writeln!(out, "- **Total cost:** ${:.6}", summary.total_cost.total_cost).unwrap();
 
     out
 }

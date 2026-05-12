@@ -40,8 +40,8 @@ pub struct ActionGuard {
 impl ActionGuard {
     pub fn new() -> Self {
         Self {
-            rules: Vec::new(),
-            audit_log: Vec::new(),
+            rules: Vec::default(),
+            audit_log: Vec::default(),
         }
     }
 
