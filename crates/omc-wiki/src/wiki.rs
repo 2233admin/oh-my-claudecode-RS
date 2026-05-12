@@ -602,7 +602,7 @@ pub fn lint_wiki(root: &std::path::Path) -> WikiLintReport {
 
 /// Detect structural contradictions: overlapping tags with different categories,
 /// same slug prefix with conflicting confidence.
-pub fn detect_structural_contradictions(pages: &[WikiPage], issues: &mut Vec<WikiLintIssue>) {
+fn detect_structural_contradictions(pages: &[WikiPage], issues: &mut Vec<WikiLintIssue>) {
     let mut slug_groups: std::collections::HashMap<String, Vec<&WikiPage>> =
         std::collections::HashMap::new();
     for page in pages {
@@ -675,7 +675,7 @@ pub fn detect_structural_contradictions(pages: &[WikiPage], issues: &mut Vec<Wik
 }
 
 /// Extract [[wiki-link]] references from content.
-pub(crate) fn extract_wiki_links(content: &str) -> Vec<String> {
+fn extract_wiki_links(content: &str) -> Vec<String> {
     let mut links = Vec::new();
     let mut remaining = content;
     while let Some(start) = remaining.find("[[") {
