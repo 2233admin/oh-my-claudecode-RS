@@ -14,6 +14,14 @@ cargo fmt --check
 
 All tests must pass before committing. Clippy warnings are treated as errors.
 
+## Workstation Sync
+
+- Source of truth: `https://github.com/2233admin/oh-my-claudecode-RS.git`, branch `dev`.
+- This machine's checkout: `D:/projects/oh-my-claudecode-RS`.
+- 5090 handoff/setup guide: `docs/DEVELOPMENT_SYNC.md`.
+- Do not treat Claude memory or local scratch files as the handoff channel; publish intentional changes through Git.
+- Before publishing, inspect the dirty tree and remove accidental shell-fragment files from the repository root.
+
 ## Code Conventions
 
 - **Edition**: Rust 2024, rust-version 1.85+

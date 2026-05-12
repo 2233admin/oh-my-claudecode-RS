@@ -24,10 +24,12 @@ A single-author Rust rewrite that replaces the TypeScript oh-my-claudecode stack
 ## Quick Start
 
 ```bash
-git clone https://github.com/2233admin/oh-my-claudecode-RS.git
+git clone -b dev https://github.com/2233admin/oh-my-claudecode-RS.git
 cd oh-my-claudecode-RS
 cargo build --release
 ```
+
+For workstation handoff and 5090 setup, see [docs/DEVELOPMENT_SYNC.md](docs/DEVELOPMENT_SYNC.md). For a first-pass project tour, read [docs/onboarding.md](docs/onboarding.md).
 
 Wire the HUD into Claude Code via `~/.claude/settings.json`:
 
