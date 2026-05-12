@@ -3,6 +3,7 @@
 //! Uses directory symlinks/junctions (platform-specific) with recursive copy as fallback.
 //! The `SkillLoader` then discovers skills from the linked structure.
 
+use std::fmt::Write as _;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -173,19 +174,21 @@ impl SkillRegistrar {
 
         for skill in skills {
             toml.push_str("[[skills]]\n");
-            toml.push_str(&format!("name = \"{}\"\n", escape_toml_string(&skill.name)));
-            toml.push_str(&format!(
-                "description = \"{}\"\n",
+            let _ = writeln!(toml, "name = \"{}\"", escape_toml_string(&skill.name));
+            let _ = writeln!(
+                toml,
+                "description = \"{}\"",
                 escape_toml_string(&skill.description)
-            ));
+            );
             // Path is relative to .codex/ — for directory skills, use skill_dir;
             // for flat-file skills, use the .md file path.
             // Since we register directories, the path is skills/<link_name>/SKILL.md
             // or just the skill name for flat files.
-            toml.push_str(&format!(
-                "path = \"skills/{}\"\n",
+            let _ = writeln!(
+                toml,
+                "path = \"skills/{}\"",
                 escape_toml_string(&skill.name)
-            ));
+            );
             toml.push('\n');
         }
 
