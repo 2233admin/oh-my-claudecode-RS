@@ -35,10 +35,12 @@ impl GiteaProvider {
     }
 
     fn api_base(&self) -> Option<String> {
+        // skipcq: RS-W1015
         std::env::var("GITEA_URL").ok().filter(|u| !u.is_empty())
     }
 
     fn api_token(&self) -> Option<String> {
+        // skipcq: RS-W1015
         std::env::var("GITEA_TOKEN").ok().filter(|t| !t.is_empty())
     }
 }
