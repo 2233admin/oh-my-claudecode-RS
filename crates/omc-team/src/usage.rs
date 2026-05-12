@@ -271,11 +271,30 @@ pub fn render_summary_report(summary: &TeamUsageSummary) -> String {
     }
 
     out.push_str("## Totals\n\n");
-    writeln!(out, "- **Input tokens:** {}", summary.total_tokens.input_tokens).unwrap();
-    writeln!(out, "- **Output tokens:** {}", summary.total_tokens.output_tokens).unwrap();
-    writeln!(out, "- **Cache read tokens:** {}", summary.total_tokens.cache_read_tokens).unwrap();
-    writeln!(out, "- **Cache write tokens:** {}", summary.total_tokens.cache_write_tokens)
-        .unwrap();
+    writeln!(
+        out,
+        "- **Input tokens:** {}",
+        summary.total_tokens.input_tokens
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- **Output tokens:** {}",
+        summary.total_tokens.output_tokens
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- **Cache read tokens:** {}",
+        summary.total_tokens.cache_read_tokens
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- **Cache write tokens:** {}",
+        summary.total_tokens.cache_write_tokens
+    )
+    .unwrap();
     writeln!(out, "- **Total tokens:** {}", summary.total_tokens.total()).unwrap();
     writeln!(
         out,
@@ -283,7 +302,12 @@ pub fn render_summary_report(summary: &TeamUsageSummary) -> String {
         summary.total_cost.cache_write_cost
     )
     .unwrap();
-    writeln!(out, "- **Total cost:** ${:.6}", summary.total_cost.total_cost).unwrap();
+    writeln!(
+        out,
+        "- **Total cost:** ${:.6}",
+        summary.total_cost.total_cost
+    )
+    .unwrap();
 
     out
 }
