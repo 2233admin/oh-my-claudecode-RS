@@ -105,9 +105,9 @@ pub struct Swarm {
 impl Swarm {
     pub fn new(topology: TopologyType) -> Self {
         Self {
-            agents: HashMap::new(),
+            agents: HashMap::default(),
             topology,
-            active_tasks: HashMap::new(),
+            active_tasks: HashMap::default(),
         }
     }
 
@@ -197,9 +197,9 @@ impl FaultTolerance {
             strategy,
             heartbeat_timeout: Duration::from_secs(30),
             max_failures: 3,
-            quarantine: HashSet::new(),
-            failure_log: Vec::new(),
-            failure_counts: HashMap::new(),
+            quarantine: HashSet::default(),
+            failure_log: Vec::default(),
+            failure_counts: HashMap::default(),
         }
     }
 
@@ -233,7 +233,7 @@ impl FaultTolerance {
         let record = FailureRecord {
             agent_id: failed.clone(),
             attempt: *count as u8,
-            error: error.clone(),
+            error,
             timestamp: crate::unix_timestamp(),
             recovered: false,
         };
