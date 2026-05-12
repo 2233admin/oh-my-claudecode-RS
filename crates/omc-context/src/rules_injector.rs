@@ -8,6 +8,7 @@
 
 use dashmap::DashMap;
 use std::collections::HashSet;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -163,10 +164,11 @@ impl RulesInjector {
 
         let mut output = String::default();
         for rule in rules {
-            output.push_str(&format!(
+            let _ = write!(
+                output,
                 "\n\n[Rule: {}]\n[Match: {}]\n{}",
                 rule.relative_path, rule.match_reason, rule.content
-            ));
+            );
         }
         output
     }

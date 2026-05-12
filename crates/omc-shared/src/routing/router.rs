@@ -3,6 +3,8 @@
 //! Main routing engine that determines which model tier to use for a given task.
 //! Combines signal extraction, scoring, and rules evaluation.
 
+use std::fmt::Write as _;
+
 use super::rules::{default_routing_rules, evaluate_rules};
 use super::scorer::{calculate_complexity_score, calculate_confidence, score_to_tier};
 use super::signals::extract_all_signals;
@@ -222,7 +224,7 @@ pub fn analyze_task_complexity(
         decision.tier, decision.model
     );
     for r in &decision.reasons {
-        analysis.push_str(&format!("\n- {}", r));
+        let _ = write!(analysis, "\n- {}", r);
     }
     analysis.push_str("\n\n**Signals detected:**");
     if signals.lexical.has_architecture_keywords {

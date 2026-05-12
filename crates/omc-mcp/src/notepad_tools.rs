@@ -5,6 +5,7 @@
 
 use serde_json::Value;
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -326,7 +327,7 @@ impl McpTool for NotepadWriteWorkingTool {
             working_entries.push('\n');
         }
         let ts = Utc::now().format("%Y-%m-%d %H:%M UTC");
-        working_entries.push_str(&format!("[{ts}] {content}"));
+        let _ = write!(working_entries, "[{ts}] {content}");
 
         let notepad = build_notepad(&priority, &working_entries, &manual);
 
@@ -404,7 +405,7 @@ impl McpTool for NotepadWriteManualTool {
             manual_entries.push('\n');
         }
         let ts = Utc::now().format("%Y-%m-%d %H:%M UTC");
-        manual_entries.push_str(&format!("[{ts}] {content}"));
+        let _ = write!(manual_entries, "[{ts}] {content}");
 
         let notepad = build_notepad(&priority, &working, &manual_entries);
 

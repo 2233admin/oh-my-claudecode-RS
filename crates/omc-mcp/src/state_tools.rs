@@ -6,6 +6,7 @@
 use omc_shared::paths::validate_path_segment;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -192,16 +193,18 @@ impl McpTool for StateReadTool {
                 for (sid, sp) in &active_sessions {
                     match fs::read_to_string(sp) {
                         Ok(content) => {
-                            output.push_str(&format!(
+                            let _ = write!(
+                                output,
                                 "### Session: {sid}\nPath: {}\n\n```json\n{content}\n```\n\n",
                                 sp.display()
-                            ));
+                            );
                         }
                         Err(e) => {
-                            output.push_str(&format!(
+                            let _ = write!(
+                                output,
                                 "**Session: {sid}**\nPath: {}\n*Error: {e}*\n\n",
                                 sp.display()
-                            ));
+                            );
                         }
                     }
                 }
@@ -586,7 +589,7 @@ impl McpTool for StateClearTool {
         let mut msg =
             format!("Cleared state for mode: {mode}\n- Locations cleared: {cleared_count}");
         if !errors.is_empty() {
-            msg.push_str(&format!("\n- Errors: {}", errors.join(", ")));
+            let _ = write!(msg, "\n- Errors: {}", errors.join(", "));
         }
         if session_id.is_none() {
             msg.push_str(
