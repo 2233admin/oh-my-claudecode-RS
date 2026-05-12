@@ -143,6 +143,7 @@ impl TeamRunRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
 
     // === AppState ===
 
@@ -274,10 +275,12 @@ mod tests {
 
     #[test]
     fn team_run_record_active() {
+        let tmp = tempdir().unwrap();
+        let mission = tmp.path().join("mission.md");
         let record = TeamRunRecord {
             run_id: "run-1".into(),
             team_name: "alpha".into(),
-            mission_path: "/tmp/mission.md".into(),
+            mission_path: mission.to_string_lossy().into(),
             tracker: None,
             issue_ref: None,
             started_at: 1000,
@@ -290,10 +293,12 @@ mod tests {
 
     #[test]
     fn team_run_record_planned_is_active() {
+        let tmp = tempdir().unwrap();
+        let mission = tmp.path().join("mission.md");
         let record = TeamRunRecord {
             run_id: "run-1".into(),
             team_name: "alpha".into(),
-            mission_path: "/tmp/mission.md".into(),
+            mission_path: mission.to_string_lossy().into(),
             tracker: None,
             issue_ref: None,
             started_at: 1000,
@@ -306,10 +311,12 @@ mod tests {
 
     #[test]
     fn team_run_record_completed_is_not_active() {
+        let tmp = tempdir().unwrap();
+        let mission = tmp.path().join("mission.md");
         let record = TeamRunRecord {
             run_id: "run-1".into(),
             team_name: "alpha".into(),
-            mission_path: "/tmp/mission.md".into(),
+            mission_path: mission.to_string_lossy().into(),
             tracker: None,
             issue_ref: None,
             started_at: 1000,

@@ -195,6 +195,7 @@ impl OmcPaths {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
 
     #[test]
     fn test_default_paths() {
@@ -261,7 +262,8 @@ mod tests {
 
     #[test]
     fn test_host_skills_dir() {
-        let paths = OmcPaths::new_with_root(PathBuf::from("/tmp/test-omc"));
+        let tmp = tempdir().unwrap();
+        let paths = OmcPaths::new_with_root(tmp.path().to_path_buf());
 
         let claude_skills = paths.host_skills_dir("claude");
         assert!(claude_skills.ends_with("skills/claude"));
@@ -282,7 +284,8 @@ mod tests {
 
     #[test]
     fn test_skills_field_in_new_with_root() {
-        let paths = OmcPaths::new_with_root(PathBuf::from("/tmp/test-omc"));
-        assert_eq!(paths.skills, PathBuf::from("/tmp/test-omc/skills"));
+        let tmp = tempdir().unwrap();
+        let paths = OmcPaths::new_with_root(tmp.path().to_path_buf());
+        assert_eq!(paths.skills, tmp.path().join("skills"));
     }
 }

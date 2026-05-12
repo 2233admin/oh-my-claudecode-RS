@@ -218,7 +218,7 @@ mod tests {
         let record = TeamRunRecord {
             run_id: "run-1".into(),
             team_name: "alpha".into(),
-            mission_path: "/tmp/mission.md".into(),
+            mission_path: tmp.path().join("mission.md").to_string_lossy().into(),
             tracker: Some("github".into()),
             issue_ref: Some("#42".into()),
             started_at: 1000,
@@ -245,7 +245,7 @@ mod tests {
         let record = TeamRunRecord {
             run_id: "run-1".into(),
             team_name: "alpha".into(),
-            mission_path: "/tmp/mission.md".into(),
+            mission_path: tmp.path().join("mission.md").to_string_lossy().into(),
             tracker: None,
             issue_ref: None,
             started_at: 1000,
