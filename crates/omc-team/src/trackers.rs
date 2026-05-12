@@ -458,6 +458,7 @@ fn github_api(root: &Path, repo: Option<&str>) -> Result<GitHubApi, String> {
 }
 
 fn github_token() -> Result<String, String> {
+    // skipcq: RS-W1015
     if let Ok(token) = env::var("GITHUB_TOKEN")
         && !token.trim().is_empty()
     {
@@ -484,6 +485,7 @@ pub(crate) fn detect_github_repo(root: &Path, explicit: Option<&str>) -> Result<
     if let Some(repo) = explicit {
         return validate_repo(repo);
     }
+    // skipcq: RS-W1015
     if let Ok(repo) = env::var("GITHUB_REPOSITORY")
         && !repo.trim().is_empty()
     {
@@ -672,8 +674,7 @@ fn write_temp_json_body(body: &Value) -> Result<PathBuf, String> {
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|duration| duration.as_nanos())
-            .unwrap_or(0)
+            .map_or(0, |duration| duration.as_nanos())
     ));
     fs::write(
         &path,
@@ -851,10 +852,7 @@ fn github_issue_comments(api: &GitHubApi, number: u64) -> Result<Vec<TrackerComm
         }
         comments.extend(items.iter().map(|item| {
             TrackerComment {
-                id: item
-                    .get("id")
-                    .map(value_id)
-                    .unwrap_or_else(|| "".to_string()),
+                id: item.get("id").map_or_else(|| "".to_string(), value_id),
                 body: item
                     .get("body")
                     .and_then(Value::as_str)
@@ -1080,6 +1078,7 @@ fn github_required_labels() -> &'static [&'static str] {
 }
 
 fn linear_api() -> Result<LinearApi, String> {
+    // skipcq: RS-W1015
     if let Ok(token) = env::var("LINEAR_API_KEY")
         && !token.trim().is_empty()
     {
@@ -1167,8 +1166,7 @@ fn linear_team_states(api: &LinearApi, team_id: &str) -> Result<HashSet<String>,
     )?;
     Ok(data["team"]["states"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .filter_map(|item| item.get("name").and_then(Value::as_str))
         .map(ToString::to_string)
@@ -1189,8 +1187,7 @@ fn linear_team_labels(api: &LinearApi, team_id: &str) -> Result<HashSet<String>,
     )?;
     Ok(data["team"]["labels"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .filter_map(|item| item.get("name").and_then(Value::as_str))
         .map(ToString::to_string)
@@ -1277,7 +1274,7 @@ fn linear_find_issue_by_identifier(
         {
             break;
         }
-        after = data["issues"]["pageInfo"]["endCursor"].clone();
+        after.clone_from(&data["issues"]["pageInfo"]["endCursor"]);
     }
     Err(format!("Linear issue not found: {issue_ref}"))
 }
@@ -1324,7 +1321,7 @@ fn linear_team_issues(
         {
             break;
         }
-        after = data["issues"]["pageInfo"]["endCursor"].clone();
+        after.clone_from(&data["issues"]["pageInfo"]["endCursor"]);
     }
     Ok(out)
 }
@@ -1332,16 +1329,14 @@ fn linear_team_issues(
 fn linear_value_to_issue(value: &Value) -> Result<ExternalIssue, String> {
     let labels = value["labels"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .filter_map(|label| label.get("name").and_then(Value::as_str))
         .map(ToString::to_string)
         .collect::<Vec<_>>();
     let comments = value["comments"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .map(|item| TrackerComment {
             id: item
@@ -1569,8 +1564,7 @@ fn linear_update_state_by_name(
     )?;
     let Some(state_id) = states_data["team"]["states"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .find(|state| state.get("name").and_then(Value::as_str) == Some(state_name))
         .and_then(|state| state.get("id").and_then(Value::as_str))
@@ -1688,7 +1682,7 @@ fn value_id(value: &Value) -> String {
 }
 
 fn percent_encode(raw: &str) -> String {
-    let mut out = String::new();
+    let mut out = String::default();
     for byte in raw.bytes() {
         if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
             out.push(byte as char);

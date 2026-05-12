@@ -41,7 +41,9 @@ const ZH_CN: Strings = Strings {
 };
 
 pub fn detect_locale() -> Locale {
+    // skipcq: RS-W1015
     let locale = env::var("LC_ALL")
+        // skipcq: RS-W1015
         .or_else(|_| env::var("LANG"))
         .unwrap_or_default();
     if locale.to_ascii_lowercase().contains("zh") {

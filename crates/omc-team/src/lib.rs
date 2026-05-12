@@ -7,9 +7,25 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+pub mod agent_handle;
+pub mod agent_lifecycle;
+pub mod agents;
+pub mod background;
+pub mod communication;
+pub mod dispatch;
+pub mod fault_tolerance;
+pub mod forbidden;
+pub mod governance;
+pub mod heartbeat;
+pub mod idle_nudge;
 mod observability;
+pub mod phase_controller;
 mod runtimes;
+pub mod task_graph;
 mod trackers;
+pub mod usage;
+pub mod work_stealing;
+pub mod worker_health;
 pub use observability::{
     AgentInvocationRecord, AgentSessionRecord, AgentSessionState, CellPlan, ContextBudget,
     ContextGuardAction, ContextGuardDecision, ObservabilityDoctorReport, ObservabilityStartReport,
@@ -208,8 +224,10 @@ pub fn init_project(root: &Path) -> Result<InitReport, String> {
     Ok(report)
 }
 
+static CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: &str = "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS";
+
 pub fn check_claude_ready() -> Result<(), String> {
-    if env::var("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS")
+    if env::var(CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS)
         .ok()
         .as_deref()
         != Some("1")
@@ -276,7 +294,7 @@ pub fn prepare_start_mission(
             issue_ref: imported.issue_ref,
             issue_id: imported.issue_id,
             team_name,
-            mission_path: String::new(),
+            mission_path: String::default(),
             started_at: unix_timestamp(),
             lease_comment_id: Some(lease_comment_id),
             start_comment_id: None,
@@ -363,7 +381,7 @@ pub fn collect_handoff(root: &Path, team_name: &str) -> Result<String, String> {
         candidates.push(home.join(format!(".claude/tasks/{team_name}")));
     }
 
-    let mut sections = Vec::new();
+    let mut sections = Vec::default();
     for dir in candidates {
         if !dir.exists() {
             continue;
@@ -626,7 +644,9 @@ fn upsert_settings(root: &Path, report: &mut InitReport) -> Result<(), String> {
         json!({})
     };
 
+    // skipcq: RS-E1015
     ensure_object_field(&mut value, "env")?;
+    // skipcq: RS-E1015
     ensure_object_field(&mut value, "hooks")?;
     value["env"]["CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"] = json!("1");
     value["hooks"]["TaskCreated"] = json!([{
@@ -642,7 +662,9 @@ fn upsert_settings(root: &Path, report: &mut InitReport) -> Result<(), String> {
         "hooks": [{"type": "command", "command": "omc-team hook teammate-idle"}]
     }]);
 
-    let rendered = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())? + "\n";
+    // skipcq: RS-E1015
+    let mut rendered = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
+    rendered.push('\n');
     upsert_file(path, &rendered, report)
 }
 
@@ -882,7 +904,12 @@ Rules:
 "#,
         discipline = native_agent_discipline_prompt(),
         team_size = opts.team_size,
-        lenses = bullets(&lenses.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        lenses = bullets(
+            &lenses
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect::<Vec<_>>()
+        )
     )
 }
 
@@ -937,7 +964,7 @@ fn looks_like_linear_id(raw: &str) -> bool {
 }
 
 pub(crate) fn slug(raw: &str) -> String {
-    let mut out = String::new();
+    let mut out = String::default();
     for ch in raw.chars() {
         if ch.is_ascii_alphanumeric() {
             out.push(ch.to_ascii_lowercase());
@@ -1018,8 +1045,7 @@ pub(crate) fn unix_timestamp() -> u64 {
 fn unix_timestamp_nanos() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0)
+        .map_or(0, |duration| duration.as_nanos())
 }
 
 #[cfg(test)]
@@ -1068,7 +1094,7 @@ mod tests {
                 github_repo: None,
                 github_issue_number: None,
             },
-            body: String::new(),
+            body: String::default(),
         };
         assert!(ensure_ready(&task).unwrap_err().contains("verification"));
     }

@@ -1,0 +1,25 @@
+[package]
+name = "omc-mcp"
+description = "MCP Tool Server for oh-my-claudecode-RS (JSON-RPC over stdio)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "omc-mcp"
+path = "src/main.rs"
+
+[lib]
+name = "omc_mcp"
+path = "src/lib.rs"
+
+[dependencies]
+omc-shared = { path = "../omc-shared" }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }

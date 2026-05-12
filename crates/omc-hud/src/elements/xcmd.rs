@@ -13,7 +13,7 @@ fn xcmd_root() -> Option<PathBuf> {
 
 /// Check if x-cmd is installed.
 fn is_xcmd_installed() -> bool {
-    xcmd_root().map_or(false, |p| p.exists())
+    xcmd_root().is_some_and(|p| p.exists())
 }
 
 /// Get x-cmd version (from VERSION file).
@@ -30,7 +30,7 @@ fn count_installed_packages() -> Option<usize> {
         std::fs::read_dir(env_dir).ok()
             .map(|entries| {
                 entries.filter_map(|e| e.ok())
-                    .filter(|e| e.path().extension().map_or(false, |ext| ext == "json"))
+                    .filter(|e| e.path().extension().is_some_and(|ext| ext == "json"))
                     .count()
             })
     })

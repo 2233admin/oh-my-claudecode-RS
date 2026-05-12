@@ -84,7 +84,7 @@ mod tests {
             input,
             cache,
             color_level: level,
-            strings: i18n::strings(i18n::detect_locale()),
+            strings: i18n::strings(i18n::Locale::En),
         }
     }
 
@@ -106,7 +106,7 @@ mod tests {
 
     // Strip ANSI escapes for plain-text assertions.
     fn strip_ansi(s: &str) -> String {
-        let mut out = String::new();
+        let mut out = String::default();
         let mut chars = s.chars().peekable();
         while let Some(c) = chars.next() {
             if c == '\x1b' {

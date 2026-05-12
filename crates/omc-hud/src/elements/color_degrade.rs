@@ -18,6 +18,7 @@ pub fn detect_color_level() -> ColorLevel {
         return ColorLevel::Mono;
     }
 
+    // skipcq: RS-W1015
     let force_color = env::var("FORCE_COLOR").unwrap_or_default();
     if !force_color.is_empty() && force_color != "0" {
         return match force_color.as_str() {
@@ -28,6 +29,7 @@ pub fn detect_color_level() -> ColorLevel {
         };
     }
 
+    // skipcq: RS-W1015
     let colorterm = env::var("COLORTERM")
         .unwrap_or_default()
         .to_ascii_lowercase();
@@ -35,6 +37,7 @@ pub fn detect_color_level() -> ColorLevel {
         return ColorLevel::TrueColor;
     }
 
+    // skipcq: RS-W1015
     let term = env::var("TERM").unwrap_or_default().to_ascii_lowercase();
     if term.contains("256color") {
         ColorLevel::Color256

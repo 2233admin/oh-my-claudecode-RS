@@ -88,13 +88,13 @@ mod tests {
             input,
             cache,
             color_level: level,
-            strings: i18n::strings(i18n::detect_locale()),
+            strings: i18n::strings(i18n::Locale::En),
         }
     }
 
     fn make_input(model: Option<&str>) -> Input {
         Input {
-            model: model.map(|s| s.to_string()),
+            model: model.map(std::string::ToString::to_string),
             ..Input::default()
         }
     }

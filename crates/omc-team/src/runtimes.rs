@@ -13,6 +13,7 @@ use crate::{
 #[serde(rename_all = "lowercase")]
 pub enum RuntimeKind {
     Claude,
+    Codex,
     Fsc,
     Kohaku,
 }
@@ -23,6 +24,7 @@ impl RuntimeKind {
             "claude" | "claude-code" => Ok(Self::Claude),
             "fsc" | "full-self-coding" => Ok(Self::Fsc),
             "kohaku" | "kohakuterrarium" | "kt" => Ok(Self::Kohaku),
+            "codex" | "codex-cli" => Ok(Self::Codex),
             _ => Err(format!("unknown runtime: {raw}")),
         }
     }
@@ -30,6 +32,7 @@ impl RuntimeKind {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Claude => "claude",
+            Self::Codex => "codex",
             Self::Fsc => "fsc",
             Self::Kohaku => "kohaku",
         }
@@ -117,6 +120,7 @@ pub fn runtime_doctor(root: &Path, runtime: RuntimeKind) -> RuntimeDoctorReport 
 pub fn check_runtime_ready(root: &Path, runtime: RuntimeKind) -> Result<(), String> {
     match runtime {
         RuntimeKind::Claude => crate::check_claude_ready(),
+        RuntimeKind::Codex => check_codex_ready_with_runner(&SystemCommandRunner).map(|_| ()),
         RuntimeKind::Fsc => check_fsc_ready_with_runner(root, &SystemCommandRunner).map(|_| ()),
         RuntimeKind::Kohaku => {
             check_kohaku_ready_with_runner(root, &SystemCommandRunner).map(|_| ())
@@ -150,7 +154,7 @@ pub fn collect_runtime_handoff(
 ) -> Result<String, String> {
     let record = find_runtime_record(root, target, Some(runtime))?;
     let artifact_root = PathBuf::from(&record.artifact_path);
-    let mut sections = Vec::new();
+    let mut sections = Vec::default();
 
     if artifact_root.exists() {
         collect_artifact_sections(&artifact_root, &mut sections)?;
@@ -187,7 +191,7 @@ pub fn find_runtime_record(
     runtime: Option<RuntimeKind>,
 ) -> Result<RuntimeRunRecord, String> {
     let dir = root.join(".omc/team/runs");
-    let mut matches = Vec::new();
+    let mut matches = Vec::default();
     if !dir.exists() {
         return Err(format!("no runtime run records found for {target}"));
     }
@@ -224,7 +228,8 @@ fn runtime_doctor_with_runner(
 ) -> RuntimeDoctorReport {
     match runtime {
         RuntimeKind::Claude => {
-            let mut messages = Vec::new();
+            let mut messages = Vec::default();
+            // skipcq: RS-W1015
             let env_ok = env::var("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS")
                 .ok()
                 .as_deref()
@@ -291,6 +296,18 @@ fn runtime_doctor_with_runner(
                 messages: vec![message],
             },
         },
+        RuntimeKind::Codex => match check_codex_ready_with_runner(runner) {
+            Ok(messages) => RuntimeDoctorReport {
+                runtime,
+                ok: true,
+                messages,
+            },
+            Err(message) => RuntimeDoctorReport {
+                runtime,
+                ok: false,
+                messages: vec![message],
+            },
+        },
     }
 }
 
@@ -306,8 +323,11 @@ fn start_runtime_with_runner(
     if opts.runtime == RuntimeKind::Claude {
         return Err("claude runtime is handled by Claude Code directly".to_string());
     }
+    if opts.runtime == RuntimeKind::Codex {
+        return Err("codex runtime is handled by Codex CLI directly".to_string());
+    }
     match opts.runtime {
-        RuntimeKind::Claude => unreachable!(),
+        RuntimeKind::Claude | RuntimeKind::Codex => unreachable!(),
         RuntimeKind::Fsc => {
             check_fsc_ready_with_runner(root, runner)?;
             render_fsc_runtime(root, mission, task, opts, tracker_record, mission_path)
@@ -369,7 +389,7 @@ fn render_fsc_runtime(
         artifact_root.join("task.json").display().to_string(),
     ];
     let mut record = record;
-    record.launch_command = launch_command.clone();
+    record.launch_command.clone_from(&launch_command);
     save_runtime_record(root, &record)?;
     Ok(RuntimeStartReport {
         runtime: RuntimeKind::Fsc,
@@ -448,7 +468,7 @@ fn render_kohaku_runtime(
         ),
     ];
     let mut record = record;
-    record.launch_command = launch_command.clone();
+    record.launch_command.clone_from(&launch_command);
     save_runtime_record(root, &record)?;
     Ok(RuntimeStartReport {
         runtime: RuntimeKind::Kohaku,
@@ -484,7 +504,7 @@ fn base_runtime_record(
         mission_path: mission_path.display().to_string(),
         artifact_path,
         started_at: unix_timestamp(),
-        launch_command: Vec::new(),
+        launch_command: Vec::default(),
         tracker: tracker_record.map(|record| record.tracker),
         tracker_run_id: tracker_record.map(|record| record.run_id.clone()),
         tracker_team_name: tracker_record.map(|record| record.team_name.clone()),
@@ -574,6 +594,23 @@ fn check_fsc_ready_with_runner(
             "docker not detected; FSC bare mode may still work if configured locally".to_string(),
         ),
     }
+    Ok(messages)
+}
+
+fn check_codex_ready_with_runner(runner: &dyn RuntimeCommandRunner) -> Result<Vec<String>, String> {
+    let version = runner
+        .output("codex", &["--version"], None)
+        .map_err(|err| format!("{err}. Install Codex CLI and ensure `codex` is on PATH."))?;
+    if !version.success {
+        return Err(format!(
+            "codex --version failed: {}",
+            first_non_empty(&version.stderr, &version.stdout)
+        ));
+    }
+    let messages = vec![format!(
+        "codex ok: {}",
+        first_non_empty(&version.stdout, &version.stderr)
+    )];
     Ok(messages)
 }
 
@@ -938,6 +975,72 @@ mod tests {
         assert_eq!(RuntimeKind::parse("claude").unwrap(), RuntimeKind::Claude);
         assert_eq!(RuntimeKind::parse("fsc").unwrap(), RuntimeKind::Fsc);
         assert_eq!(RuntimeKind::parse("kt").unwrap(), RuntimeKind::Kohaku);
+        assert_eq!(RuntimeKind::parse("codex").unwrap(), RuntimeKind::Codex);
+        assert_eq!(RuntimeKind::parse("codex-cli").unwrap(), RuntimeKind::Codex);
+    }
+
+    #[test]
+    fn codex_runtime_as_str() {
+        assert_eq!(RuntimeKind::Codex.as_str(), "codex");
+    }
+
+    #[test]
+    fn codex_missing_cli_has_clear_error() {
+        let report =
+            runtime_doctor_with_runner(Path::new("."), RuntimeKind::Codex, &FakeRunner::default());
+        assert!(!report.ok);
+        assert!(report.messages[0].contains("Install Codex CLI"));
+    }
+
+    #[test]
+    fn codex_runtime_handled_by_cli_directly() {
+        let root = unique_temp_dir();
+        fs::create_dir_all(&root).unwrap();
+        let task = task_card();
+        let mission = Mission {
+            id: task.meta.id.clone(),
+            team_name: "local-1".to_string(),
+            prompt: "mission".to_string(),
+        };
+        let opts = StartOptions {
+            runtime: RuntimeKind::Codex,
+            ..StartOptions::new(crate::MissionKind::Implementation)
+        };
+        let mission_path = root.join(".omc/team/missions/local-1.md");
+        fs::create_dir_all(mission_path.parent().unwrap()).unwrap();
+        fs::write(&mission_path, "mission").unwrap();
+        let result = start_runtime_with_runner(
+            &root,
+            &mission,
+            &task,
+            &opts,
+            None,
+            &mission_path,
+            &FakeRunner::default(),
+        );
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("codex runtime is handled by Codex CLI directly")
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn codex_doctor_ok_when_cli_found() {
+        let runner = FakeRunner::default().with(
+            "codex",
+            &["--version"],
+            Ok(CommandOutput {
+                success: true,
+                stdout: "codex 0.1.0".to_string(),
+                stderr: String::default(),
+            }),
+        );
+        let report = runtime_doctor_with_runner(Path::new("."), RuntimeKind::Codex, &runner);
+        assert!(report.ok);
+        assert!(report.messages[0].contains("codex ok:"));
     }
 
     #[test]
@@ -1014,7 +1117,7 @@ mod tests {
             Ok(CommandOutput {
                 success: true,
                 stdout: "1.0.0".to_string(),
-                stderr: String::new(),
+                stderr: String::default(),
             }),
         );
         let report = runtime_doctor_with_runner(&root, RuntimeKind::Fsc, &runner);
@@ -1064,7 +1167,7 @@ mod tests {
                 Ok(CommandOutput {
                     success: true,
                     stdout: "kt 1.3.0".to_string(),
-                    stderr: String::new(),
+                    stderr: String::default(),
                 }),
             )
             .with(
@@ -1073,7 +1176,7 @@ mod tests {
                 Ok(CommandOutput {
                     success: true,
                     stdout: "kt-biome".to_string(),
-                    stderr: String::new(),
+                    stderr: String::default(),
                 }),
             )
     }

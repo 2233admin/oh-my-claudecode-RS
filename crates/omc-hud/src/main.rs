@@ -18,7 +18,7 @@ fn main() {
 }
 
 fn run() -> Result<(), String> {
-    let mut stdin = String::new();
+    let mut stdin = String::default();
     io::stdin()
         .read_to_string(&mut stdin)
         .map_err(|err| format!("failed to read stdin: {err}"))?;

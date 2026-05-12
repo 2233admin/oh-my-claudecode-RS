@@ -1,0 +1,24 @@
+[package]
+name = "omc-cli"
+description = "CLI dispatcher for oh-my-claudecode skills"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+serde_yaml = "0.9"
+dirs = { workspace = true }
+thiserror = { workspace = true }
+walkdir = "2.4"
+regex = "1"
+omc-host = { path = "../omc-host" }
+omc-skills = { path = "../omc-skills" }
+tracing = { workspace = true }
+
+[[bin]]
+name = "omc"
+path = "src/main.rs"

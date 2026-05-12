@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  build:
+    name: Build Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release --workspace
+      - name: Package (linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          tar czf omc-hud-linux-x86_64.tar.gz -C target/release omc-hud
+          tar czf omc-team-linux-x86_64.tar.gz -C target/release omc-team
+          tar czf omc-xcmd-linux-x86_64.tar.gz -C target/release omc-xcmd
+      - name: Package (macos)
+        if: matrix.os == 'macos-latest'
+        run: |
+          tar czf omc-hud-macos.tar.gz -C target/release omc-hud
+          tar czf omc-team-macos.tar.gz -C target/release omc-team
+          tar czf omc-xcmd-macos.tar.gz -C target/release omc-xcmd
+      - name: Package (windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          powershell -Command "Compress-Archive -Path target/release/omc-hud.exe -DestinationPath omc-hud-windows-x86_64.zip"
+          powershell -Command "Compress-Archive -Path target/release/omc-team.exe -DestinationPath omc-team-windows-x86_64.zip"
+          powershell -Command "Compress-Archive -Path target/release/omc-xcmd.exe -DestinationPath omc-xcmd-windows-x86_64.zip"
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.os }}
+          path: |
+            *.tar.gz
+            *.zip
+          if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+      - name: Prepare Release Files
+        run: |
+          ls -la artifacts/
+          find artifacts -type f -name "*.tar.gz" -o -name "*.zip" | head -20
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.tar.gz,artifacts/**/*.zip
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

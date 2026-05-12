@@ -47,7 +47,12 @@ struct TokenData {
 fn extract(ctx: &RenderContext<'_>) -> Option<TokenData> {
     let state = ctx.input.hooks_state.as_ref()?;
 
-    let get_u64 = |key: &str| -> u64 { state.get(key).and_then(|v| v.as_u64()).unwrap_or(0) };
+    let get_u64 = |key: &str| -> u64 {
+        state
+            .get(key)
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0)
+    };
 
     Some(TokenData {
         input: get_u64("input_tokens"),
@@ -85,14 +90,14 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     let reasoning_part = if data.reasoning > 0 {
         format!(" r{}", compact(data.reasoning))
     } else {
-        String::new()
+        String::default()
     };
 
     // Optional session suffix
     let session_part = if data.session_total > 0 {
         format!(" s{}", compact(data.session_total))
     } else {
-        String::new()
+        String::default()
     };
 
     if color_enabled(ctx.color_level) {
@@ -132,7 +137,7 @@ mod tests {
             input,
             cache,
             color_level: level,
-            strings: i18n::strings(i18n::detect_locale()),
+            strings: i18n::strings(i18n::Locale::En),
         }
     }
 
@@ -171,7 +176,7 @@ mod tests {
 
     /// Strip ANSI escape sequences for plain-text assertions.
     fn strip_ansi(s: &str) -> String {
-        let mut out = String::new();
+        let mut out = String::default();
         let mut chars = s.chars().peekable();
         while let Some(c) = chars.next() {
             if c == '\x1b' {

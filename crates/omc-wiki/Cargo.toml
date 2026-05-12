@@ -1,0 +1,16 @@
+[package]
+name = "omc-wiki"
+description = "Wiki knowledge layer for oh-my-claudecode-RS"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["fs", "sync"] }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }

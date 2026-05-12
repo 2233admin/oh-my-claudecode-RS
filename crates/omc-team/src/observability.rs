@@ -666,10 +666,7 @@ pub fn observability_doctor(root: &Path) -> ObservabilityDoctorReport {
         ok = false;
         messages.push("missing usage ledger: .omc/team/usage.jsonl".to_string());
     }
-    if dirs::home_dir()
-        .map(|home| home.join(".x-cmd.root/X").exists())
-        .unwrap_or(false)
-    {
+    if dirs::home_dir().is_some_and(|home| home.join(".x-cmd.root/X").exists()) {
         messages.push("x-cmd detected: optional usage/session reference available".to_string());
     } else {
         messages.push("x-cmd not detected; OMC observability still works".to_string());
@@ -857,6 +854,7 @@ fn agent_specs(run_id: &str, plan: &CellPlan) -> Vec<AgentSpec> {
 fn provider_for_runtime(runtime: RuntimeKind) -> &'static str {
     match runtime {
         RuntimeKind::Claude => "claude-code",
+        RuntimeKind::Codex => "codex",
         RuntimeKind::Fsc => "fsc",
         RuntimeKind::Kohaku => "kohaku",
     }

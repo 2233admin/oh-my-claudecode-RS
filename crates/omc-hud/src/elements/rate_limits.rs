@@ -86,14 +86,18 @@ fn extract_from_hooks(
 
     let five_pct = hs
         .get("five_hour_used_pct")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .map(|v| v.min(100) as u8);
-    let five_reset = hs.get("five_hour_reset_ms").and_then(|v| v.as_u64());
+    let five_reset = hs
+        .get("five_hour_reset_ms")
+        .and_then(serde_json::Value::as_u64);
     let weekly_pct = hs
         .get("weekly_used_pct")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .map(|v| v.min(100) as u8);
-    let weekly_reset = hs.get("weekly_reset_ms").and_then(|v| v.as_u64());
+    let weekly_reset = hs
+        .get("weekly_reset_ms")
+        .and_then(serde_json::Value::as_u64);
 
     (five_pct, five_reset, weekly_pct, weekly_reset)
 }
@@ -144,7 +148,7 @@ mod tests {
             input,
             cache,
             color_level: level,
-            strings: i18n::strings(i18n::detect_locale()),
+            strings: i18n::strings(i18n::Locale::En),
         }
     }
 
@@ -180,7 +184,7 @@ mod tests {
     }
 
     fn strip_ansi(s: &str) -> String {
-        let mut out = String::new();
+        let mut out = String::default();
         let mut chars = s.chars().peekable();
         while let Some(c) = chars.next() {
             if c == '\x1b' {

@@ -1,9 +1,25 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/omc-autoresearch",
+    "crates/omc-cli",
+    "crates/omc-context",
+    "crates/omc-git-provider",
     "crates/omc-hud",
+    "crates/omc-host",
+    "crates/omc-hooks",
+    "crates/omc-installer",
+    "crates/omc-interop",
+    "crates/omc-macros",
+    "crates/omc-mcp",
+    "crates/omc-notifications",
+    "crates/omc-python",
+    "crates/omc-skills",
     "crates/omc-team",
+    "crates/omc-shared",
+    "crates/omc-wiki",
     "crates/omc-xcmd",
+    "tests/macro-tests",
 ]
 
 [workspace.package]
@@ -12,6 +28,7 @@ edition = "2024"
 license = "MIT"
 authors = ["2233admin"]
 repository = "https://github.com/2233admin/oh-my-claudecode-RS"
+rust-version = "1.85"
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
@@ -19,9 +36,16 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tempfile = "3"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+dashmap = "6"
 mimalloc = { version = "0.1", default-features = false }
 unicode-width = "0.2"
+dirs = "5"
+thiserror = "2"
+anyhow = "1"
+async-trait = "0.1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 [profile.release]
 opt-level = "z"
