@@ -16,12 +16,13 @@ pub fn generate_claude_agent(
         return Err(format!("agent '{}' is not available for Claude", role.name));
     }
 
+    use std::fmt::Write as _;
     let mut frontmatter = String::new();
     frontmatter.push_str("---\n");
-    frontmatter.push_str(&format!("name: {}\n", role.name));
-    frontmatter.push_str(&format!("description: {}\n", role.description));
+    let _ = writeln!(frontmatter, "name: {}", role.name);
+    let _ = writeln!(frontmatter, "description: {}", role.description);
     if let Some(ref routing) = role.routing_role {
-        frontmatter.push_str(&format!("routing_role: {routing}\n"));
+        let _ = writeln!(frontmatter, "routing_role: {routing}");
     }
     frontmatter.push_str("---\n\n");
     frontmatter.push_str(&role.system_prompt);

@@ -10,6 +10,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -162,11 +163,12 @@ pub fn state_read(
 
             let mut output = format!("## State for {mode}\n\n");
             for (sid, state_path, state) in &session_states {
-                output.push_str(&format!(
+                let _ = write!(
+                    output,
                     "### Session: {sid}\nPath: {}\n\n```json\n{}\n```\n\n",
                     state_path.display(),
                     serde_json::to_string_pretty(state).unwrap_or_default()
-                ));
+                );
             }
             return ToolResult::text(output);
         }
@@ -182,16 +184,15 @@ pub fn state_read(
 
                     let session_states = scan_session_states(&paths, mode);
                     if !session_states.is_empty() {
-                        output.push_str(&format!(
-                            "### Active Sessions ({})\n\n",
-                            session_states.len()
-                        ));
+                        let _ =
+                            write!(output, "### Active Sessions ({})\n\n", session_states.len());
                         for (sid, sp, st) in &session_states {
-                            output.push_str(&format!(
+                            let _ = write!(
+                                output,
                                 "**Session: {sid}**\nPath: {}\n\n```json\n{}\n```\n\n",
                                 sp.display(),
                                 serde_json::to_string_pretty(st).unwrap_or_default()
-                            ));
+                            );
                         }
                     }
 
@@ -342,7 +343,7 @@ pub fn state_clear(
 
     let mut message = format!("Cleared state for mode: {mode}\n- Locations cleared: {cleared}");
     if !errors.is_empty() {
-        message.push_str(&format!("\n- Errors: {}", errors.join(", ")));
+        let _ = write!(message, "\n- Errors: {}", errors.join(", "));
     }
     if session_id.is_none() {
         message.push_str(
@@ -419,7 +420,7 @@ pub fn state_list_active(working_directory: Option<&str>, session_id: Option<&st
     let mut output = format!("## Active Modes{scope}\n\n");
 
     for (mode, sessions) in &mode_sessions {
-        output.push_str(&format!("- **{mode}** ({})\n", sessions.join(", ")));
+        let _ = writeln!(output, "- **{mode}** ({})", sessions.join(", "));
     }
 
     ToolResult::text(output)

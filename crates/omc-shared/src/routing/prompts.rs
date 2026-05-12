@@ -4,6 +4,8 @@
 //! Provides model-specific prompt adaptations for Opus, Sonnet, and Haiku.
 //! Each tier has prompts optimized for that model's capabilities.
 
+use std::fmt::Write as _;
+
 use super::types::*;
 
 // ============ Haiku Prompts ============
@@ -156,36 +158,36 @@ pub fn create_delegation_prompt(
     let mut body = format!("### Task\n{}\n", task);
 
     if let Some(d) = deliverables {
-        body.push_str(&format!("\n### Deliverables\n{}\n", d));
+        let _ = write!(body, "\n### Deliverables\n{}\n", d);
     }
     if let Some(sc) = success_criteria {
-        body.push_str(&format!("\n### Success Criteria\n{}\n", sc));
+        let _ = write!(body, "\n### Success Criteria\n{}\n", sc);
     }
     if let Some(c) = context {
-        body.push_str(&format!("\n### Context\n{}\n", c));
+        let _ = write!(body, "\n### Context\n{}\n", c);
     }
     if !must_do.is_empty() {
         body.push_str("\n### MUST DO\n");
         for item in must_do {
-            body.push_str(&format!("- {}\n", item));
+            let _ = writeln!(body, "- {}", item);
         }
     }
     if !must_not_do.is_empty() {
         body.push_str("\n### MUST NOT DO\n");
         for item in must_not_do {
-            body.push_str(&format!("- {}\n", item));
+            let _ = writeln!(body, "- {}", item);
         }
     }
     if !required_skills.is_empty() {
         body.push_str("\n### REQUIRED SKILLS\n");
         for item in required_skills {
-            body.push_str(&format!("- {}\n", item));
+            let _ = writeln!(body, "- {}", item);
         }
     }
     if !required_tools.is_empty() {
         body.push_str("\n### REQUIRED TOOLS\n");
         for item in required_tools {
-            body.push_str(&format!("- {}\n", item));
+            let _ = writeln!(body, "- {}", item);
         }
     }
 
