@@ -40,11 +40,11 @@ pub(crate) fn append_jsonl(path: &Path, line: &str) -> Result<()> {
 /// Read all JSON lines from a file, skipping blank lines.
 pub(crate) fn read_jsonl<T: serde::de::DeserializeOwned>(path: &Path) -> Result<Vec<T>> {
     if !path.exists() {
-        return Ok(Vec::new());
+        return Ok(Vec::default());
     }
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("failed to read: {}", path.display()))?;
-    let mut messages = Vec::new();
+    let mut messages = Vec::default();
     for (i, line) in content.lines().enumerate() {
         let trimmed = line.trim();
         if trimmed.is_empty() {

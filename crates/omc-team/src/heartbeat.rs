@@ -73,9 +73,9 @@ impl HeartbeatManager {
         validate_name(team, "team")?;
         let dir = self.heartbeat_dir(team);
         if !dir.exists() {
-            return Ok(Vec::new());
+            return Ok(Vec::default());
         }
-        let mut results = Vec::new();
+        let mut results = Vec::default();
         for entry in fs::read_dir(&dir)? {
             let entry = entry?;
             let path = entry.path();

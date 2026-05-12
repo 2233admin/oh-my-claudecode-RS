@@ -51,7 +51,7 @@ impl PhaseController {
     pub fn new() -> Self {
         Self {
             current: TeamPhase::Initializing,
-            history: Vec::new(),
+            history: Vec::default(),
         }
     }
 
