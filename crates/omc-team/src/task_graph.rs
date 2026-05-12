@@ -43,8 +43,8 @@ pub struct TaskGraph {
 impl TaskGraph {
     pub fn new() -> Self {
         Self {
-            tasks: HashMap::new(),
-            dependents: HashMap::new(),
+            tasks: HashMap::default(),
+            dependents: HashMap::default(),
         }
     }
 
@@ -83,8 +83,8 @@ impl TaskGraph {
 
     /// Validate the graph has no cycles. Returns Ok(()) or an error describing the cycle.
     pub fn validate(&self) -> Result<(), String> {
-        let mut visited = HashSet::new();
-        let mut in_stack = HashSet::new();
+        let mut visited = HashSet::default();
+        let mut in_stack = HashSet::default();
 
         for id in self.tasks.keys() {
             if !visited.contains(id) && self.has_cycle(id, &mut visited, &mut in_stack) {
@@ -128,8 +128,8 @@ impl TaskGraph {
     {
         self.validate()?;
 
-        let mut completed: HashSet<TaskId> = HashSet::new();
-        let mut results: Vec<TaskResult> = Vec::new();
+        let mut completed: HashSet<TaskId> = HashSet::default();
+        let mut results: Vec<TaskResult> = Vec::default();
 
         loop {
             let ready = self.ready_tasks(&completed);
@@ -185,15 +185,15 @@ impl PriorityScheduler {
     pub fn new(weights: [f64; 4], aging_threshold: Duration, aging_boost: f64) -> Self {
         Self {
             queues: [
-                VecDeque::new(), // Critical
-                VecDeque::new(), // High
-                VecDeque::new(), // Normal
-                VecDeque::new(), // Low
+                VecDeque::default(), // Critical
+                VecDeque::default(), // High
+                VecDeque::default(), // Normal
+                VecDeque::default(), // Low
             ],
             weights,
             aging_threshold,
             aging_boost,
-            enqueue_times: HashMap::new(),
+            enqueue_times: HashMap::default(),
             dequeue_counts: [0; Priority::COUNT],
             total_dequeued: 0,
         }
@@ -239,10 +239,10 @@ impl PriorityScheduler {
         // Collect tasks to promote from each non-highest level.
         // aging_boost acts as a multiplier on waiting time: effective_time = wait * boost.
         // Higher boost = faster aging (tasks reach threshold sooner).
-        let mut to_promote: Vec<(usize, Vec<Task>)> = Vec::new();
+        let mut to_promote: Vec<(usize, Vec<Task>)> = Vec::default();
         for level in 1..Priority::COUNT {
-            let mut promoted = Vec::new();
-            let mut kept = VecDeque::new();
+            let mut promoted = Vec::default();
+            let mut kept = VecDeque::default();
             while let Some(task) = self.queues[level].pop_front() {
                 let should_promote = self.enqueue_times.get(&task.id).is_some_and(|&t| {
                     let wait = now.duration_since(t);
@@ -346,7 +346,7 @@ impl Default for PriorityScheduler {
             weights: [1.0; Priority::COUNT],
             aging_threshold: Duration::from_secs(60),
             aging_boost: 0.1,
-            enqueue_times: HashMap::new(),
+            enqueue_times: HashMap::default(),
             dequeue_counts: [0; Priority::COUNT],
             total_dequeued: 0,
         }

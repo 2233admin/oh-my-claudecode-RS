@@ -35,7 +35,7 @@ pub struct NudgeTracker {
 impl NudgeTracker {
     pub fn new(config: NudgeConfig) -> Self {
         Self {
-            workers: HashMap::new(),
+            workers: HashMap::default(),
             config,
         }
     }
@@ -50,7 +50,7 @@ impl NudgeTracker {
     /// Returns the IDs of workers that were nudged.
     pub fn check_and_nudge(&mut self, worker_ids: &[String]) -> Vec<String> {
         let now_ms = chrono::Utc::now().timestamp_millis() as u64;
-        let mut nudged = Vec::new();
+        let mut nudged = Vec::default();
 
         for worker_id in worker_ids {
             let state = self.workers.entry(worker_id.clone()).or_default();

@@ -244,14 +244,14 @@ pub struct AuditLog {
 impl AuditLog {
     pub fn new() -> Self {
         Self {
-            entries: Vec::new(),
+            entries: Vec::default(),
             log_path: None,
         }
     }
 
     pub fn with_file_path(path: PathBuf) -> Self {
         Self {
-            entries: Vec::new(),
+            entries: Vec::default(),
             log_path: Some(path),
         }
     }
@@ -336,8 +336,8 @@ impl SentinelGate {
             actor: worker.to_string(),
             action: "task_dispatch".to_string(),
             target: task.to_string(),
-            outcome: outcome.clone(),
-            details: delegation_check.as_ref().ok().map(|_| String::new()),
+            outcome,
+            details: delegation_check.as_ref().ok().map(|_| String::default()),
         });
 
         match (delegation_check, &self.enforcement) {
@@ -390,7 +390,7 @@ impl SentinelGate {
             actor: String::default(),
             action: format!("file_{operation:?}").to_lowercase(),
             target: path.to_string(),
-            outcome: outcome.clone(),
+            outcome,
             details: blocked.clone(),
         });
 
@@ -431,7 +431,7 @@ impl SentinelGate {
             actor: String::default(),
             action: "command_execution".to_string(),
             target: command.to_string(),
-            outcome: outcome.clone(),
+            outcome,
             details: blocked.clone(),
         });
 
@@ -463,7 +463,7 @@ impl SentinelGate {
             actor: String::default(),
             action: "phase_transition".to_string(),
             target: format!("{from}->{to}"),
-            outcome: outcome.clone(),
+            outcome,
             details: if valid {
                 None
             } else {

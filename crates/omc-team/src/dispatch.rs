@@ -51,9 +51,9 @@ pub struct DispatchQueue {
 impl DispatchQueue {
     pub fn new(max_concurrent: usize, ack_timeout_ms: u64) -> Self {
         Self {
-            queue: VecDeque::new(),
-            in_flight: HashMap::new(),
-            dispatched_at_instant: HashMap::new(),
+            queue: VecDeque::default(),
+            in_flight: HashMap::default(),
+            dispatched_at_instant: HashMap::default(),
             max_concurrent,
             ack_timeout_ms,
             dispatch_counter: 0,
@@ -136,7 +136,7 @@ impl DispatchQueue {
             .map(|(id, _)| id.clone())
             .collect();
 
-        let mut result = Vec::new();
+        let mut result = Vec::default();
         for id in timed_out {
             self.dispatched_at_instant.remove(&id);
             if let Some(mut task) = self.in_flight.remove(&id) {
@@ -303,7 +303,7 @@ mod tests {
             tasks_completed: completed,
             tasks_failed: failed,
             uptime_seconds: 0,
-            capabilities: Vec::new(),
+            capabilities: Vec::default(),
             high_priority_completed: 0,
         }
     }

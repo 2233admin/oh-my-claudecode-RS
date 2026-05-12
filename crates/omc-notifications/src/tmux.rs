@@ -134,6 +134,7 @@ mod tests {
     fn format_info_without_tmux() {
         // Outside tmux, format_info should return None.
         // (This test only passes when not inside tmux.)
+        // skipcq: RS-W1015
         if std::env::var("TMUX").is_err() {
             assert!(format_info().is_none());
         }

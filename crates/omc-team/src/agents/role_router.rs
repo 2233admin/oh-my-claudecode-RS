@@ -14,7 +14,9 @@ struct RoleRule {
 
 impl RoleRouter {
     pub fn new() -> Self {
-        Self { rules: Vec::new() }
+        Self {
+            rules: Vec::default(),
+        }
     }
 
     /// Add a routing rule.

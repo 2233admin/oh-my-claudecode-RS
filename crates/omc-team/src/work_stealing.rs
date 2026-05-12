@@ -110,12 +110,12 @@ impl WorkStealingScheduler {
             _ => 4,
         };
         Self {
-            local_queues: HashMap::new(),
-            global_queue: VecDeque::new(),
+            local_queues: HashMap::default(),
+            global_queue: VecDeque::default(),
             steal_threshold,
             distribution,
-            agent_profiles: HashMap::new(),
-            completed_counts: HashMap::new(),
+            agent_profiles: HashMap::default(),
+            completed_counts: HashMap::default(),
         }
     }
 

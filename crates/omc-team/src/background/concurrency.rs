@@ -14,8 +14,8 @@ impl ConcurrencyManager {
     pub fn new(config: BackgroundTaskConfig) -> Self {
         Self {
             config,
-            semaphores: Mutex::new(HashMap::new()),
-            active_counts: Mutex::new(HashMap::new()),
+            semaphores: Mutex::new(HashMap::default()),
+            active_counts: Mutex::new(HashMap::default()),
         }
     }
 

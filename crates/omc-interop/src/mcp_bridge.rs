@@ -1,4 +1,5 @@
 use std::env;
+use std::fmt::Write as _;
 
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -161,12 +162,13 @@ pub fn interop_send_task(args: &SendTaskArgs) -> ToolResult {
                 task.created_at,
             );
             if let Some(ref files) = task.files {
-                text.push_str(&format!("**Files:** {}\n\n", files.join(", ")));
+                let _ = write!(text, "**Files:** {}\n\n", files.join(", "));
             }
-            text.push_str(&format!(
+            let _ = write!(
+                text,
                 "The task has been queued for {} to pick up.",
                 args.target
-            ));
+            );
             tool_text(text)
         }
         Err(e) => tool_error("sending task", e),

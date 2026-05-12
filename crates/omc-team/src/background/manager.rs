@@ -52,12 +52,12 @@ impl BackgroundManager {
     pub fn with_dir(config: BackgroundTaskConfig, dir: PathBuf) -> Self {
         let _ = fs::create_dir_all(&dir);
 
-        let mut tasks = HashMap::new();
+        let mut tasks = HashMap::default();
         Self::load_persisted_tasks(&dir, &mut tasks);
 
         Self {
             tasks: RwLock::new(tasks),
-            notifications: RwLock::new(HashMap::new()),
+            notifications: RwLock::new(HashMap::default()),
             concurrency: ConcurrencyManager::new(config.clone()),
             config,
             storage_dir: dir,
@@ -363,7 +363,7 @@ impl BackgroundManager {
         let stale_threshold =
             Duration::from_millis(self.config.stale_threshold_ms.unwrap_or(5 * 60 * 1000));
 
-        let mut tasks_to_remove = Vec::new();
+        let mut tasks_to_remove = Vec::default();
         {
             let tasks = self.tasks.read().unwrap();
             for (id, task) in tasks.iter() {
@@ -794,7 +794,7 @@ mod tests {
 
         let resumed = mgr
             .resume(ResumeInput {
-                session_id: task.session_id.clone(),
+                session_id: task.session_id,
                 prompt: "continue".to_string(),
                 parent_session_id: "p1".to_string(),
             })
