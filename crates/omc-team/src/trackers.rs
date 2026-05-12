@@ -458,6 +458,7 @@ fn github_api(root: &Path, repo: Option<&str>) -> Result<GitHubApi, String> {
 }
 
 fn github_token() -> Result<String, String> {
+    // skipcq: RS-W1015
     if let Ok(token) = env::var("GITHUB_TOKEN")
         && !token.trim().is_empty()
     {
@@ -484,6 +485,7 @@ pub(crate) fn detect_github_repo(root: &Path, explicit: Option<&str>) -> Result<
     if let Some(repo) = explicit {
         return validate_repo(repo);
     }
+    // skipcq: RS-W1015
     if let Ok(repo) = env::var("GITHUB_REPOSITORY")
         && !repo.trim().is_empty()
     {
@@ -1076,6 +1078,7 @@ fn github_required_labels() -> &'static [&'static str] {
 }
 
 fn linear_api() -> Result<LinearApi, String> {
+    // skipcq: RS-W1015
     if let Ok(token) = env::var("LINEAR_API_KEY")
         && !token.trim().is_empty()
     {
@@ -1271,7 +1274,7 @@ fn linear_find_issue_by_identifier(
         {
             break;
         }
-        after = data["issues"]["pageInfo"]["endCursor"].clone();
+        after.clone_from(&data["issues"]["pageInfo"]["endCursor"]);
     }
     Err(format!("Linear issue not found: {issue_ref}"))
 }
@@ -1318,7 +1321,7 @@ fn linear_team_issues(
         {
             break;
         }
-        after = data["issues"]["pageInfo"]["endCursor"].clone();
+        after.clone_from(&data["issues"]["pageInfo"]["endCursor"]);
     }
     Ok(out)
 }
@@ -1679,7 +1682,7 @@ fn value_id(value: &Value) -> String {
 }
 
 fn percent_encode(raw: &str) -> String {
-    let mut out = String::new();
+    let mut out = String::default();
     for byte in raw.bytes() {
         if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
             out.push(byte as char);

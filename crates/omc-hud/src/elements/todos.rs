@@ -131,7 +131,7 @@ mod tests {
 
     /// Strip ANSI escape sequences for plain-text assertions.
     fn strip_ansi(s: &str) -> String {
-        let mut out = String::new();
+        let mut out = String::default();
         let mut chars = s.chars().peekable();
         while let Some(c) = chars.next() {
             if c == '\x1b' {

@@ -381,7 +381,7 @@ pub fn collect_handoff(root: &Path, team_name: &str) -> Result<String, String> {
         candidates.push(home.join(format!(".claude/tasks/{team_name}")));
     }
 
-    let mut sections = Vec::new();
+    let mut sections = Vec::default();
     for dir in candidates {
         if !dir.exists() {
             continue;
@@ -644,7 +644,9 @@ fn upsert_settings(root: &Path, report: &mut InitReport) -> Result<(), String> {
         json!({})
     };
 
+    // skipcq: RS-E1015
     ensure_object_field(&mut value, "env")?;
+    // skipcq: RS-E1015
     ensure_object_field(&mut value, "hooks")?;
     value["env"]["CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"] = json!("1");
     value["hooks"]["TaskCreated"] = json!([{
@@ -660,6 +662,7 @@ fn upsert_settings(root: &Path, report: &mut InitReport) -> Result<(), String> {
         "hooks": [{"type": "command", "command": "omc-team hook teammate-idle"}]
     }]);
 
+    // skipcq: RS-E1015
     let mut rendered = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
     rendered.push('\n');
     upsert_file(path, &rendered, report)

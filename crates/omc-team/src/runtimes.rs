@@ -154,7 +154,7 @@ pub fn collect_runtime_handoff(
 ) -> Result<String, String> {
     let record = find_runtime_record(root, target, Some(runtime))?;
     let artifact_root = PathBuf::from(&record.artifact_path);
-    let mut sections = Vec::new();
+    let mut sections = Vec::default();
 
     if artifact_root.exists() {
         collect_artifact_sections(&artifact_root, &mut sections)?;
@@ -191,7 +191,7 @@ pub fn find_runtime_record(
     runtime: Option<RuntimeKind>,
 ) -> Result<RuntimeRunRecord, String> {
     let dir = root.join(".omc/team/runs");
-    let mut matches = Vec::new();
+    let mut matches = Vec::default();
     if !dir.exists() {
         return Err(format!("no runtime run records found for {target}"));
     }
@@ -228,7 +228,8 @@ fn runtime_doctor_with_runner(
 ) -> RuntimeDoctorReport {
     match runtime {
         RuntimeKind::Claude => {
-            let mut messages = Vec::new();
+            let mut messages = Vec::default();
+            // skipcq: RS-W1015
             let env_ok = env::var("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS")
                 .ok()
                 .as_deref()
@@ -388,7 +389,7 @@ fn render_fsc_runtime(
         artifact_root.join("task.json").display().to_string(),
     ];
     let mut record = record;
-    record.launch_command = launch_command.clone();
+    record.launch_command.clone_from(&launch_command);
     save_runtime_record(root, &record)?;
     Ok(RuntimeStartReport {
         runtime: RuntimeKind::Fsc,
@@ -467,7 +468,7 @@ fn render_kohaku_runtime(
         ),
     ];
     let mut record = record;
-    record.launch_command = launch_command.clone();
+    record.launch_command.clone_from(&launch_command);
     save_runtime_record(root, &record)?;
     Ok(RuntimeStartReport {
         runtime: RuntimeKind::Kohaku,
@@ -503,7 +504,7 @@ fn base_runtime_record(
         mission_path: mission_path.display().to_string(),
         artifact_path,
         started_at: unix_timestamp(),
-        launch_command: Vec::new(),
+        launch_command: Vec::default(),
         tracker: tracker_record.map(|record| record.tracker),
         tracker_run_id: tracker_record.map(|record| record.run_id.clone()),
         tracker_team_name: tracker_record.map(|record| record.team_name.clone()),
@@ -1034,7 +1035,7 @@ mod tests {
             Ok(CommandOutput {
                 success: true,
                 stdout: "codex 0.1.0".to_string(),
-                stderr: String::new(),
+                stderr: String::default(),
             }),
         );
         let report = runtime_doctor_with_runner(Path::new("."), RuntimeKind::Codex, &runner);
@@ -1116,7 +1117,7 @@ mod tests {
             Ok(CommandOutput {
                 success: true,
                 stdout: "1.0.0".to_string(),
-                stderr: String::new(),
+                stderr: String::default(),
             }),
         );
         let report = runtime_doctor_with_runner(&root, RuntimeKind::Fsc, &runner);
@@ -1166,7 +1167,7 @@ mod tests {
                 Ok(CommandOutput {
                     success: true,
                     stdout: "kt 1.3.0".to_string(),
-                    stderr: String::new(),
+                    stderr: String::default(),
                 }),
             )
             .with(
@@ -1175,7 +1176,7 @@ mod tests {
                 Ok(CommandOutput {
                     success: true,
                     stdout: "kt-biome".to_string(),
-                    stderr: String::new(),
+                    stderr: String::default(),
                 }),
             )
     }

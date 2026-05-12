@@ -90,14 +90,14 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     let reasoning_part = if data.reasoning > 0 {
         format!(" r{}", compact(data.reasoning))
     } else {
-        String::new()
+        String::default()
     };
 
     // Optional session suffix
     let session_part = if data.session_total > 0 {
         format!(" s{}", compact(data.session_total))
     } else {
-        String::new()
+        String::default()
     };
 
     if color_enabled(ctx.color_level) {
@@ -176,7 +176,7 @@ mod tests {
 
     /// Strip ANSI escape sequences for plain-text assertions.
     fn strip_ansi(s: &str) -> String {
-        let mut out = String::new();
+        let mut out = String::default();
         let mut chars = s.chars().peekable();
         while let Some(c) = chars.next() {
             if c == '\x1b' {
