@@ -42,7 +42,7 @@ impl SkillExecutor {
     pub fn new(loader: SkillLoader) -> Self {
         Self {
             loader,
-            state: SkillStateStore::new(),
+            state: SkillStateStore::default(),
         }
     }
 

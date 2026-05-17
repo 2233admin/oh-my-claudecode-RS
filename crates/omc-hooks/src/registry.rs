@@ -301,7 +301,7 @@ impl HookRegistry {
                         command: cmd,
                         timeout_secs,
                     } => {
-                        let executor = HookExecutor::new()
+                        let executor = HookExecutor::default()
                             .with_timeout(std::time::Duration::from_secs(*timeout_secs));
                         HookExecutionResult {
                             source: hook_match.source.clone(),
