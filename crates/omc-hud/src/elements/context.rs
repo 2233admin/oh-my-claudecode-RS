@@ -1,51 +1,75 @@
 use crate::elements::RenderContext;
 use crate::terminal::ColorLevel;
 
-/// Severity tier based on percent usage.
-fn severity(percent: u8) -> (&'static str, Option<&'static str>) {
-    // Returns (ansi_color_code, suffix)
-    if percent >= 90 {
-        ("\x1b[31m", Some(" CRITICAL"))
-    } else if percent >= 80 {
-        ("\x1b[31m", Some(" COMPRESS?"))
-    } else if percent >= 70 {
-        ("\x1b[33m", None)
-    } else {
-        ("\x1b[32m", None)
-    }
-}
-
 fn color_enabled(level: ColorLevel) -> bool {
     !matches!(level, ColorLevel::Mono)
 }
 
-pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
-    let tokens = ctx.input.context_window_tokens?;
-    let max = ctx.input.context_window_max?;
-    if max == 0 {
-        return None;
+fn severity_color(percent: u8) -> &'static str {
+    if percent >= 80 {
+        "\x1b[31m" // red: COMPRESS? at 80, CRITICAL at 90
+    } else if percent >= 70 {
+        "\x1b[33m" // yellow
+    } else {
+        "\x1b[32m" // green
     }
+}
 
-    let raw = (tokens as f64 / max as f64 * 100.0).round();
-    let percent = raw.clamp(0.0, 100.0) as u8;
-
-    // Use the i18n label (lowercased) so the Strings.ctx field stays live
-    // and the output matches the spec's "ctx:NN%" format for EN locale.
-    let label = ctx.strings.ctx.to_ascii_lowercase();
-
-    let suffix = if percent >= 90 {
+fn severity_suffix(percent: u8) -> &'static str {
+    if percent >= 90 {
         " CRITICAL"
     } else if percent >= 80 {
         " COMPRESS?"
     } else {
         ""
+    }
+}
+
+/// Render a 10-char filled/empty progress bar, e.g. `[███████░░░]`.
+fn render_bar(pct: u8, width: usize) -> String {
+    let filled = ((pct as usize * width + 50) / 100).min(width);
+    let empty = width - filled;
+    format!("[{}{}]", "█".repeat(filled), "░".repeat(empty))
+}
+
+/// Format a token count as a compact string: `0`, `7K`, `2M`, etc.
+fn format_token_count(t: u64) -> String {
+    if t >= 1_000_000 {
+        format!("{:.0}M", t as f64 / 1_000_000.0)
+    } else if t >= 1_000 {
+        format!("{}K", (t + 500) / 1_000)
+    } else {
+        t.to_string()
+    }
+}
+
+pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
+    let pct = ctx.input.context_used_pct()? as u8;
+    let label = ctx.strings.ctx.to_ascii_lowercase();
+    let bar = render_bar(pct, 10);
+    let suffix = severity_suffix(pct);
+
+    // Absolute token counts (optional)
+    let abs_str = match (ctx.input.tokens_used(), ctx.input.tokens_max()) {
+        (Some(used), Some(max)) => {
+            Some(format!("{}/{}", format_token_count(used), format_token_count(max)))
+        }
+        _ => None,
     };
 
     if color_enabled(ctx.color_level) {
-        let (color_code, _) = severity(percent);
-        Some(format!("{label}:{color_code}{percent}%{suffix}\x1b[0m"))
+        let color = severity_color(pct);
+        let core = format!("{label}:{color}{bar}{pct}%{suffix}\x1b[0m");
+        match abs_str {
+            Some(abs) => Some(format!("{core} \x1b[2m{abs}\x1b[0m")),
+            None => Some(core),
+        }
     } else {
-        Some(format!("{label}:{percent}%{suffix}"))
+        let core = format!("{label}:{bar}{pct}%{suffix}");
+        match abs_str {
+            Some(abs) => Some(format!("{core} {abs}")),
+            None => Some(core),
+        }
     }
 }
 
@@ -53,16 +77,10 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
 mod tests {
     use super::*;
     use crate::cache::HudCache;
-    use crate::i18n;
     use crate::input::Input;
 
     fn make_ctx<'a>(input: &'a Input, cache: &'a HudCache, level: ColorLevel) -> RenderContext<'a> {
-        RenderContext {
-            input,
-            cache,
-            color_level: level,
-            strings: i18n::strings(i18n::Locale::En),
-        }
+        RenderContext::for_test(input, cache, level)
     }
 
     fn make_input(tokens: Option<u64>, max: Option<u64>) -> Input {
@@ -77,13 +95,11 @@ mod tests {
         HudCache::new("test".to_string())
     }
 
-    /// Strip ANSI escape sequences for readability assertions.
     fn strip_ansi(s: &str) -> String {
         let mut out = String::default();
         let mut chars = s.chars().peekable();
         while let Some(c) = chars.next() {
             if c == '\x1b' {
-                // skip until 'm'
                 for ch in chars.by_ref() {
                     if ch == 'm' {
                         break;
@@ -130,10 +146,11 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render(&ctx).unwrap();
-        assert_eq!(result, "ctx:0%");
+        // 0% → [░░░░░░░░░░], 0/10K
+        assert_eq!(result, "ctx:[░░░░░░░░░░]0% 0/10K");
     }
 
-    // --- 67% without color ---
+    // --- 67% tests ---
 
     #[test]
     fn sixty_seven_percent_no_color() {
@@ -141,10 +158,9 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render(&ctx).unwrap();
-        assert_eq!(result, "ctx:67%");
+        // 67% → (67*10+50)/100=7 filled → [███████░░░], 6700→7K, 10000→10K
+        assert_eq!(result, "ctx:[███████░░░]67% 7K/10K");
     }
-
-    // --- 67% with TrueColor: must have green ANSI + reset ---
 
     #[test]
     fn sixty_seven_percent_truecolor_has_green_and_reset() {
@@ -152,18 +168,15 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::TrueColor);
         let result = render(&ctx).unwrap();
-        // green code
         assert!(
             result.contains("\x1b[32m"),
             "should contain green: {result:?}"
         );
-        // reset
         assert!(
             result.contains("\x1b[0m"),
             "should contain reset: {result:?}"
         );
-        // plain text content
-        assert_eq!(strip_ansi(&result), "ctx:67%");
+        assert_eq!(strip_ansi(&result), "ctx:[███████░░░]67% 7K/10K");
     }
 
     // --- 70% threshold: yellow ---
@@ -178,7 +191,8 @@ mod tests {
             result.contains("\x1b[33m"),
             "should contain yellow: {result:?}"
         );
-        assert_eq!(strip_ansi(&result), "ctx:70%");
+        // 70% → (70*10+50)/100=7 → [███████░░░], 7K/10K
+        assert_eq!(strip_ansi(&result), "ctx:[███████░░░]70% 7K/10K");
     }
 
     // --- 79% also yellow ---
@@ -193,7 +207,8 @@ mod tests {
             result.contains("\x1b[33m"),
             "should contain yellow: {result:?}"
         );
-        assert_eq!(strip_ansi(&result), "ctx:79%");
+        // 79% → (79*10+50)/100=8 → [████████░░], 7900→8K, 10000→10K
+        assert_eq!(strip_ansi(&result), "ctx:[████████░░]79% 8K/10K");
     }
 
     // --- 80% threshold: red + COMPRESS? ---
@@ -208,7 +223,8 @@ mod tests {
             result.contains("\x1b[31m"),
             "should contain red: {result:?}"
         );
-        assert_eq!(strip_ansi(&result), "ctx:80% COMPRESS?");
+        // 80% → (80*10+50)/100=8 → [████████░░], 8K/10K
+        assert_eq!(strip_ansi(&result), "ctx:[████████░░]80% COMPRESS? 8K/10K");
     }
 
     // --- 89% also red + COMPRESS? ---
@@ -223,7 +239,8 @@ mod tests {
             result.contains("\x1b[31m"),
             "should contain red: {result:?}"
         );
-        assert_eq!(strip_ansi(&result), "ctx:89% COMPRESS?");
+        // 89% → (89*10+50)/100=9 → [█████████░], 8900→9K, 10000→10K
+        assert_eq!(strip_ansi(&result), "ctx:[█████████░]89% COMPRESS? 9K/10K");
     }
 
     // --- 90% threshold: red + CRITICAL ---
@@ -238,7 +255,8 @@ mod tests {
             result.contains("\x1b[31m"),
             "should contain red: {result:?}"
         );
-        assert_eq!(strip_ansi(&result), "ctx:90% CRITICAL");
+        // 90% → (90*10+50)/100=9 → [█████████░], 9K/10K
+        assert_eq!(strip_ansi(&result), "ctx:[█████████░]90% CRITICAL 9K/10K");
     }
 
     // --- 100% red + CRITICAL ---
@@ -253,7 +271,8 @@ mod tests {
             result.contains("\x1b[31m"),
             "should contain red: {result:?}"
         );
-        assert_eq!(strip_ansi(&result), "ctx:100% CRITICAL");
+        // 100% → [██████████], 10K/10K
+        assert_eq!(strip_ansi(&result), "ctx:[██████████]100% CRITICAL 10K/10K");
     }
 
     // --- Tokens > max clamps to 100% ---
@@ -264,7 +283,7 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Color16);
         let result = render(&ctx).unwrap();
-        assert_eq!(strip_ansi(&result), "ctx:100% CRITICAL");
+        assert_eq!(strip_ansi(&result), "ctx:[██████████]100% CRITICAL 15K/10K");
     }
 
     // --- Color256 also emits color ---
@@ -288,16 +307,52 @@ mod tests {
         let input = make_input(Some(6700), Some(10000));
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
-        assert_eq!(render(&ctx).unwrap(), "ctx:67%");
+        assert_eq!(render(&ctx).unwrap(), "ctx:[███████░░░]67% 7K/10K");
     }
 
-    // --- Exact colored string for TrueColor 67% (Color16 codes) ---
+    // --- render_bar unit tests ---
 
     #[test]
-    fn exact_colored_string_16_67() {
-        let input = make_input(Some(6700), Some(10000));
-        let cache = empty_cache();
-        let ctx = make_ctx(&input, &cache, ColorLevel::Color16);
-        assert_eq!(render(&ctx).unwrap(), "ctx:\x1b[32m67%\x1b[0m");
+    fn bar_0pct() {
+        assert_eq!(render_bar(0, 10), "[░░░░░░░░░░]");
+    }
+
+    #[test]
+    fn bar_100pct() {
+        assert_eq!(render_bar(100, 10), "[██████████]");
+    }
+
+    #[test]
+    fn bar_67pct() {
+        // (67*10+50)/100 = 7
+        assert_eq!(render_bar(67, 10), "[███████░░░]");
+    }
+
+    // --- format_token_count unit tests ---
+
+    #[test]
+    fn token_count_zero() {
+        assert_eq!(format_token_count(0), "0");
+    }
+
+    #[test]
+    fn token_count_small() {
+        assert_eq!(format_token_count(999), "999");
+    }
+
+    #[test]
+    fn token_count_1k() {
+        assert_eq!(format_token_count(1000), "1K");
+    }
+
+    #[test]
+    fn token_count_6700() {
+        // (6700+500)/1000 = 7
+        assert_eq!(format_token_count(6700), "7K");
+    }
+
+    #[test]
+    fn token_count_1m() {
+        assert_eq!(format_token_count(1_000_000), "1M");
     }
 }

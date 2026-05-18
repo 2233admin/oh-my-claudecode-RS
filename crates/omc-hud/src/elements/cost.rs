@@ -50,20 +50,40 @@ struct TokenCounts {
 }
 
 fn extract_tokens(ctx: &RenderContext<'_>) -> Option<TokenCounts> {
-    let state = ctx.input.hooks_state.as_ref()?;
-    let get_u64 = |key: &str| -> u64 {
-        state
-            .get(key)
-            .and_then(serde_json::Value::as_u64)
-            .unwrap_or(0)
-    };
+    // Primary: context_window.current_usage (JS/Claude Code schema)
+    let cw_input = ctx.input.current_input_tokens();
+    let cw_cache_create = ctx.input.current_cache_creation_tokens();
+    let cw_cache_read = ctx.input.current_cache_read_tokens();
 
-    Some(TokenCounts {
-        input: get_u64("input_tokens"),
-        output: get_u64("output_tokens"),
-        cache_creation: get_u64("cache_creation_input_tokens"),
-        cache_read: get_u64("cache_read_input_tokens"),
-    })
+    // output_tokens come from transcript (not in current_usage)
+    let output = ctx
+        .transcript
+        .and_then(|t| t.last_request_output_tokens)
+        .unwrap_or_else(|| {
+            ctx.input
+                .hooks_state
+                .as_ref()
+                .and_then(|s| s.get("output_tokens"))
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        });
+
+    // Fall back to hooks_state for input counts if context_window absent
+    let (input, cache_creation, cache_read) =
+        if cw_input > 0 || cw_cache_create > 0 || cw_cache_read > 0 {
+            (cw_input, cw_cache_create, cw_cache_read)
+        } else if let Some(state) = ctx.input.hooks_state.as_ref() {
+            let g = |k: &str| state.get(k).and_then(serde_json::Value::as_u64).unwrap_or(0);
+            (g("input_tokens"), g("cache_creation_input_tokens"), g("cache_read_input_tokens"))
+        } else {
+            (0, 0, 0)
+        };
+
+    if input == 0 && output == 0 && cache_creation == 0 && cache_read == 0 {
+        return None;
+    }
+
+    Some(TokenCounts { input, output, cache_creation, cache_read })
 }
 
 // ---------------------------------------------------------------------------
@@ -134,7 +154,7 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
         {
             return None;
         }
-        let model = ctx.input.model.as_deref().unwrap_or("");
+        let model = ctx.input.model_id().unwrap_or("");
         compute_cost(&tokens, &pricing_for_model(model))
     } else {
         // Fallback: use the pre-computed cost_usd field if available.
@@ -170,18 +190,12 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
 mod tests {
     use super::*;
     use crate::cache::HudCache;
-    use crate::i18n;
     use crate::input::Input;
 
     // --- Helpers ------------------------------------------------------------
 
     fn make_ctx<'a>(input: &'a Input, cache: &'a HudCache, level: ColorLevel) -> RenderContext<'a> {
-        RenderContext {
-            input,
-            cache,
-            color_level: level,
-            strings: i18n::strings(i18n::Locale::En),
-        }
+        RenderContext::for_test(input, cache, level)
     }
 
     fn empty_cache() -> HudCache {
@@ -212,8 +226,9 @@ mod tests {
         if let Some(v) = cache_read_tokens {
             map.insert("cache_read_input_tokens".to_string(), serde_json::json!(v));
         }
+        use crate::input::ModelInfo;
         Input {
-            model: model.map(std::string::ToString::to_string),
+            model: model.map(|s| ModelInfo { id: Some(s.to_string()), display_name: None }),
             hooks_state: Some(serde_json::Value::Object(map)),
             ..Input::default()
         }

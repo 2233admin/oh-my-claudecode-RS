@@ -54,7 +54,10 @@ fn color_enabled(level: ColorLevel) -> bool {
 }
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
-    let raw = ctx.input.model.as_deref()?.trim();
+    // Prefer model ID for pattern matching; fall back to display_name.
+    let id = ctx.input.model_id().filter(|s| !s.is_empty());
+    let display_name = ctx.input.model.as_ref().and_then(|m| m.display_name.as_deref()).filter(|s| !s.is_empty());
+    let raw = id.or(display_name)?.trim();
     if raw.is_empty() {
         return None;
     }
@@ -80,21 +83,16 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
 mod tests {
     use super::*;
     use crate::cache::HudCache;
-    use crate::i18n;
     use crate::input::Input;
 
     fn make_ctx<'a>(input: &'a Input, cache: &'a HudCache, level: ColorLevel) -> RenderContext<'a> {
-        RenderContext {
-            input,
-            cache,
-            color_level: level,
-            strings: i18n::strings(i18n::Locale::En),
-        }
+        RenderContext::for_test(input, cache, level)
     }
 
     fn make_input(model: Option<&str>) -> Input {
+        use crate::input::ModelInfo;
         Input {
-            model: model.map(std::string::ToString::to_string),
+            model: model.map(|s| ModelInfo { id: Some(s.to_string()), display_name: None }),
             ..Input::default()
         }
     }
