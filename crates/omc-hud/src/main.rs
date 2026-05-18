@@ -15,10 +15,6 @@ use std::io::{self, Read, Write};
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-/// Animation frame interval in ms.
-/// 80ms matches the Braille spinner frame rate (10-frame × 80ms = 800ms cycle).
-const ANIM_MS: u64 = 80;
-
 fn main() {
     if let Err(err) = run() {
         eprintln!("omc-hud: {err}");
@@ -36,7 +32,6 @@ fn run() -> Result<(), String> {
     let mut cache = cache::load(&input);
     let now = cache::now_ms();
     cache.record_context(input.tokens_used(), now);
-    cache::save(&input, &cache);
 
     let config = config::load();
     let omc_state = omc_state::OmcState::load(
@@ -54,33 +49,24 @@ fn run() -> Result<(), String> {
     let strings = i18n::strings(locale);
     let color_level = elements::color_degrade::detect_color_level();
 
+    let output = render::render_statusline(
+        &input,
+        &cache,
+        color_level,
+        strings,
+        &omc_state,
+        usage_data.as_ref(),
+        transcript_data.as_ref(),
+        mission_board_data.as_ref(),
+        &config,
+    );
+
     let mut stdout = io::stdout();
+    stdout
+        .write_all(output.as_bytes())
+        .and_then(|_| stdout.write_all(b"\n"))
+        .map_err(|e| format!("failed to write stdout: {e}"))?;
 
-    // Animation loop: re-render each frame using the same session data but a
-    // fresh now_ms() so animation elements (spinner, cat tail/eyes) advance.
-    // Break as soon as a write fails — Claude Code closed the pipe.
-    loop {
-        let output = render::render_statusline(
-            &input,
-            &cache,
-            color_level,
-            strings,
-            &omc_state,
-            usage_data.as_ref(),
-            transcript_data.as_ref(),
-            mission_board_data.as_ref(),
-            &config,
-        );
-
-        if stdout.write_all(output.as_bytes()).is_err()
-            || stdout.write_all(b"\n").is_err()
-            || stdout.flush().is_err()
-        {
-            break;
-        }
-
-        std::thread::sleep(std::time::Duration::from_millis(ANIM_MS));
-    }
-
+    cache::save(&input, &cache);
     Ok(())
 }
