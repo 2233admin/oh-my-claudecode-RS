@@ -1,6 +1,7 @@
 pub mod agents;
 pub mod api_key_source;
 pub mod autopilot;
+pub mod session_stats;
 pub mod pet;
 pub mod background_tasks;
 pub mod call_counts;
@@ -59,6 +60,7 @@ pub enum Element {
     Thinking,
     Permissions,
     MissionBoard,
+    SessionStats,
 }
 
 pub struct RenderContext<'a> {
@@ -119,6 +121,7 @@ static EMPTY_CONFIG: crate::config::HudConfig = crate::config::HudConfig {
 
 pub const DEFAULT_ELEMENTS: &[Element] = &[
     Element::SessionHealth,
+    Element::SessionStats,
     Element::Context,
     Element::ContextEta,
     Element::TokenUsage,
@@ -183,5 +186,6 @@ fn render_element_inner(element: Element, ctx: &RenderContext<'_>) -> Option<Str
         Element::Thinking => thinking::render(ctx),
         Element::Permissions => permissions::render(ctx),
         Element::MissionBoard => mission_board_el::render(ctx),
+        Element::SessionStats => session_stats::render(ctx),
     }
 }

@@ -5,6 +5,19 @@ use serde::Deserialize;
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Default, Deserialize, Clone)]
+pub struct CostInfo {
+    pub total_cost_usd: Option<f64>,
+    pub total_duration_ms: Option<u64>,
+    pub total_lines_added: Option<u64>,
+    pub total_lines_removed: Option<u64>,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+pub struct EffortInfo {
+    pub level: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
 pub struct ModelInfo {
     pub id: Option<String>,
     pub display_name: Option<String>,
@@ -63,7 +76,16 @@ pub struct Input {
     // --- rate limits (nested, JS schema) ---
     pub rate_limits: Option<RateLimitsStdin>,
 
-    // --- cost ---
+    // --- cost (nested, JS schema) ---
+    pub cost: Option<CostInfo>,
+
+    // --- session metadata (JS schema) ---
+    pub session_name: Option<String>,
+    pub version: Option<String>,
+    pub effort: Option<EffortInfo>,
+    pub fast_mode: Option<bool>,
+
+    // --- cost (legacy flat field) ---
     pub cost_usd: Option<f64>,
 
     // --- prompt timing ---
@@ -121,6 +143,17 @@ impl Input {
     /// Model id string.
     pub fn model_id(&self) -> Option<&str> {
         self.model.as_ref().and_then(|m| m.id.as_deref())
+    }
+
+    /// Total session cost — prefers nested `cost.total_cost_usd`, falls back to flat `cost_usd`.
+    pub fn cost_total_usd(&self) -> Option<f64> {
+        self.cost.as_ref().and_then(|c| c.total_cost_usd)
+            .or(self.cost_usd)
+    }
+
+    /// Total session duration in milliseconds from nested `cost.total_duration_ms`.
+    pub fn session_duration_ms(&self) -> Option<u64> {
+        self.cost.as_ref().and_then(|c| c.total_duration_ms)
     }
 
     /// Current-turn token counts (for cost calculation).

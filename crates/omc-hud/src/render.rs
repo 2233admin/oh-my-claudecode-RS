@@ -22,6 +22,7 @@ const ROW0: &[Element] = &[
 // Row 1: session identity
 const ROW1: &[Element] = &[
     Element::ModelName,
+    Element::SessionStats,
     Element::Cost,
     Element::TokenUsage,
     Element::GitStatus,

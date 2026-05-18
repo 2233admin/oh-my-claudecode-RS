@@ -157,8 +157,8 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
         let model = ctx.input.model_id().unwrap_or("");
         compute_cost(&tokens, &pricing_for_model(model))
     } else {
-        // Fallback: use the pre-computed cost_usd field if available.
-        ctx.input.cost_usd?
+        // Fallback: use the pre-computed cost field if available.
+        ctx.input.cost_total_usd()?
     };
 
     let label = format_cost(cost);

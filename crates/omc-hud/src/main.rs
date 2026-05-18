@@ -28,6 +28,12 @@ fn run() -> Result<(), String> {
         .read_to_string(&mut stdin_buf)
         .map_err(|e| format!("failed to read stdin: {e}"))?;
 
+    // Debug: OMC_HUD_DUMP=1 writes raw stdin to %TEMP%\omc-hud-stdin.json
+    if std::env::var_os("OMC_HUD_DUMP").is_some() {
+        let dump = std::env::temp_dir().join("omc-hud-stdin.json");
+        let _ = std::fs::write(&dump, &stdin_buf);
+    }
+
     let input = input::parse_stdin_json(&stdin_buf);
     let mut cache = cache::load(&input);
     let now = cache::now_ms();

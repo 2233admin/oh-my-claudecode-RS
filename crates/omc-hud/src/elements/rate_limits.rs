@@ -107,10 +107,11 @@ fn extract_from_hooks(
     (five_pct, five_reset, weekly_pct, weekly_reset)
 }
 
-/// Parse `resets_at` which may be a Unix-ms integer or an ISO-8601 string.
+/// Parse `resets_at` which may be a Unix-seconds integer, a Unix-ms integer, or an ISO-8601 string.
 fn parse_resets_at(v: &serde_json::Value) -> Option<u64> {
-    if let Some(ms) = v.as_u64() {
-        return Some(ms);
+    if let Some(n) = v.as_u64() {
+        // Claude Code sends Unix seconds (10-digit, < 1e12); ms would be 13-digit (>= 1e12)
+        return Some(if n < 1_000_000_000_000 { n * 1_000 } else { n });
     }
     if let Some(s) = v.as_str() {
         if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
