@@ -148,7 +148,7 @@ pub fn render_with_data(
 // ---------------------------------------------------------------------------
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
-    let cwd = ctx.input.cwd.as_deref()?;
+    let cwd = ctx.input.current_dir()?;
     let data = collect_git_data(cwd)?;
     Some(render_with_data(
         &data.branch,

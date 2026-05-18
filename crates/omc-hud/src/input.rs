@@ -18,6 +18,24 @@ pub struct EffortInfo {
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
+pub struct WorkspaceInfo {
+    pub current_dir: Option<String>,
+    pub project_dir: Option<String>,
+    pub added_dirs: Option<Vec<String>>,
+    pub git_worktree: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+pub struct VimInfo {
+    pub mode: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+pub struct AgentInfo {
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
 pub struct ModelInfo {
     pub id: Option<String>,
     pub display_name: Option<String>,
@@ -65,7 +83,16 @@ pub struct Input {
     pub transcript_path: Option<String>,
     pub cwd: Option<String>,
     pub session_id: Option<String>,
+    pub session_name: Option<String>,
+    pub version: Option<String>,
     pub turns: Option<u64>,
+
+    // --- workspace ---
+    pub workspace: Option<WorkspaceInfo>,
+
+    // --- vim / agent ---
+    pub vim: Option<VimInfo>,
+    pub agent: Option<AgentInfo>,
 
     // --- model (nested, JS schema) ---
     pub model: Option<ModelInfo>,
@@ -79,9 +106,7 @@ pub struct Input {
     // --- cost (nested, JS schema) ---
     pub cost: Option<CostInfo>,
 
-    // --- session metadata (JS schema) ---
-    pub session_name: Option<String>,
-    pub version: Option<String>,
+    // --- effort / fast mode ---
     pub effort: Option<EffortInfo>,
     pub fast_mode: Option<bool>,
 
@@ -106,6 +131,24 @@ pub struct Input {
 // ---------------------------------------------------------------------------
 
 impl Input {
+    /// Current working directory — prefers workspace.current_dir, falls back to cwd.
+    pub fn current_dir(&self) -> Option<&str> {
+        self.workspace
+            .as_ref()
+            .and_then(|w| w.current_dir.as_deref())
+            .or(self.cwd.as_deref())
+    }
+
+    /// Vim mode string (e.g. "NORMAL", "INSERT") if vim mode is active.
+    pub fn vim_mode(&self) -> Option<&str> {
+        self.vim.as_ref().and_then(|v| v.mode.as_deref())
+    }
+
+    /// Agent name if running under --agent.
+    pub fn agent_name(&self) -> Option<&str> {
+        self.agent.as_ref().and_then(|a| a.name.as_deref())
+    }
+
     /// Tokens used this session (input side).
     pub fn tokens_used(&self) -> Option<u64> {
         self.context_window

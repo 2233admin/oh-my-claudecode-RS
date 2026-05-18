@@ -3,7 +3,7 @@ use crate::elements::RenderContext;
 const MAX_LEN: usize = 30;
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
-    let cwd = ctx.input.cwd.as_deref()?;
+    let cwd = ctx.input.current_dir()?;
     if cwd.is_empty() {
         return None;
     }
