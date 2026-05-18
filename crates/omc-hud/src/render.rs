@@ -107,16 +107,32 @@ pub fn render_statusline(
         .context_used_pct()
         .map(|p| p.clamp(0.0, 100.0) as u8);
 
+    // Pet is enabled by default; disable via settings.json: { "omcHud": { "elements": { "pet": false } } }
+    let pet_enabled = config
+        .elements
+        .as_ref()
+        .and_then(|m| m.get("pet").copied())
+        .unwrap_or(true);
+
+    if !pet_enabled {
+        // Flat mode: all elements in a single line separated by |
+        use crate::elements::{DEFAULT_ELEMENTS, render_element};
+        return DEFAULT_ELEMENTS
+            .iter()
+            .filter_map(|e| render_element(*e, &ctx))
+            .filter(|v| !v.trim().is_empty())
+            .collect::<Vec<_>>()
+            .join(sep);
+    }
+
     let pet_frame = pet::render_pet(ctx_pct, color_level);
-    let pet_col = pet_frame.width; // visual width of the widest raw pet line
+    let pet_col = pet_frame.width;
 
     let row0 = make_row(ROW0, &ctx, sep);
     let row1 = make_row(ROW1, &ctx, sep);
     let row2 = make_row(ROW2, &ctx, sep);
     let info_rows = [row0, row1, row2];
 
-    // Combine: for each row, right-pad the pet line to pet_col width (+ 2 gap),
-    // then append the info row.
     let mut out = String::new();
     for (i, (pet_line, info)) in pet_frame.lines.iter().zip(info_rows.iter()).enumerate() {
         if i > 0 {
