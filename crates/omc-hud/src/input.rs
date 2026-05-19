@@ -10,6 +10,7 @@ pub struct CostInfo {
     pub total_duration_ms: Option<u64>,
     pub total_lines_added: Option<u64>,
     pub total_lines_removed: Option<u64>,
+    pub total_api_duration_ms: Option<u64>,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -54,6 +55,8 @@ pub struct ContextWindow {
     pub total_input_tokens: Option<u64>,
     pub used_percentage: Option<f64>,
     pub current_usage: Option<CurrentUsage>,
+    pub total_output_tokens: Option<u64>,
+    pub remaining_percentage: Option<f64>,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -67,6 +70,25 @@ pub struct RateLimitBucket {
 pub struct RateLimitsStdin {
     pub five_hour: Option<RateLimitBucket>,
     pub seven_day: Option<RateLimitBucket>,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+pub struct ThinkingInfo {
+    pub enabled: Option<bool>,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+pub struct OutputStyleInfo {
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+pub struct WorktreeInfo {
+    pub name: Option<String>,
+    pub path: Option<String>,
+    pub branch: Option<String>,
+    pub original_cwd: Option<String>,
+    pub original_branch: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +131,12 @@ pub struct Input {
     // --- effort / fast mode ---
     pub effort: Option<EffortInfo>,
     pub fast_mode: Option<bool>,
+
+    // --- extended schema fields ---
+    pub exceeds_200k_tokens: Option<bool>,
+    pub thinking: Option<ThinkingInfo>,
+    pub output_style: Option<OutputStyleInfo>,
+    pub worktree: Option<WorktreeInfo>,
 
     // --- cost (legacy flat field) ---
     pub cost_usd: Option<f64>,
@@ -222,6 +250,17 @@ impl Input {
             .and_then(|cw| cw.current_usage.as_ref())
             .and_then(|u| u.cache_read_input_tokens)
             .unwrap_or(0)
+    }
+
+    /// Whether extended thinking mode is enabled.
+    pub fn thinking_enabled(&self) -> bool {
+        self.thinking.as_ref().and_then(|t| t.enabled).unwrap_or(false)
+    }
+
+    /// Label for the active worktree — prefers branch, falls back to name.
+    pub fn worktree_label(&self) -> Option<&str> {
+        let wt = self.worktree.as_ref()?;
+        wt.branch.as_deref().or(wt.name.as_deref())
     }
 }
 

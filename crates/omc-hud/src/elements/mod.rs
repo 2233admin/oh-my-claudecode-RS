@@ -21,9 +21,12 @@ pub mod prompt_time;
 pub mod rate_limits;
 pub mod session_health;
 pub mod skills;
+pub mod effort;
 pub mod thinking;
 pub mod todos;
 pub mod token_usage;
+pub mod vim_mode;
+pub mod worktree_info;
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
@@ -61,6 +64,9 @@ pub enum Element {
     Permissions,
     MissionBoard,
     SessionStats,
+    Effort,
+    VimMode,
+    WorktreeInfo,
 }
 
 pub struct RenderContext<'a> {
@@ -146,6 +152,9 @@ pub const DEFAULT_ELEMENTS: &[Element] = &[
     Element::ColorDegrade,
     Element::CjkWidth,
     Element::I18n,
+    Element::Effort,
+    Element::VimMode,
+    Element::WorktreeInfo,
 ];
 
 pub fn render_element(element: Element, ctx: &RenderContext<'_>) -> Option<String> {
@@ -187,5 +196,8 @@ fn render_element_inner(element: Element, ctx: &RenderContext<'_>) -> Option<Str
         Element::Permissions => permissions::render(ctx),
         Element::MissionBoard => mission_board_el::render(ctx),
         Element::SessionStats => session_stats::render(ctx),
+        Element::Effort => effort::render(ctx),
+        Element::VimMode => vim_mode::render(ctx),
+        Element::WorktreeInfo => worktree_info::render(ctx),
     }
 }

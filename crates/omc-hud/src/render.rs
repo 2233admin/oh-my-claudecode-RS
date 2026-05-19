@@ -23,6 +23,9 @@ const ROW0: &[Element] = &[
 const ROW1: &[Element] = &[
     Element::ModelName,
     Element::SessionStats,
+    Element::Effort,
+    Element::VimMode,
+    Element::WorktreeInfo,
     Element::Cost,
     Element::TokenUsage,
     Element::GitStatus,
