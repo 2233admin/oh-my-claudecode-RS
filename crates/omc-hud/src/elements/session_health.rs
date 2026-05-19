@@ -10,7 +10,18 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     let elapsed = now.signed_duration_since(session_start);
     let total_mins = elapsed.num_minutes().max(0) as u64;
 
-    let label = format!("session:{}m", total_mins);
+    let show_duration  = ctx.config.element_enabled("showSessionDuration",  true);
+    let show_indicator = ctx.config.element_enabled("showHealthIndicator",   true);
+
+    let label = if show_duration {
+        format!("session:{}m", total_mins)
+    } else {
+        "session".to_string()
+    };
+
+    if !show_indicator || matches!(ctx.color_level, ColorLevel::Mono) {
+        return Some(label);
+    }
 
     let color = if total_mins < 30 {
         SemanticColor::Green
@@ -20,9 +31,5 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
         SemanticColor::Red
     };
 
-    if matches!(ctx.color_level, ColorLevel::Mono) {
-        Some(label)
-    } else {
-        Some(paint(ctx.color_level, color, &label))
-    }
+    Some(paint(ctx.color_level, color, &label))
 }

@@ -137,7 +137,7 @@ fn preset_elements(name: &str) -> HashMap<String, Value> {
             b!("apiKeySource", false); b!("hostname", false); b!("profile", true);
             b!("missionBoard", false); b!("promptTime", true);
             b!("sessionHealth", true); b!("showSessionDuration", true); b!("showHealthIndicator", true);
-            b!("showTokens", false); b!("useBars", false); b!("showCallCounts", true);
+            b!("showTokens", false); b!("useBars", true); b!("showCallCounts", true);
             b!("showLastTool", false); b!("sessionSummary", false);
             n!("maxOutputLines", 4); b!("safeMode", true);
         }

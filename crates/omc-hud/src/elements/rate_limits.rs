@@ -49,16 +49,19 @@ fn color_enabled(level: ColorLevel) -> bool {
     !matches!(level, ColorLevel::Mono)
 }
 
-/// Format a single bucket — `5h:[███░░░░░░░]32% ~2h`
+/// Format a single bucket.
+/// useBars=true:  `5h:[███░░░░░░░]32% ~2h`
+/// useBars=false: `5h:32% ~2h`
 fn format_bucket(
     label: &str,
     pct: u8,
     reset_ms: Option<u64>,
     now: u64,
     level: ColorLevel,
+    use_bars: bool,
 ) -> String {
-    let bar = render_bar(pct, 10);
     let pct_str = format!("{pct}%");
+    let bar_str = if use_bars { render_bar(pct, 10) } else { String::new() };
 
     let countdown = reset_ms.and_then(|r| {
         let remaining = r.saturating_sub(now);
@@ -68,15 +71,16 @@ fn format_bucket(
     if color_enabled(level) {
         let color = severity_color(pct);
         let dim_label = format!("\x1b[2m{label}:\x1b[0m");
-        let colored_bar_pct = format!("{color}{bar}{pct_str}\x1b[0m");
+        let colored_val = format!("{color}{bar_str}{pct_str}\x1b[0m");
         match countdown {
-            Some(cd) => format!("{dim_label}{colored_bar_pct} \x1b[2m{cd}\x1b[0m"),
-            None => format!("{dim_label}{colored_bar_pct}"),
+            Some(cd) => format!("{dim_label}{colored_val} \x1b[2m{cd}\x1b[0m"),
+            None => format!("{dim_label}{colored_val}"),
         }
     } else {
+        let val = format!("{bar_str}{pct_str}");
         match countdown {
-            Some(cd) => format!("{label}:{bar}{pct_str} {cd}"),
-            None => format!("{label}:{bar}{pct_str}"),
+            Some(cd) => format!("{label}:{val} {cd}"),
+            None => format!("{label}:{val}"),
         }
     }
 }
@@ -189,25 +193,28 @@ fn render_at(ctx: &RenderContext<'_>, now: u64) -> Option<String> {
         }
     }
 
+    // useBars defaults to true (JS default); set "useBars": false in omcHud.elements to disable
+    let use_bars = ctx.config.element_enabled("useBars", true);
+
     let mut parts: Vec<String> = Vec::new();
 
     if let Some(pct) = five_pct {
-        parts.push(format_bucket("5h", pct, five_reset, now, ctx.color_level));
+        parts.push(format_bucket("5h", pct, five_reset, now, ctx.color_level, use_bars));
     }
     if let Some(pct) = weekly_pct {
-        parts.push(format_bucket("7d", pct, weekly_reset, now, ctx.color_level));
+        parts.push(format_bucket("7d", pct, weekly_reset, now, ctx.color_level, use_bars));
     }
 
     // Sonnet / Opus model-specific weekly quotas from usage API
     if let Some(usage) = ctx.usage {
         if let Some(pct) = usage.seven_day_sonnet_pct.map(|v| v.clamp(0.0, 100.0) as u8) {
             if pct > 0 {
-                parts.push(format_bucket("sn", pct, None, now, ctx.color_level));
+                parts.push(format_bucket("sn", pct, None, now, ctx.color_level, use_bars));
             }
         }
         if let Some(pct) = usage.seven_day_opus_pct.map(|v| v.clamp(0.0, 100.0) as u8) {
             if pct > 0 {
-                parts.push(format_bucket("op", pct, None, now, ctx.color_level));
+                parts.push(format_bucket("op", pct, None, now, ctx.color_level, use_bars));
             }
         }
     }

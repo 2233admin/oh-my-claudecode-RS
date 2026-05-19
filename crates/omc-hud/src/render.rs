@@ -10,7 +10,7 @@ use crate::terminal::ColorLevel;
 use crate::transcript::TranscriptData;
 use crate::usage_api::UsageData;
 
-// Row 0: git info + identity (line1 in JS DEFAULT_ELEMENT_ORDER)
+// Row 0: identity + git info (default when gitInfoPosition = "above")
 const ROW0: &[Element] = &[
     Element::OmcLabel,
     Element::Hostname,
@@ -21,6 +21,23 @@ const ROW0: &[Element] = &[
     Element::ModelName,
     Element::ApiKeySource,
     Element::Cwd,
+];
+
+// Row 0 without git elements (used when gitInfoPosition = "inline")
+const ROW0_NO_GIT: &[Element] = &[
+    Element::OmcLabel,
+    Element::Hostname,
+    Element::Profile,
+    Element::ModelName,
+    Element::ApiKeySource,
+    Element::Cwd,
+];
+
+// Git-only elements prepended to Row 1 when gitInfoPosition = "inline"
+const GIT_ELEMENTS: &[Element] = &[
+    Element::GitRepo,
+    Element::GitBranch,
+    Element::GitStatus,
 ];
 
 // Row 1: critical metrics — context bar, timing, rate limits, cost
@@ -142,8 +159,25 @@ pub fn render_statusline(
     let pet_frame = pet::render_pet(ctx_pct, color_level);
     let pet_col = pet_frame.width;
 
-    let row0 = make_row(ROW0, &ctx, sep);
-    let row1 = make_row(ROW1, &ctx, sep);
+    // gitInfoPosition: "above" (default) keeps git on row0; "inline" moves it into row1
+    let git_inline = ctx.config.element_str("gitInfoPosition", "above") == "inline";
+
+    let row0 = if git_inline {
+        make_row(ROW0_NO_GIT, &ctx, sep)
+    } else {
+        make_row(ROW0, &ctx, sep)
+    };
+    let row1 = if git_inline {
+        let git_part  = make_row(GIT_ELEMENTS, &ctx, sep);
+        let main_part = make_row(ROW1, &ctx, sep);
+        match (git_part.is_empty(), main_part.is_empty()) {
+            (true,  _)     => main_part,
+            (_,     true)  => git_part,
+            (false, false) => format!("{git_part}{sep}{main_part}"),
+        }
+    } else {
+        make_row(ROW1, &ctx, sep)
+    };
     let row2 = make_row(ROW2, &ctx, sep);
     let info_rows = [row0, row1, row2];
 

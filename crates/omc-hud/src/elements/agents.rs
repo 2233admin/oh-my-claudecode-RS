@@ -9,8 +9,10 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     }
 
     // agentsFormat: 'count' (default) | 'codes' | 'multiline'
-    // 'multiline' falls back to 'count' — full agent detail requires richer transcript data
+    // 'multiline' falls back to 'count' — full per-agent detail requires richer transcript data
     let fmt = ctx.config.element_str("agentsFormat", "count");
+    // agentsMaxLines: max lines for multiline format (default 3); unused until richer data available
+    let _max_lines = ctx.config.element_u64("agentsMaxLines", 3) as usize;
 
     let label = match fmt {
         "codes" => format!("A:{count}"),
