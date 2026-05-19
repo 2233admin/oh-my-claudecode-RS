@@ -21,7 +21,9 @@ pub struct EffortInfo {
 #[derive(Debug, Default, Deserialize, Clone)]
 pub struct WorkspaceInfo {
     pub current_dir: Option<String>,
+    #[allow(dead_code)]
     pub project_dir: Option<String>,
+    #[allow(dead_code)]
     pub added_dirs: Option<Vec<String>>,
     pub git_worktree: Option<String>,
 }
@@ -33,6 +35,7 @@ pub struct VimInfo {
 
 #[derive(Debug, Default, Deserialize, Clone)]
 pub struct AgentInfo {
+    #[allow(dead_code)]
     pub name: Option<String>,
 }
 
@@ -56,7 +59,9 @@ pub struct ContextWindow {
     pub total_input_tokens: Option<u64>,
     pub used_percentage: Option<f64>,
     pub current_usage: Option<CurrentUsage>,
+    #[allow(dead_code)]
     pub total_output_tokens: Option<u64>,
+    #[allow(dead_code)]
     pub remaining_percentage: Option<f64>,
 }
 
@@ -80,15 +85,19 @@ pub struct ThinkingInfo {
 
 #[derive(Debug, Default, Deserialize, Clone)]
 pub struct OutputStyleInfo {
+    #[allow(dead_code)]
     pub name: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
 pub struct WorktreeInfo {
     pub name: Option<String>,
+    #[allow(dead_code)]
     pub path: Option<String>,
     pub branch: Option<String>,
+    #[allow(dead_code)]
     pub original_cwd: Option<String>,
+    #[allow(dead_code)]
     pub original_branch: Option<String>,
 }
 
@@ -107,6 +116,7 @@ pub struct Input {
     pub cwd: Option<String>,
     pub session_id: Option<String>,
     pub session_name: Option<String>,
+    #[allow(dead_code)]
     pub version: Option<String>,
     pub turns: Option<u64>,
 
@@ -115,6 +125,7 @@ pub struct Input {
 
     // --- vim / agent ---
     pub vim: Option<VimInfo>,
+    #[allow(dead_code)]
     pub agent: Option<AgentInfo>,
 
     // --- model (nested, JS schema) ---
@@ -131,11 +142,14 @@ pub struct Input {
 
     // --- effort / fast mode ---
     pub effort: Option<EffortInfo>,
+    #[allow(dead_code)]
     pub fast_mode: Option<bool>,
 
     // --- extended schema fields ---
+    #[allow(dead_code)]
     pub exceeds_200k_tokens: Option<bool>,
     pub thinking: Option<ThinkingInfo>,
+    #[allow(dead_code)]
     pub output_style: Option<OutputStyleInfo>,
     pub worktree: Option<WorktreeInfo>,
 
@@ -174,6 +188,7 @@ impl Input {
     }
 
     /// Agent name if running under --agent.
+    #[allow(dead_code)]
     pub fn agent_name(&self) -> Option<&str> {
         self.agent.as_ref().and_then(|a| a.name.as_deref())
     }
@@ -212,6 +227,7 @@ impl Input {
     }
 
     /// Model display name (prefer display_name, fall back to id).
+    #[allow(dead_code)]
     pub fn model_name(&self) -> Option<&str> {
         self.model
             .as_ref()

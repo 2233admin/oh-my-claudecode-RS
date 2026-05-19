@@ -306,12 +306,15 @@ fn preset_elements(name: &str) -> HashMap<String, Value> {
 
 #[derive(Debug, Clone)]
 pub struct HudConfig {
+    #[allow(dead_code)]
     pub preset: Option<String>,
+    #[allow(dead_code)]
     pub locale: Option<String>,
     /// Merged: preset defaults + user element overrides. Values are bool or String.
     pub elements: HashMap<String, Value>,
     pub thresholds: HudThresholds,
     pub usage_api_poll_interval_ms: Option<u64>,
+    #[allow(dead_code)]
     pub element_order: Option<Vec<String>>,
     pub max_width: Option<u32>,
 }

@@ -31,6 +31,7 @@ struct CacheEntry {
 }
 
 impl CacheEntry {
+    #[allow(dead_code)]
     fn is_fresh(&self) -> bool {
         now_ms().saturating_sub(self.fetched_at_ms) < self.ttl_ms
     }
@@ -50,10 +51,10 @@ fn detect_provider() -> Provider {
     if std::env::var("MINIMAX_API_KEY").is_ok() {
         return Provider::MiniMax;
     }
-    if let Ok(base) = std::env::var("ANTHROPIC_BASE_URL") {
-        if base.contains("z.ai") {
-            return Provider::Zai;
-        }
+    if let Ok(base) = std::env::var("ANTHROPIC_BASE_URL")
+        && base.contains("z.ai")
+    {
+        return Provider::Zai;
     }
     Provider::Anthropic
 }
@@ -99,22 +100,22 @@ pub fn fetch(poll_interval_ms: Option<u64>) -> Option<UsageData> {
         }
         Err(is_network_error) => {
             // Return stale cache if within MAX_STALE_MS
-            if let Some(entry) = cached {
-                if !entry.is_beyond_stale() {
-                    // Update TTL for next poll
-                    let ttl = if is_network_error {
-                        CACHE_TTL_NETWORK_MS
-                    } else {
-                        CACHE_TTL_FAILURE_MS
-                    };
-                    let updated = CacheEntry {
-                        fetched_at_ms: entry.fetched_at_ms,
-                        ttl_ms: ttl,
-                        data: entry.data.clone(),
-                    };
-                    write_cache(&cache_file, &updated);
-                    return Some(entry.data);
-                }
+            if let Some(entry) = cached
+                && !entry.is_beyond_stale()
+            {
+                // Update TTL for next poll
+                let ttl = if is_network_error {
+                    CACHE_TTL_NETWORK_MS
+                } else {
+                    CACHE_TTL_FAILURE_MS
+                };
+                let updated = CacheEntry {
+                    fetched_at_ms: entry.fetched_at_ms,
+                    ttl_ms: ttl,
+                    data: entry.data.clone(),
+                };
+                write_cache(&cache_file, &updated);
+                return Some(entry.data);
             }
             None
         }
@@ -168,12 +169,12 @@ fn parse_reset_ms(v: &serde_json::Value) -> Option<u64> {
         return Some(if n < 100_000_000_000 { n * 1000 } else { n });
     }
     // ISO-8601 string
-    if let Some(s) = v.as_str() {
-        if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
-            let ms = dt.timestamp_millis();
-            if ms > 0 {
-                return Some(ms as u64);
-            }
+    if let Some(s) = v.as_str()
+        && let Ok(dt) = DateTime::parse_from_rfc3339(s)
+    {
+        let ms = dt.timestamp_millis();
+        if ms > 0 {
+            return Some(ms as u64);
         }
     }
     None
@@ -351,10 +352,10 @@ struct Credentials {
 
 fn load_credentials() -> Option<String> {
     // Priority 1: Check ANTHROPIC_API_KEY env var
-    if let Ok(token) = std::env::var("ANTHROPIC_API_KEY") {
-        if !token.is_empty() {
-            return Some(token);
-        }
+    if let Ok(token) = std::env::var("ANTHROPIC_API_KEY")
+        && !token.is_empty()
+    {
+        return Some(token);
     }
 
     // Priority 2: Try reading ~/.claude/.credentials.json
@@ -371,14 +372,14 @@ fn load_credentials() -> Option<String> {
     };
 
     // Check expiry
-    if let Some(expires_at) = effective.expires_at {
-        if expires_at < now_ms() {
-            // File exists but expired, try macOS Keychain before returning None
-            #[cfg(target_os = "macos")]
-            return read_macos_keychain();
-            #[cfg(not(target_os = "macos"))]
-            return None;
-        }
+    if let Some(expires_at) = effective.expires_at
+        && expires_at < now_ms()
+    {
+        // File exists but expired, try macOS Keychain before returning None
+        #[cfg(target_os = "macos")]
+        return read_macos_keychain();
+        #[cfg(not(target_os = "macos"))]
+        return None;
     }
 
     // Return token if valid

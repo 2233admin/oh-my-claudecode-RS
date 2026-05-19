@@ -218,10 +218,10 @@ fn element_config_key(element: Element) -> Option<(&'static str, bool)> {
 
 pub fn render_element(element: Element, ctx: &RenderContext<'_>) -> Option<String> {
     // Config gate: check per-element enable flag before rendering
-    if let Some((key, default)) = element_config_key(element) {
-        if !ctx.config.element_enabled(key, default) {
-            return None;
-        }
+    if let Some((key, default)) = element_config_key(element)
+        && !ctx.config.element_enabled(key, default)
+    {
+        return None;
     }
     match catch_unwind(AssertUnwindSafe(|| render_element_inner(element, ctx))) {
         Ok(value) => value,

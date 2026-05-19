@@ -102,6 +102,7 @@ fn make_row(elements: &[Element], ctx: &RenderContext<'_>, sep: &str) -> String 
         .join(sep)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn render_statusline(
     input: &Input,
     cache: &HudCache,

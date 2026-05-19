@@ -10,6 +10,7 @@ pub struct RalphState {
     pub iteration: u32,
     #[serde(rename = "maxIterations")]
     pub max_iterations: u32,
+    #[allow(dead_code)]
     #[serde(rename = "prdMode")]
     pub prd_mode: Option<bool>,
 }
@@ -17,6 +18,7 @@ pub struct RalphState {
 #[derive(Debug, Default, Deserialize, Clone)]
 pub struct UltraworkState {
     pub active: bool,
+    #[allow(dead_code)]
     #[serde(rename = "reinforcementCount")]
     pub reinforcement_count: u32,
 }
@@ -24,22 +26,29 @@ pub struct UltraworkState {
 #[derive(Debug, Default, Deserialize, Clone)]
 pub struct AutopilotState {
     pub active: bool,
+    #[allow(dead_code)]
     pub phase: Option<String>,
     pub iteration: Option<u32>,
     #[serde(rename = "maxIterations")]
     pub max_iterations: Option<u32>,
+    #[allow(dead_code)]
     #[serde(rename = "tasksCompleted")]
     pub tasks_completed: Option<u32>,
+    #[allow(dead_code)]
     #[serde(rename = "tasksTotal")]
     pub tasks_total: Option<u32>,
+    #[allow(dead_code)]
     #[serde(rename = "filesCreated")]
     pub files_created: Option<u32>,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
 pub struct BackgroundTask {
+    #[allow(dead_code)]
     pub id: String,
+    #[allow(dead_code)]
     pub description: Option<String>,
+    #[allow(dead_code)]
     #[serde(rename = "agentType")]
     pub agent_type: Option<String>,
     pub status: Option<String>,
@@ -49,6 +58,7 @@ pub struct BackgroundTask {
 pub struct HudFileState {
     #[serde(rename = "backgroundTasks", default)]
     pub background_tasks: Vec<BackgroundTask>,
+    #[allow(dead_code)]
     #[serde(rename = "sessionStartTimestamp")]
     pub session_start_timestamp: Option<String>,
     #[serde(rename = "lastPromptTimestamp")]

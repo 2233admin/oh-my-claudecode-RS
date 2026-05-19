@@ -43,7 +43,7 @@ fn eye_chars(mood: PetMood, frame: usize) -> (char, char) {
         }
         PetMood::Busy => ('^', '^'),
         PetMood::Danger => {
-            if frame % 2 == 0 {
+            if frame.is_multiple_of(2) {
                 ('O', 'O')
             } else {
                 ('-', 'O')

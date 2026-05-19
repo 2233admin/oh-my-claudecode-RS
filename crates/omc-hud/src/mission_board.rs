@@ -5,17 +5,21 @@ use std::path::PathBuf;
 pub struct MissionTaskCounts {
     pub total: u32,
     pub completed: u32,
+    #[allow(dead_code)]
     #[serde(rename = "inProgress")]
     pub in_progress: u32,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
 pub struct Mission {
+    #[allow(dead_code)]
     pub id: String,
+    #[allow(dead_code)]
     pub name: Option<String>,
     pub status: Option<String>,
     #[serde(rename = "taskCounts")]
     pub task_counts: Option<MissionTaskCounts>,
+    #[allow(dead_code)]
     #[serde(rename = "workerCount")]
     pub worker_count: Option<u32>,
 }

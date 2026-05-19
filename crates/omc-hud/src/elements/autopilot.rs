@@ -54,39 +54,39 @@ fn extract_state_from_files(ctx: &RenderContext<'_>) -> Option<AutopilotState> {
     let omc = &ctx.omc_state;
 
     // Ralph
-    if let Some(ralph) = &omc.ralph {
-        if ralph.active {
-            return Some(AutopilotState {
-                mode: "ralph".to_string(),
-                iteration: Some(ralph.iteration),
-                max_iterations: Some(ralph.max_iterations),
-                worker_count: None,
-            });
-        }
+    if let Some(ralph) = &omc.ralph
+        && ralph.active
+    {
+        return Some(AutopilotState {
+            mode: "ralph".to_string(),
+            iteration: Some(ralph.iteration),
+            max_iterations: Some(ralph.max_iterations),
+            worker_count: None,
+        });
     }
 
     // Ultrawork
-    if let Some(uw) = &omc.ultrawork {
-        if uw.active {
-            return Some(AutopilotState {
-                mode: "ultrawork".to_string(),
-                iteration: None,
-                max_iterations: None,
-                worker_count: None,
-            });
-        }
+    if let Some(uw) = &omc.ultrawork
+        && uw.active
+    {
+        return Some(AutopilotState {
+            mode: "ultrawork".to_string(),
+            iteration: None,
+            max_iterations: None,
+            worker_count: None,
+        });
     }
 
     // Autopilot
-    if let Some(ap) = &omc.autopilot {
-        if ap.active {
-            return Some(AutopilotState {
-                mode: "autopilot".to_string(),
-                iteration: ap.iteration,
-                max_iterations: ap.max_iterations,
-                worker_count: None,
-            });
-        }
+    if let Some(ap) = &omc.autopilot
+        && ap.active
+    {
+        return Some(AutopilotState {
+            mode: "autopilot".to_string(),
+            iteration: ap.iteration,
+            max_iterations: ap.max_iterations,
+            worker_count: None,
+        });
     }
 
     None

@@ -55,13 +55,12 @@ pub fn parse(transcript_path: &str) -> Option<TranscriptData> {
         };
 
         // Session start: look for system/init message
-        if value.get("type").and_then(|v| v.as_str()) == Some("system") {
-            if value.get("subtype").and_then(|v| v.as_str()) == Some("init") {
-                if let Some(ts) = extract_timestamp(&value) {
-                    // Always overwrite — we want the LAST (most recent) session init
-                    data.session_start = Some(ts);
-                }
-            }
+        if value.get("type").and_then(|v| v.as_str()) == Some("system")
+            && value.get("subtype").and_then(|v| v.as_str()) == Some("init")
+            && let Some(ts) = extract_timestamp(&value)
+        {
+            // Always overwrite — we want the LAST (most recent) session init
+            data.session_start = Some(ts);
         }
 
         // Assistant messages — extract tool uses and token usage
@@ -119,13 +118,12 @@ pub fn parse(transcript_path: &str) -> Option<TranscriptData> {
                                 data.pending_permission = Some(tool_name);
                             }
                         }
-                        "thinking" => {
+                        "thinking"
                             // Thinking block active within last 30s
                             if msg_ts_ms > 0
                                 && now_ms.saturating_sub(msg_ts_ms) < THINKING_RECENCY_MS
-                            {
-                                data.thinking_active = true;
-                            }
+                        => {
+                            data.thinking_active = true;
                         }
                         _ => {}
                     }
@@ -157,10 +155,10 @@ fn extract_timestamp(value: &serde_json::Value) -> Option<DateTime<Utc>> {
     // Try common timestamp field names
     for key in &["timestamp", "ts", "created_at", "time"] {
         if let Some(ts_val) = value.get(key) {
-            if let Some(ts_str) = ts_val.as_str() {
-                if let Ok(dt) = ts_str.parse::<DateTime<Utc>>() {
-                    return Some(dt);
-                }
+            if let Some(ts_str) = ts_val.as_str()
+                && let Ok(dt) = ts_str.parse::<DateTime<Utc>>()
+            {
+                return Some(dt);
             }
             // Unix timestamp in seconds
             if let Some(ts_secs) = ts_val.as_i64() {

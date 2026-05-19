@@ -16,13 +16,13 @@ fn format_countdown(remaining_ms: u64) -> Option<String> {
     const HOUR_MS: u64 = 3_600_000;
     const DAY_MS: u64 = 86_400_000;
     if remaining_ms < HOUR_MS {
-        let mins = ((remaining_ms + MIN_MS - 1) / MIN_MS).max(1);
+        let mins = remaining_ms.div_ceil(MIN_MS).max(1);
         Some(format!("~{mins}m"))
     } else if remaining_ms < DAY_MS {
-        let hours = (remaining_ms + HOUR_MS - 1) / HOUR_MS;
+        let hours = remaining_ms.div_ceil(HOUR_MS);
         Some(format!("~{hours}h"))
     } else {
-        let days = (remaining_ms + DAY_MS - 1) / DAY_MS;
+        let days = remaining_ms.div_ceil(DAY_MS);
         Some(format!("~{days}d"))
     }
 }
@@ -121,12 +121,12 @@ fn parse_resets_at(v: &serde_json::Value) -> Option<u64> {
         // Claude Code sends Unix seconds (10-digit, < 1e12); ms would be 13-digit (>= 1e12)
         return Some(if n < 1_000_000_000_000 { n * 1_000 } else { n });
     }
-    if let Some(s) = v.as_str() {
-        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
-            let ms = dt.timestamp_millis();
-            if ms > 0 {
-                return Some(ms as u64);
-            }
+    if let Some(s) = v.as_str()
+        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s)
+    {
+        let ms = dt.timestamp_millis();
+        if ms > 0 {
+            return Some(ms as u64);
         }
     }
     None
@@ -173,13 +173,14 @@ fn render_at(ctx: &RenderContext<'_>, now: u64) -> Option<String> {
     }
 
     // Priority 3: usage API cache for percentages (least fresh)
-    if five_pct.is_none() && weekly_pct.is_none() {
-        if let Some(usage) = ctx.usage {
-            five_pct = usage.five_hour_pct.map(|v| v.clamp(0.0, 100.0) as u8);
-            five_reset = usage.five_hour_reset_ms;
-            weekly_pct = usage.seven_day_pct.map(|v| v.clamp(0.0, 100.0) as u8);
-            weekly_reset = usage.seven_day_reset_ms;
-        }
+    if five_pct.is_none()
+        && weekly_pct.is_none()
+        && let Some(usage) = ctx.usage
+    {
+        five_pct = usage.five_hour_pct.map(|v| v.clamp(0.0, 100.0) as u8);
+        five_reset = usage.five_hour_reset_ms;
+        weekly_pct = usage.seven_day_pct.map(|v| v.clamp(0.0, 100.0) as u8);
+        weekly_reset = usage.seven_day_reset_ms;
     }
 
     if five_pct.is_none() && weekly_pct.is_none() {
@@ -227,29 +228,28 @@ fn render_at(ctx: &RenderContext<'_>, now: u64) -> Option<String> {
         if let Some(pct) = usage
             .seven_day_sonnet_pct
             .map(|v| v.clamp(0.0, 100.0) as u8)
+            && pct > 0
         {
-            if pct > 0 {
-                parts.push(format_bucket(
-                    "sn",
-                    pct,
-                    None,
-                    now,
-                    ctx.color_level,
-                    use_bars,
-                ));
-            }
+            parts.push(format_bucket(
+                "sn",
+                pct,
+                None,
+                now,
+                ctx.color_level,
+                use_bars,
+            ));
         }
-        if let Some(pct) = usage.seven_day_opus_pct.map(|v| v.clamp(0.0, 100.0) as u8) {
-            if pct > 0 {
-                parts.push(format_bucket(
-                    "op",
-                    pct,
-                    None,
-                    now,
-                    ctx.color_level,
-                    use_bars,
-                ));
-            }
+        if let Some(pct) = usage.seven_day_opus_pct.map(|v| v.clamp(0.0, 100.0) as u8)
+            && pct > 0
+        {
+            parts.push(format_bucket(
+                "op",
+                pct,
+                None,
+                now,
+                ctx.color_level,
+                use_bars,
+            ));
         }
     }
 

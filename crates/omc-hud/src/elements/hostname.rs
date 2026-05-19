@@ -19,16 +19,16 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
 
 fn get_hostname() -> Option<String> {
     // Try COMPUTERNAME (Windows) then HOSTNAME (Unix)
-    if let Ok(h) = std::env::var("COMPUTERNAME") {
-        if !h.is_empty() {
-            return Some(h.to_lowercase());
-        }
+    if let Ok(h) = std::env::var("COMPUTERNAME")
+        && !h.is_empty()
+    {
+        return Some(h.to_lowercase());
     }
-    if let Ok(h) = std::env::var("HOSTNAME") {
-        if !h.is_empty() {
-            // Short name only
-            return Some(h.split('.').next().unwrap_or(&h).to_string());
-        }
+    if let Ok(h) = std::env::var("HOSTNAME")
+        && !h.is_empty()
+    {
+        // Short name only
+        return Some(h.split('.').next().unwrap_or(&h).to_string());
     }
     // Fallback: read /etc/hostname on Unix
     #[cfg(unix)]
