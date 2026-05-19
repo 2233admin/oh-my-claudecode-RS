@@ -18,6 +18,9 @@ pub struct HudCache {
     pub session_id: String,
     pub context_samples: Vec<ContextSample>,
     pub last_updated_ms: u64,
+    /// First non-zero token count seen this session — used to compute session context delta.
+    #[serde(default)]
+    pub session_start_tokens: Option<u64>,
 }
 
 impl HudCache {
@@ -26,6 +29,7 @@ impl HudCache {
             session_id,
             context_samples: Vec::new(),
             last_updated_ms: now_ms(),
+            session_start_tokens: None,
         }
     }
 
@@ -33,6 +37,11 @@ impl HudCache {
         let Some(tokens) = tokens else {
             return;
         };
+
+        // Capture first non-zero reading as the session baseline.
+        if self.session_start_tokens.is_none() && tokens > 0 {
+            self.session_start_tokens = Some(tokens);
+        }
 
         if self
             .context_samples
