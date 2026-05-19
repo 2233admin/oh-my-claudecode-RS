@@ -95,9 +95,31 @@ additional_context → Claude Code  — Claude's own 10k cap as final backstop
 
 **README positioning**: "CShip shows tokens. RTK saves command-output tokens. OMC TS orchestrates Claude. OMC-RS unifies Claude + Codex + OpenCode with one hook/skill/HUD/token-budget runtime."
 
+## 2026-05-20 — Phase 1 + Phase 2 Additions
+
+### Phase State Machine Wheel
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| omc-team phase state machine | Embed `statewright_engine` crate | statewright (https://github.com/statewright/statewright, Apache 2.0, Rust) — JSON-defined states, per-phase allowed_tools, transition guards. Embeddable. NOT rolling our own. |
+| Phase states | 6: planning/executing/verifying/reviewing/fixing/handoff | planning+verifying+reviewing=read-only; executing+fixing=edit-enabled; handoff=read-only+sync |
+
+### Ticket Map
+
+**Phase 1 (OMC-73..80) — Install/Skills/Hooks closure**
+- P1: OMC-73 installer deploys, OMC-74 accurate report, OMC-75 hooks wire to binary, OMC-76 conflict UI, OMC-77 setup 4-phase Rust
+- P2: OMC-78 skills single truth, OMC-79 doctor actionable
+- P3: OMC-80 install initializes .omc/team
+
+**Phase 2 (OMC-81..89) — Agent framework closure**
+- P1: OMC-81 /team unified entry, OMC-82 start launches agents, OMC-83 human-readable progress, OMC-84 handoff delivery
+- P2: OMC-85 linear→team auto, OMC-86 stuck agent recovery, OMC-87 statewright phase machine
+- P3: OMC-88 /ultragoal pipeline, OMC-89 team as organization
+
 ## Open questions (resolved)
 
 - ~~Spike 1 keyword first vs full keyword-map build-out~~ → omc-hook binary first (OMC-57)
 - ~~Upstream sync cadence~~ → weekly upstream-watch.yml (OMC-70)
 - ~~omc-wiki integration timing~~ → deferred, not in current milestone
+- ~~Phase state machine implementation~~ → embed statewright_engine (OMC-87)
 
