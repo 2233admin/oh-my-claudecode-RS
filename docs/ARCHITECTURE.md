@@ -116,6 +116,10 @@ additional_context → Claude Code  — Claude's own 10k cap as final backstop
 - P2: OMC-85 linear→team auto, OMC-86 stuck agent recovery, OMC-87 statewright phase machine
 - P3: OMC-88 /ultragoal pipeline, OMC-89 team as organization
 
+**Phase 3 (OMC-90..97) — Intelligence feedback layer**
+- P2: OMC-90 hook utilization feedback, OMC-91 adaptive budget (depends OMC-90), OMC-92 behavioral A/B harness, OMC-93 entropy stuck detection (replaces OMC-86 timeout), OMC-94 MI skill injection (upgrades OMC-68), OMC-95 independent verifier + commit protocol (upgrades OMC-84)
+- P3: OMC-96 constitutional hook (new HookKind::Constitutional), OMC-97 auditor agent (depends observability stream)
+
 ## Open questions (resolved)
 
 - ~~Spike 1 keyword first vs full keyword-map build-out~~ → omc-hook binary first (OMC-57)
