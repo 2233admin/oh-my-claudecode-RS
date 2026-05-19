@@ -121,23 +121,6 @@ impl<'a> RenderContext<'a> {
     }
 }
 
-#[cfg(test)]
-mod test_helpers {
-    use crate::config::HudConfig;
-    use crate::omc_state::OmcState;
-    use std::sync::OnceLock;
-
-    pub fn empty_omc_state() -> &'static OmcState {
-        static S: OnceLock<OmcState> = OnceLock::new();
-        S.get_or_init(OmcState::default)
-    }
-
-    pub fn empty_config() -> &'static HudConfig {
-        static C: OnceLock<HudConfig> = OnceLock::new();
-        C.get_or_init(HudConfig::default)
-    }
-}
-
 pub const DEFAULT_ELEMENTS: &[Element] = &[
     Element::SessionHealth,
     Element::SessionStats,
@@ -274,5 +257,22 @@ fn render_element_inner(element: Element, ctx: &RenderContext<'_>) -> Option<Str
         Element::Profile => profile::render(ctx),
         Element::OmcLabel => omc_label::render(ctx),
         Element::LastSkill => last_skill::render(ctx),
+    }
+}
+
+#[cfg(test)]
+mod test_helpers {
+    use crate::config::HudConfig;
+    use crate::omc_state::OmcState;
+    use std::sync::OnceLock;
+
+    pub fn empty_omc_state() -> &'static OmcState {
+        static S: OnceLock<OmcState> = OnceLock::new();
+        S.get_or_init(OmcState::default)
+    }
+
+    pub fn empty_config() -> &'static HudConfig {
+        static C: OnceLock<HudConfig> = OnceLock::new();
+        C.get_or_init(HudConfig::default)
     }
 }
