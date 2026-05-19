@@ -12,6 +12,7 @@ use crate::usage_api::UsageData;
 
 // Row 0: critical metrics — context bar, timing, rate limits
 const ROW0: &[Element] = &[
+    Element::ContextWarning,
     Element::Context,
     Element::ContextEta,
     Element::PromptTimeElapsed,
@@ -31,11 +32,13 @@ const ROW1: &[Element] = &[
     Element::TokenUsage,
     Element::GitStatus,
     Element::SessionHealth,
+    Element::Hostname,
 ];
 
 // Row 2: orchestration & misc
 const ROW2: &[Element] = &[
     Element::AutopilotState,
+    Element::Ralph,
     Element::Todos,
     Element::Agents,
     Element::Skills,
@@ -44,6 +47,7 @@ const ROW2: &[Element] = &[
     Element::Permissions,
     Element::Prd,
     Element::MissionBoard,
+    Element::LastTool,
     Element::Cwd,
     Element::ApiKeySource,
     Element::BackgroundTasks,

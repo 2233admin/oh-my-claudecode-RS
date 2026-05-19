@@ -9,15 +9,19 @@ pub mod cjk_width;
 pub mod color_degrade;
 pub mod context;
 pub mod context_eta;
+pub mod context_warning;
 pub mod cost;
 pub mod cwd;
 pub mod enterprise_cost;
 pub mod git_status;
+pub mod hostname;
+pub mod last_tool;
 pub mod mission_board_el;
 pub mod model_name;
 pub mod permissions;
 pub mod prd;
 pub mod prompt_time;
+pub mod ralph;
 pub mod rate_limits;
 pub mod session_health;
 pub mod skills;
@@ -69,6 +73,10 @@ pub enum Element {
     Effort,
     VimMode,
     WorktreeInfo,
+    Ralph,
+    ContextWarning,
+    Hostname,
+    LastTool,
 }
 
 pub struct RenderContext<'a> {
@@ -158,6 +166,10 @@ pub const DEFAULT_ELEMENTS: &[Element] = &[
     Element::Effort,
     Element::VimMode,
     Element::WorktreeInfo,
+    Element::Ralph,
+    Element::ContextWarning,
+    Element::Hostname,
+    Element::LastTool,
 ];
 
 pub fn render_element(element: Element, ctx: &RenderContext<'_>) -> Option<String> {
@@ -203,5 +215,9 @@ fn render_element_inner(element: Element, ctx: &RenderContext<'_>) -> Option<Str
         Element::Effort => effort::render(ctx),
         Element::VimMode => vim_mode::render(ctx),
         Element::WorktreeInfo => worktree_info::render(ctx),
+        Element::Ralph => ralph::render(ctx),
+        Element::ContextWarning => context_warning::render(ctx),
+        Element::Hostname => hostname::render(ctx),
+        Element::LastTool => last_tool::render(ctx),
     }
 }
