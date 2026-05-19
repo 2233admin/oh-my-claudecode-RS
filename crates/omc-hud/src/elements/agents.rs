@@ -1,9 +1,25 @@
 use crate::elements::RenderContext;
+use crate::terminal::ColorLevel;
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     let transcript = ctx.transcript?;
-    if transcript.agent_call_count == 0 {
+    let count = transcript.agent_call_count;
+    if count == 0 {
         return None;
     }
-    Some(format!("agents:{}", transcript.agent_call_count))
+
+    // agentsFormat: 'count' (default) | 'codes' | 'multiline'
+    // 'multiline' falls back to 'count' — full agent detail requires richer transcript data
+    let fmt = ctx.config.element_str("agentsFormat", "count");
+
+    let label = match fmt {
+        "codes" => format!("A:{count}"),
+        _ => format!("agents:{count}"),  // 'count' and 'multiline'
+    };
+
+    if matches!(ctx.color_level, ColorLevel::Mono) {
+        Some(label)
+    } else {
+        Some(format!("\x1b[2m{label}\x1b[0m"))
+    }
 }

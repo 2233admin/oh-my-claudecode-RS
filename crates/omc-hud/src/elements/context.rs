@@ -5,24 +5,16 @@ fn color_enabled(level: ColorLevel) -> bool {
     !matches!(level, ColorLevel::Mono)
 }
 
-fn severity_color(percent: u8) -> &'static str {
-    if percent >= 80 {
-        "\x1b[31m" // red: COMPRESS? at 80, CRITICAL at 90
-    } else if percent >= 70 {
-        "\x1b[33m" // yellow
-    } else {
-        "\x1b[32m" // green
-    }
+fn severity_color(percent: u8, warn: u8, compact: u8) -> &'static str {
+    if percent >= compact { "\x1b[31m" }
+    else if percent >= warn { "\x1b[33m" }
+    else { "\x1b[32m" }
 }
 
-fn severity_suffix(percent: u8) -> &'static str {
-    if percent >= 90 {
-        " CRITICAL"
-    } else if percent >= 80 {
-        " COMPRESS?"
-    } else {
-        ""
-    }
+fn severity_suffix(percent: u8, compact: u8, critical: u8) -> &'static str {
+    if percent >= critical { " CRITICAL" }
+    else if percent >= compact { " COMPRESS?" }
+    else { "" }
 }
 
 /// Render a 10-char filled/empty progress bar, e.g. `[███████░░░]`.
@@ -45,11 +37,14 @@ fn format_token_count(t: u64) -> String {
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     let pct = ctx.input.context_used_pct()? as u8;
+    let warn    = ctx.config.thresholds.context_warning as u8;
+    let compact = ctx.config.thresholds.context_compact as u8;
+    let critical = ctx.config.thresholds.context_critical as u8;
+
     let label = ctx.strings.ctx.to_ascii_lowercase();
     let bar = render_bar(pct, 10);
-    let suffix = severity_suffix(pct);
+    let suffix = severity_suffix(pct, compact, critical);
 
-    // Absolute token counts (optional)
     let abs_str = match (ctx.input.tokens_used(), ctx.input.tokens_max()) {
         (Some(used), Some(max)) => {
             Some(format!("{}/{}", format_token_count(used), format_token_count(max)))
@@ -58,7 +53,7 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     };
 
     if color_enabled(ctx.color_level) {
-        let color = severity_color(pct);
+        let color = severity_color(pct, warn, compact);
         let core = format!("{label}:{color}{bar}{pct}%{suffix}\x1b[0m");
         match abs_str {
             Some(abs) => Some(format!("{core} \x1b[2m{abs}\x1b[0m")),
@@ -227,20 +222,30 @@ mod tests {
         assert_eq!(strip_ansi(&result), "ctx:[████████░░]80% COMPRESS? 8K/10K");
     }
 
-    // --- 89% also red + COMPRESS? ---
+    // --- 89% red + CRITICAL (default contextCritical=85) ---
 
     #[test]
-    fn eighty_nine_percent_is_red_with_compress() {
+    fn eighty_nine_percent_is_red_with_critical() {
         let input = make_input(Some(8900), Some(10000));
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Color16);
         let result = render(&ctx).unwrap();
-        assert!(
-            result.contains("\x1b[31m"),
-            "should contain red: {result:?}"
-        );
-        // 89% → (89*10+50)/100=9 → [█████████░], 8900→9K, 10000→10K
-        assert_eq!(strip_ansi(&result), "ctx:[█████████░]89% COMPRESS? 9K/10K");
+        assert!(result.contains("\x1b[31m"), "should contain red: {result:?}");
+        // 89% >= contextCritical(85) → CRITICAL
+        assert_eq!(strip_ansi(&result), "ctx:[█████████░]89% CRITICAL 9K/10K");
+    }
+
+    // --- 84% red + COMPRESS? (between compact=80 and critical=85) ---
+
+    #[test]
+    fn eighty_four_percent_is_red_with_compress() {
+        let input = make_input(Some(8400), Some(10000));
+        let cache = empty_cache();
+        let ctx = make_ctx(&input, &cache, ColorLevel::Color16);
+        let result = render(&ctx).unwrap();
+        assert!(result.contains("\x1b[31m"), "should contain red: {result:?}");
+        // 84% < contextCritical(85) → COMPRESS?
+        assert_eq!(strip_ansi(&result), "ctx:[████████░░]84% COMPRESS? 8K/10K");
     }
 
     // --- 90% threshold: red + CRITICAL ---

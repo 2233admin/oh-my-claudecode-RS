@@ -17,9 +17,10 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
         SemanticColor::Green
     } else {
         let pct = ralph.iteration as f64 / ralph.max_iterations as f64;
+        let warn_iter = ctx.config.thresholds.ralph_warning as u32;
         if pct >= 0.9 {
             SemanticColor::Red
-        } else if pct >= 0.7 {
+        } else if ralph.iteration >= warn_iter {
             SemanticColor::Yellow
         } else {
             SemanticColor::Green
