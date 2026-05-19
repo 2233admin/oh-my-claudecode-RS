@@ -8,13 +8,20 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
         return None;
     }
 
-    // Replace home dir with ~
-    let shortened = shorten_home(cwd);
+    // cwdFormat: 'folder' = last path component only; 'relative' (default) = shortened path
+    let fmt = ctx.config.element_str("cwdFormat", "relative");
+    if fmt == "folder" {
+        let path = std::path::Path::new(cwd);
+        let folder = path.file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| cwd.to_string());
+        return Some(folder);
+    }
 
-    // Truncate to MAX_LEN with leading ellipsis
+    // 'relative': replace home dir with ~, then truncate
+    let shortened = shorten_home(cwd);
     let result = if shortened.len() > MAX_LEN {
         let truncated = &shortened[shortened.len() - MAX_LEN..];
-        // Try to truncate at a path separator
         if let Some(pos) = truncated.find('/').or_else(|| truncated.find('\\')) {
             format!("...{}", &truncated[pos..])
         } else {
@@ -23,7 +30,6 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     } else {
         shortened
     };
-
     Some(result)
 }
 

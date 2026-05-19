@@ -122,21 +122,21 @@ pub fn render_statusline(
         .map(|p| p.clamp(0.0, 100.0) as u8);
 
     // Pet is enabled by default; disable via settings.json: { "omcHud": { "elements": { "pet": false } } }
-    let pet_enabled = config
-        .elements
-        .as_ref()
-        .and_then(|m| m.get("pet").copied())
-        .unwrap_or(true);
+    let pet_enabled = config.element_enabled("pet", true);
 
     if !pet_enabled {
         // Flat mode: all elements in a single line separated by |
         use crate::elements::{DEFAULT_ELEMENTS, render_element};
-        return DEFAULT_ELEMENTS
+        let line = DEFAULT_ELEMENTS
             .iter()
             .filter_map(|e| render_element(*e, &ctx))
             .filter(|v| !v.trim().is_empty())
             .collect::<Vec<_>>()
             .join(sep);
+        return match config.max_width {
+            Some(max_w) => truncate_ansi(&line, max_w as usize),
+            None => line,
+        };
     }
 
     let pet_frame = pet::render_pet(ctx_pct, color_level);
@@ -147,16 +147,60 @@ pub fn render_statusline(
     let row2 = make_row(ROW2, &ctx, sep);
     let info_rows = [row0, row1, row2];
 
-    let mut out = String::new();
-    for (i, (pet_line, info)) in pet_frame.lines.iter().zip(info_rows.iter()).enumerate() {
-        if i > 0 {
-            out.push('\n');
-        }
+    let max_width = config.max_width.map(|w| w as usize);
+    let max_lines = config.max_output_lines();
+
+    let mut lines: Vec<String> = Vec::with_capacity(3);
+    for (pet_line, info) in pet_frame.lines.iter().zip(info_rows.iter()) {
         let raw_pw = ansi_visual_width(pet_line);
         let padding = " ".repeat(pet_col.saturating_sub(raw_pw) + 2);
-        out.push_str(pet_line);
-        out.push_str(&padding);
-        out.push_str(info);
+        let line = format!("{pet_line}{padding}{info}");
+        lines.push(line);
+    }
+
+    // Apply maxWidth truncation
+    if let Some(max_w) = max_width {
+        for line in &mut lines {
+            *line = truncate_ansi(line, max_w);
+        }
+    }
+
+    // Apply maxOutputLines
+    if lines.len() > max_lines {
+        lines.truncate(max_lines);
+    }
+
+    lines.join("\n")
+}
+
+/// Truncate a string that may contain ANSI escapes to at most `max_cols` visible columns.
+fn truncate_ansi(s: &str, max_cols: usize) -> String {
+    let visible = ansi_visual_width(s);
+    if visible <= max_cols {
+        return s.to_string();
+    }
+    // Walk chars, skip ANSI sequences, count visible width
+    let mut out = String::new();
+    let mut cols = 0usize;
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            // Collect the whole escape sequence into out unconditionally
+            let mut seq = String::from(c);
+            for ch in chars.by_ref() {
+                seq.push(ch);
+                if ch == 'm' { break; }
+            }
+            out.push_str(&seq);
+            continue;
+        }
+        let w = if (c as u32) > 0x2E7F { 2 } else { 1 };
+        if cols + w > max_cols.saturating_sub(3) {
+            out.push_str("\x1b[0m...");
+            break;
+        }
+        out.push(c);
+        cols += w;
     }
     out
 }

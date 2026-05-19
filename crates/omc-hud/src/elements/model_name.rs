@@ -54,7 +54,6 @@ fn color_enabled(level: ColorLevel) -> bool {
 }
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
-    // Prefer model ID for pattern matching; fall back to display_name.
     let id = ctx.input.model_id().filter(|s| !s.is_empty());
     let display_name = ctx.input.model.as_ref().and_then(|m| m.display_name.as_deref()).filter(|s| !s.is_empty());
     let raw = id.or(display_name)?.trim();
@@ -62,10 +61,21 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
         return None;
     }
 
-    let (label, family) = parse_model(raw);
+    // modelFormat: 'full' shows the raw model ID; 'short' (default) shows friendly label
+    let fmt = ctx.config.element_str("modelFormat", "short");
+    if fmt == "full" {
+        let full_id = ctx.input.model_id().unwrap_or(raw);
+        return if color_enabled(ctx.color_level) {
+            let (_, family) = parse_model(full_id);
+            let color = color_for_family(family);
+            Some(format!("{color}{full_id}\x1b[0m"))
+        } else {
+            Some(full_id.to_string())
+        };
+    }
 
+    let (label, family) = parse_model(raw);
     let display: &str = if label.is_empty() {
-        // Unknown model: truncate to 20 chars (ASCII labels only)
         &raw[..raw.len().min(20)]
     } else {
         label

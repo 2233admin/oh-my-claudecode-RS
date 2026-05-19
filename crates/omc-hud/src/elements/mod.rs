@@ -116,34 +116,31 @@ impl<'a> RenderContext<'a> {
             cache,
             color_level,
             strings: i18n::strings(i18n::Locale::En),
-            omc_state: &EMPTY_OMC_STATE,
+            omc_state: test_helpers::empty_omc_state(),
             usage: None,
             transcript: None,
             mission_board: None,
-            config: &EMPTY_CONFIG,
+            config: test_helpers::empty_config(),
         }
     }
 }
 
 #[cfg(test)]
-static EMPTY_OMC_STATE: crate::omc_state::OmcState = crate::omc_state::OmcState {
-    ralph: None,
-    ultrawork: None,
-    autopilot: None,
-    hud: None,
-    prd: None,
-};
+mod test_helpers {
+    use std::sync::OnceLock;
+    use crate::omc_state::OmcState;
+    use crate::config::HudConfig;
 
-#[cfg(test)]
-static EMPTY_CONFIG: crate::config::HudConfig = crate::config::HudConfig {
-    preset: None,
-    locale: None,
-    elements: None,
-    thresholds: None,
-    usage_api_poll_interval_ms: None,
-    element_order: None,
-    max_width: None,
-};
+    pub fn empty_omc_state() -> &'static OmcState {
+        static S: OnceLock<OmcState> = OnceLock::new();
+        S.get_or_init(OmcState::default)
+    }
+
+    pub fn empty_config() -> &'static HudConfig {
+        static C: OnceLock<HudConfig> = OnceLock::new();
+        C.get_or_init(HudConfig::default)
+    }
+}
 
 pub const DEFAULT_ELEMENTS: &[Element] = &[
     Element::SessionHealth,
@@ -187,7 +184,49 @@ pub const DEFAULT_ELEMENTS: &[Element] = &[
     Element::LastSkill,
 ];
 
+/// Map Element → (config_key, default_enabled).
+/// Returns None if the element has no config gate (always rendered).
+fn element_config_key(element: Element) -> Option<(&'static str, bool)> {
+    match element {
+        Element::Hostname         => Some(("hostname",         false)),
+        Element::GitRepo          => Some(("gitRepo",          false)),
+        Element::GitBranch        => Some(("gitBranch",        false)),
+        Element::GitStatus        => Some(("gitStatus",        false)),
+        Element::ModelName        => Some(("model",            false)),
+        Element::ApiKeySource     => Some(("apiKeySource",     false)),
+        Element::Profile          => Some(("profile",          true)),
+        Element::OmcLabel         => Some(("omcLabel",         true)),
+        Element::RateLimits       => Some(("rateLimits",       true)),
+        Element::EnterpriseCost   => Some(("enterpriseCost",   true)),
+        Element::Permissions      => Some(("permissionStatus", false)),
+        Element::Thinking         => Some(("thinking",         true)),
+        Element::PromptTimeElapsed=> Some(("promptTime",       true)),
+        Element::SessionHealth    => Some(("sessionHealth",    true)),
+        Element::TokenUsage       => Some(("showTokens",       false)),
+        Element::Ralph            => Some(("ralph",            true)),
+        Element::AutopilotState   => Some(("autopilot",        true)),
+        Element::Prd              => Some(("prdStory",         true)),
+        Element::Skills           => Some(("activeSkills",     true)),
+        Element::LastSkill        => Some(("lastSkill",        true)),
+        Element::Context          => Some(("contextBar",       true)),
+        Element::Agents           => Some(("agents",           true)),
+        Element::BackgroundTasks  => Some(("backgroundTasks",  true)),
+        Element::CallCounts       => Some(("showCallCounts",   true)),
+        Element::LastTool         => Some(("showLastTool",     false)),
+        Element::MissionBoard     => Some(("missionBoard",     false)),
+        Element::Todos            => Some(("todos",            true)),
+        Element::Cwd              => Some(("cwd",              false)),
+        _                         => None,
+    }
+}
+
 pub fn render_element(element: Element, ctx: &RenderContext<'_>) -> Option<String> {
+    // Config gate: check per-element enable flag before rendering
+    if let Some((key, default)) = element_config_key(element) {
+        if !ctx.config.element_enabled(key, default) {
+            return None;
+        }
+    }
     match catch_unwind(AssertUnwindSafe(|| render_element_inner(element, ctx))) {
         Ok(value) => value,
         Err(_) => {

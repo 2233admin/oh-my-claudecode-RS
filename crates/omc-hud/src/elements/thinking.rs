@@ -17,10 +17,18 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
         return None;
     }
 
+    // thinkingFormat: 'text' (default) = spinner + "thinking"; 'icon' = spinner only
+    let fmt = ctx.config.element_str("thinkingFormat", "text");
     let frame = spinner_frame();
-    if matches!(ctx.color_level, ColorLevel::Mono) {
-        Some(format!("{frame}thinking"))
+    let text = if fmt == "icon" {
+        format!("{frame}")
     } else {
-        Some(format!("\x1b[36m{frame}thinking\x1b[0m"))
+        format!("{frame}thinking")
+    };
+
+    if matches!(ctx.color_level, ColorLevel::Mono) {
+        Some(text)
+    } else {
+        Some(format!("\x1b[36m{text}\x1b[0m"))
     }
 }
