@@ -13,13 +13,18 @@ pub mod context_warning;
 pub mod cost;
 pub mod cwd;
 pub mod enterprise_cost;
+pub mod git_branch;
+pub mod git_repo;
 pub mod git_status;
 pub mod hostname;
+pub mod last_skill;
 pub mod last_tool;
 pub mod mission_board_el;
 pub mod model_name;
+pub mod omc_label;
 pub mod permissions;
 pub mod prd;
+pub mod profile;
 pub mod prompt_time;
 pub mod ralph;
 pub mod rate_limits;
@@ -77,6 +82,11 @@ pub enum Element {
     ContextWarning,
     Hostname,
     LastTool,
+    GitRepo,
+    GitBranch,
+    Profile,
+    OmcLabel,
+    LastSkill,
 }
 
 pub struct RenderContext<'a> {
@@ -170,6 +180,11 @@ pub const DEFAULT_ELEMENTS: &[Element] = &[
     Element::ContextWarning,
     Element::Hostname,
     Element::LastTool,
+    Element::GitRepo,
+    Element::GitBranch,
+    Element::Profile,
+    Element::OmcLabel,
+    Element::LastSkill,
 ];
 
 pub fn render_element(element: Element, ctx: &RenderContext<'_>) -> Option<String> {
@@ -219,5 +234,10 @@ fn render_element_inner(element: Element, ctx: &RenderContext<'_>) -> Option<Str
         Element::ContextWarning => context_warning::render(ctx),
         Element::Hostname => hostname::render(ctx),
         Element::LastTool => last_tool::render(ctx),
+        Element::GitRepo => git_repo::render(ctx),
+        Element::GitBranch => git_branch::render(ctx),
+        Element::Profile => profile::render(ctx),
+        Element::OmcLabel => omc_label::render(ctx),
+        Element::LastSkill => last_skill::render(ctx),
     }
 }

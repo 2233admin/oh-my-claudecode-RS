@@ -10,29 +10,35 @@ use crate::terminal::ColorLevel;
 use crate::transcript::TranscriptData;
 use crate::usage_api::UsageData;
 
-// Row 0: critical metrics — context bar, timing, rate limits
+// Row 0: git info + identity (line1 in JS DEFAULT_ELEMENT_ORDER)
 const ROW0: &[Element] = &[
+    Element::OmcLabel,
+    Element::Hostname,
+    Element::Profile,
+    Element::GitRepo,
+    Element::GitBranch,
+    Element::GitStatus,
+    Element::ModelName,
+    Element::ApiKeySource,
+    Element::Cwd,
+];
+
+// Row 1: critical metrics — context bar, timing, rate limits, cost
+const ROW1: &[Element] = &[
     Element::ContextWarning,
     Element::Context,
     Element::ContextEta,
     Element::PromptTimeElapsed,
     Element::RateLimits,
     Element::EnterpriseCost,
-];
-
-// Row 1: session identity
-const ROW1: &[Element] = &[
-    Element::ModelName,
+    Element::Cost,
+    Element::TokenUsage,
     Element::SessionStats,
     Element::SessionName,
+    Element::SessionHealth,
     Element::Effort,
     Element::VimMode,
     Element::WorktreeInfo,
-    Element::Cost,
-    Element::TokenUsage,
-    Element::GitStatus,
-    Element::SessionHealth,
-    Element::Hostname,
 ];
 
 // Row 2: orchestration & misc
@@ -42,14 +48,13 @@ const ROW2: &[Element] = &[
     Element::Todos,
     Element::Agents,
     Element::Skills,
+    Element::LastSkill,
     Element::CallCounts,
     Element::Thinking,
     Element::Permissions,
     Element::Prd,
     Element::MissionBoard,
     Element::LastTool,
-    Element::Cwd,
-    Element::ApiKeySource,
     Element::BackgroundTasks,
 ];
 
