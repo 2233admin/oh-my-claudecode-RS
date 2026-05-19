@@ -16,7 +16,7 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
 
     let label = match fmt {
         "codes" => format!("A:{count}"),
-        _ => format!("agents:{count}"),  // 'count' and 'multiline'
+        _ => format!("agents:{count}"), // 'count' and 'multiline'
     };
 
     if matches!(ctx.color_level, ColorLevel::Mono) {

@@ -7,9 +7,7 @@ pub fn git_output_timeout(args: &[&str], timeout: Duration) -> Option<std::proce
     use std::thread;
 
     let mut cmd = Command::new("git");
-    cmd.args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null());
+    cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::null());
 
     let mut child = cmd.spawn().ok()?;
     let stdout = child.stdout.take()?;

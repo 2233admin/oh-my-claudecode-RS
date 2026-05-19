@@ -17,6 +17,10 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
         return Some(label);
     }
 
-    let color = if pct >= critical { SemanticColor::Red } else { SemanticColor::Yellow };
+    let color = if pct >= critical {
+        SemanticColor::Red
+    } else {
+        SemanticColor::Yellow
+    };
     Some(paint(ctx.color_level, color, &label))
 }

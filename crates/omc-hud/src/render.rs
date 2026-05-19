@@ -1,7 +1,7 @@
 use crate::cache::HudCache;
 use crate::config::HudConfig;
-use crate::elements::{Element, RenderContext, render_element};
 use crate::elements::pet;
+use crate::elements::{Element, RenderContext, render_element};
 use crate::i18n::Strings;
 use crate::input::Input;
 use crate::mission_board::MissionBoardState;
@@ -34,11 +34,7 @@ const ROW0_NO_GIT: &[Element] = &[
 ];
 
 // Git-only elements prepended to Row 1 when gitInfoPosition = "inline"
-const GIT_ELEMENTS: &[Element] = &[
-    Element::GitRepo,
-    Element::GitBranch,
-    Element::GitStatus,
-];
+const GIT_ELEMENTS: &[Element] = &[Element::GitRepo, Element::GitBranch, Element::GitStatus];
 
 // Row 1: critical metrics — context bar, timing, rate limits, cost
 const ROW1: &[Element] = &[
@@ -134,9 +130,7 @@ pub fn render_statusline(
         _ => "\x1b[2m | \x1b[0m",
     };
 
-    let ctx_pct: Option<u8> = input
-        .context_used_pct()
-        .map(|p| p.clamp(0.0, 100.0) as u8);
+    let ctx_pct: Option<u8> = input.context_used_pct().map(|p| p.clamp(0.0, 100.0) as u8);
 
     // Pet is enabled by default; disable via settings.json: { "omcHud": { "elements": { "pet": false } } }
     let pet_enabled = config.element_enabled("pet", true);
@@ -168,11 +162,11 @@ pub fn render_statusline(
         make_row(ROW0, &ctx, sep)
     };
     let row1 = if git_inline {
-        let git_part  = make_row(GIT_ELEMENTS, &ctx, sep);
+        let git_part = make_row(GIT_ELEMENTS, &ctx, sep);
         let main_part = make_row(ROW1, &ctx, sep);
         match (git_part.is_empty(), main_part.is_empty()) {
-            (true,  _)     => main_part,
-            (_,     true)  => git_part,
+            (true, _) => main_part,
+            (_, true) => git_part,
             (false, false) => format!("{git_part}{sep}{main_part}"),
         }
     } else {
@@ -223,7 +217,9 @@ fn truncate_ansi(s: &str, max_cols: usize) -> String {
             let mut seq = String::from(c);
             for ch in chars.by_ref() {
                 seq.push(ch);
-                if ch == 'm' { break; }
+                if ch == 'm' {
+                    break;
+                }
             }
             out.push_str(&seq);
             continue;

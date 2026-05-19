@@ -6,15 +6,23 @@ fn color_enabled(level: ColorLevel) -> bool {
 }
 
 fn severity_color(percent: u8, warn: u8, compact: u8) -> &'static str {
-    if percent >= compact { "\x1b[31m" }
-    else if percent >= warn { "\x1b[33m" }
-    else { "\x1b[32m" }
+    if percent >= compact {
+        "\x1b[31m"
+    } else if percent >= warn {
+        "\x1b[33m"
+    } else {
+        "\x1b[32m"
+    }
 }
 
 fn severity_suffix(percent: u8, compact: u8, critical: u8) -> &'static str {
-    if percent >= critical { " CRITICAL" }
-    else if percent >= compact { " COMPRESS?" }
-    else { "" }
+    if percent >= critical {
+        " CRITICAL"
+    } else if percent >= compact {
+        " COMPRESS?"
+    } else {
+        ""
+    }
 }
 
 /// Render a 10-char filled/empty progress bar, e.g. `[███████░░░]`.
@@ -37,7 +45,7 @@ fn format_token_count(t: u64) -> String {
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     let pct = ctx.input.context_used_pct()? as u8;
-    let warn    = ctx.config.thresholds.context_warning as u8;
+    let warn = ctx.config.thresholds.context_warning as u8;
     let compact = ctx.config.thresholds.context_compact as u8;
     let critical = ctx.config.thresholds.context_critical as u8;
 
@@ -46,9 +54,11 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     let suffix = severity_suffix(pct, compact, critical);
 
     let abs_str = match (ctx.input.tokens_used(), ctx.input.tokens_max()) {
-        (Some(used), Some(max)) => {
-            Some(format!("{}/{}", format_token_count(used), format_token_count(max)))
-        }
+        (Some(used), Some(max)) => Some(format!(
+            "{}/{}",
+            format_token_count(used),
+            format_token_count(max)
+        )),
         _ => None,
     };
 
@@ -230,7 +240,10 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Color16);
         let result = render(&ctx).unwrap();
-        assert!(result.contains("\x1b[31m"), "should contain red: {result:?}");
+        assert!(
+            result.contains("\x1b[31m"),
+            "should contain red: {result:?}"
+        );
         // 89% >= contextCritical(85) → CRITICAL
         assert_eq!(strip_ansi(&result), "ctx:[█████████░]89% CRITICAL 9K/10K");
     }
@@ -243,7 +256,10 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Color16);
         let result = render(&ctx).unwrap();
-        assert!(result.contains("\x1b[31m"), "should contain red: {result:?}");
+        assert!(
+            result.contains("\x1b[31m"),
+            "should contain red: {result:?}"
+        );
         // 84% < contextCritical(85) → COMPRESS?
         assert_eq!(strip_ansi(&result), "ctx:[████████░░]84% COMPRESS? 8K/10K");
     }

@@ -11,8 +11,8 @@ fn spinner_frame() -> char {
 }
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
-    let active = ctx.input.thinking_enabled()
-        || ctx.transcript.map(|t| t.thinking_active).unwrap_or(false);
+    let active =
+        ctx.input.thinking_enabled() || ctx.transcript.map(|t| t.thinking_active).unwrap_or(false);
     if !active {
         return None;
     }

@@ -61,7 +61,11 @@ fn format_bucket(
     use_bars: bool,
 ) -> String {
     let pct_str = format!("{pct}%");
-    let bar_str = if use_bars { render_bar(pct, 10) } else { String::new() };
+    let bar_str = if use_bars {
+        render_bar(pct, 10)
+    } else {
+        String::new()
+    };
 
     let countdown = reset_ms.and_then(|r| {
         let remaining = r.saturating_sub(now);
@@ -160,8 +164,7 @@ fn extract_from_stdin(
 
 fn render_at(ctx: &RenderContext<'_>, now: u64) -> Option<String> {
     // Priority 1: stdin rate_limits (real-time from Claude Code)
-    let (mut five_pct, mut five_reset, mut weekly_pct, mut weekly_reset) =
-        extract_from_stdin(ctx);
+    let (mut five_pct, mut five_reset, mut weekly_pct, mut weekly_reset) = extract_from_stdin(ctx);
 
     // Priority 2: hooks_state (OMC-injected)
     if five_pct.is_none() && weekly_pct.is_none() {
@@ -199,22 +202,53 @@ fn render_at(ctx: &RenderContext<'_>, now: u64) -> Option<String> {
     let mut parts: Vec<String> = Vec::new();
 
     if let Some(pct) = five_pct {
-        parts.push(format_bucket("5h", pct, five_reset, now, ctx.color_level, use_bars));
+        parts.push(format_bucket(
+            "5h",
+            pct,
+            five_reset,
+            now,
+            ctx.color_level,
+            use_bars,
+        ));
     }
     if let Some(pct) = weekly_pct {
-        parts.push(format_bucket("7d", pct, weekly_reset, now, ctx.color_level, use_bars));
+        parts.push(format_bucket(
+            "7d",
+            pct,
+            weekly_reset,
+            now,
+            ctx.color_level,
+            use_bars,
+        ));
     }
 
     // Sonnet / Opus model-specific weekly quotas from usage API
     if let Some(usage) = ctx.usage {
-        if let Some(pct) = usage.seven_day_sonnet_pct.map(|v| v.clamp(0.0, 100.0) as u8) {
+        if let Some(pct) = usage
+            .seven_day_sonnet_pct
+            .map(|v| v.clamp(0.0, 100.0) as u8)
+        {
             if pct > 0 {
-                parts.push(format_bucket("sn", pct, None, now, ctx.color_level, use_bars));
+                parts.push(format_bucket(
+                    "sn",
+                    pct,
+                    None,
+                    now,
+                    ctx.color_level,
+                    use_bars,
+                ));
             }
         }
         if let Some(pct) = usage.seven_day_opus_pct.map(|v| v.clamp(0.0, 100.0) as u8) {
             if pct > 0 {
-                parts.push(format_bucket("op", pct, None, now, ctx.color_level, use_bars));
+                parts.push(format_bucket(
+                    "op",
+                    pct,
+                    None,
+                    now,
+                    ctx.color_level,
+                    use_bars,
+                ));
             }
         }
     }

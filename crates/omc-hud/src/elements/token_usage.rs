@@ -50,7 +50,12 @@ fn extract(ctx: &RenderContext<'_>) -> Option<TokenData> {
     let (input, session_total) = if cw_input > 0 {
         (cw_input, ctx.input.tokens_used().unwrap_or(0))
     } else if let Some(state) = ctx.input.hooks_state.as_ref() {
-        let g = |k: &str| state.get(k).and_then(serde_json::Value::as_u64).unwrap_or(0);
+        let g = |k: &str| {
+            state
+                .get(k)
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        };
         (g("input_tokens"), g("session_total_tokens"))
     } else {
         (0, 0)
@@ -82,7 +87,12 @@ fn extract(ctx: &RenderContext<'_>) -> Option<TokenData> {
         return None;
     }
 
-    Some(TokenData { input, output, reasoning, session_total })
+    Some(TokenData {
+        input,
+        output,
+        reasoning,
+        session_total,
+    })
 }
 
 // ---------------------------------------------------------------------------

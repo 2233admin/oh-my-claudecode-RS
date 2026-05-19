@@ -60,7 +60,8 @@ fn extract_tokens(ctx: &RenderContext<'_>) -> Option<TokenCounts> {
         .transcript
         .and_then(|t| t.last_request_output_tokens)
         .unwrap_or_else(|| {
-            let hooks_output = ctx.input
+            let hooks_output = ctx
+                .input
                 .hooks_state
                 .as_ref()
                 .and_then(|s| s.get("output_tokens"))
@@ -78,8 +79,17 @@ fn extract_tokens(ctx: &RenderContext<'_>) -> Option<TokenCounts> {
         if cw_input > 0 || cw_cache_create > 0 || cw_cache_read > 0 {
             (cw_input, cw_cache_create, cw_cache_read)
         } else if let Some(state) = ctx.input.hooks_state.as_ref() {
-            let g = |k: &str| state.get(k).and_then(serde_json::Value::as_u64).unwrap_or(0);
-            (g("input_tokens"), g("cache_creation_input_tokens"), g("cache_read_input_tokens"))
+            let g = |k: &str| {
+                state
+                    .get(k)
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0)
+            };
+            (
+                g("input_tokens"),
+                g("cache_creation_input_tokens"),
+                g("cache_read_input_tokens"),
+            )
         } else {
             (0, 0, 0)
         };
@@ -88,7 +98,12 @@ fn extract_tokens(ctx: &RenderContext<'_>) -> Option<TokenCounts> {
         return None;
     }
 
-    Some(TokenCounts { input, output, cache_creation, cache_read })
+    Some(TokenCounts {
+        input,
+        output,
+        cache_creation,
+        cache_read,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -233,7 +248,10 @@ mod tests {
         }
         use crate::input::ModelInfo;
         Input {
-            model: model.map(|s| ModelInfo { id: Some(s.to_string()), display_name: None }),
+            model: model.map(|s| ModelInfo {
+                id: Some(s.to_string()),
+                display_name: None,
+            }),
             hooks_state: Some(serde_json::Value::Object(map)),
             ..Input::default()
         }

@@ -41,14 +41,8 @@ fn run() -> Result<(), String> {
     cache.record_context(input.tokens_used(), now);
 
     let config = config::load();
-    let omc_state = omc_state::OmcState::load(
-        input.cwd.as_deref(),
-        input.session_id.as_deref(),
-    );
-    let transcript_data = input
-        .transcript_path
-        .as_deref()
-        .and_then(transcript::parse);
+    let omc_state = omc_state::OmcState::load(input.cwd.as_deref(), input.session_id.as_deref());
+    let transcript_data = input.transcript_path.as_deref().and_then(transcript::parse);
     let usage_data = usage_api::fetch(config.usage_api_poll_interval_ms);
     let mission_board_data = mission_board::load(input.cwd.as_deref());
 

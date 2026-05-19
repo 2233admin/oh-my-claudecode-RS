@@ -1,5 +1,5 @@
-use std::time::Duration;
 use crate::git_util::git_output_timeout;
+use std::time::Duration;
 
 use crate::elements::RenderContext;
 use crate::terminal::ColorLevel;
@@ -27,14 +27,25 @@ fn get_branch(cwd: &str) -> Option<String> {
     }
     let branch = String::from_utf8(output.stdout).ok()?;
     let branch = branch.trim().to_string();
-    if branch.is_empty() { None } else { Some(branch) }
+    if branch.is_empty() {
+        None
+    } else {
+        Some(branch)
+    }
 }
 
 /// Parse `git --no-optional-locks status --porcelain -b` for all status counts.
 /// Returns (staged, modified, untracked, ahead, behind).
 fn get_status_counts(cwd: &str) -> Option<(u32, u32, u32, u32, u32)> {
     let output = git_output_timeout(
-        &["-C", cwd, "--no-optional-locks", "status", "--porcelain", "-b"],
+        &[
+            "-C",
+            cwd,
+            "--no-optional-locks",
+            "status",
+            "--porcelain",
+            "-b",
+        ],
         Duration::from_millis(2000),
     )?;
     if !output.status.success() {
@@ -50,19 +61,29 @@ fn get_status_counts(cwd: &str) -> Option<(u32, u32, u32, u32, u32)> {
     for (i, line) in text.lines().enumerate() {
         if i == 0 {
             // Branch tracking line: ## main...origin/main [ahead 3, behind 1]
-            if let Some(m) = regex_ahead(line) { ahead = m; }
-            if let Some(m) = regex_behind(line) { behind = m; }
+            if let Some(m) = regex_ahead(line) {
+                ahead = m;
+            }
+            if let Some(m) = regex_behind(line) {
+                behind = m;
+            }
             continue;
         }
-        if line.len() < 2 { continue; }
+        if line.len() < 2 {
+            continue;
+        }
         let xy: Vec<char> = line.chars().take(2).collect();
         let x = xy[0];
         let y = xy[1];
         if x == '?' && y == '?' {
             untracked += 1;
         } else {
-            if x != ' ' && x != '?' { staged += 1; }
-            if matches!(y, 'M' | 'D') { modified += 1; }
+            if x != ' ' && x != '?' {
+                staged += 1;
+            }
+            if matches!(y, 'M' | 'D') {
+                modified += 1;
+            }
         }
     }
     Some((staged, modified, untracked, ahead, behind))
@@ -71,19 +92,32 @@ fn get_status_counts(cwd: &str) -> Option<(u32, u32, u32, u32, u32)> {
 fn regex_ahead(line: &str) -> Option<u32> {
     let idx = line.find("ahead ")?;
     let rest = &line[idx + 6..];
-    rest.split(|c: char| !c.is_ascii_digit()).next()?.parse().ok()
+    rest.split(|c: char| !c.is_ascii_digit())
+        .next()?
+        .parse()
+        .ok()
 }
 
 fn regex_behind(line: &str) -> Option<u32> {
     let idx = line.find("behind ")?;
     let rest = &line[idx + 7..];
-    rest.split(|c: char| !c.is_ascii_digit()).next()?.parse().ok()
+    rest.split(|c: char| !c.is_ascii_digit())
+        .next()?
+        .parse()
+        .ok()
 }
 
 fn collect_git_data(cwd: &str) -> Option<GitData> {
     let branch = get_branch(cwd)?;
     let (staged, modified, untracked, ahead, behind) = get_status_counts(cwd)?;
-    Some(GitData { branch, staged, modified, untracked, ahead, behind })
+    Some(GitData {
+        branch,
+        staged,
+        modified,
+        untracked,
+        ahead,
+        behind,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -112,11 +146,21 @@ pub fn render_with_data(
             format!("git:({})", branch)
         };
         let mut parts = vec![branch_part];
-        if staged > 0 { parts.push(format!("+{staged}")); }
-        if modified > 0 { parts.push(format!("~{modified}")); }
-        if untracked > 0 { parts.push(format!("?{untracked}")); }
-        if ahead > 0 { parts.push(format!("^{ahead}")); }
-        if behind > 0 { parts.push(format!("v{behind}")); }
+        if staged > 0 {
+            parts.push(format!("+{staged}"));
+        }
+        if modified > 0 {
+            parts.push(format!("~{modified}"));
+        }
+        if untracked > 0 {
+            parts.push(format!("?{untracked}"));
+        }
+        if ahead > 0 {
+            parts.push(format!("^{ahead}"));
+        }
+        if behind > 0 {
+            parts.push(format!("v{behind}"));
+        }
         return parts.join(" ");
     }
 
@@ -134,11 +178,21 @@ pub fn render_with_data(
     }
 
     let mut parts = vec![branch_display];
-    if staged > 0 { parts.push(format!("\x1b[32m+{staged}{reset}")); }
-    if modified > 0 { parts.push(format!("\x1b[31m~{modified}{reset}")); }
-    if untracked > 0 { parts.push(format!("\x1b[36m?{untracked}{reset}")); }
-    if ahead > 0 { parts.push(format!("\x1b[32m\u{21e1}{ahead}{reset}")); }   // ⇡
-    if behind > 0 { parts.push(format!("\x1b[31m\u{21e3}{behind}{reset}")); } // ⇣
+    if staged > 0 {
+        parts.push(format!("\x1b[32m+{staged}{reset}"));
+    }
+    if modified > 0 {
+        parts.push(format!("\x1b[31m~{modified}{reset}"));
+    }
+    if untracked > 0 {
+        parts.push(format!("\x1b[36m?{untracked}{reset}"));
+    }
+    if ahead > 0 {
+        parts.push(format!("\x1b[32m\u{21e1}{ahead}{reset}"));
+    } // ⇡
+    if behind > 0 {
+        parts.push(format!("\x1b[31m\u{21e3}{behind}{reset}"));
+    } // ⇣
 
     parts.join(" ")
 }
@@ -174,7 +228,11 @@ mod tests {
         let mut chars = s.chars().peekable();
         while let Some(c) = chars.next() {
             if c == '\x1b' {
-                for ch in chars.by_ref() { if ch == 'm' { break; } }
+                for ch in chars.by_ref() {
+                    if ch == 'm' {
+                        break;
+                    }
+                }
             } else {
                 out.push(c);
             }
@@ -184,7 +242,10 @@ mod tests {
 
     #[test]
     fn clean_mono() {
-        assert_eq!(render_with_data("main", 0, 0, 0, 0, 0, ColorLevel::Mono), "git:(main)");
+        assert_eq!(
+            render_with_data("main", 0, 0, 0, 0, 0, ColorLevel::Mono),
+            "git:(main)"
+        );
     }
 
     #[test]
@@ -235,9 +296,12 @@ mod tests {
     fn integration_repo_returns_some() {
         let repo_root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
         use crate::cache::HudCache;
-        use crate::input::Input;
         use crate::elements::RenderContext;
-        let input = Input { cwd: Some(repo_root.to_string()), ..Input::default() };
+        use crate::input::Input;
+        let input = Input {
+            cwd: Some(repo_root.to_string()),
+            ..Input::default()
+        };
         let cache = HudCache::new("test".to_string());
         let ctx = RenderContext::for_test(&input, &cache, ColorLevel::Mono);
         let result = render(&ctx);

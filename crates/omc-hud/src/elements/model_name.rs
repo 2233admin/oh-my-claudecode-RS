@@ -55,7 +55,12 @@ fn color_enabled(level: ColorLevel) -> bool {
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     let id = ctx.input.model_id().filter(|s| !s.is_empty());
-    let display_name = ctx.input.model.as_ref().and_then(|m| m.display_name.as_deref()).filter(|s| !s.is_empty());
+    let display_name = ctx
+        .input
+        .model
+        .as_ref()
+        .and_then(|m| m.display_name.as_deref())
+        .filter(|s| !s.is_empty());
     let raw = id.or(display_name)?.trim();
     if raw.is_empty() {
         return None;
@@ -102,7 +107,10 @@ mod tests {
     fn make_input(model: Option<&str>) -> Input {
         use crate::input::ModelInfo;
         Input {
-            model: model.map(|s| ModelInfo { id: Some(s.to_string()), display_name: None }),
+            model: model.map(|s| ModelInfo {
+                id: Some(s.to_string()),
+                display_name: None,
+            }),
             ..Input::default()
         }
     }

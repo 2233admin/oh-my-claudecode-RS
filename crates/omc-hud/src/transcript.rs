@@ -112,7 +112,9 @@ pub fn parse(transcript_path: &str) -> Option<TranscriptData> {
                             }
 
                             // Pending permission: tool use within last 3s that hasn't been responded to
-                            if msg_ts_ms > 0 && now_ms.saturating_sub(msg_ts_ms) < PERMISSION_THRESHOLD_MS {
+                            if msg_ts_ms > 0
+                                && now_ms.saturating_sub(msg_ts_ms) < PERMISSION_THRESHOLD_MS
+                            {
                                 // We'll mark it as pending — a heuristic
                                 data.pending_permission = Some(tool_name);
                             }

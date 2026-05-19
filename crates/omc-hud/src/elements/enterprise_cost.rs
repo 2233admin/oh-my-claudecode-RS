@@ -2,7 +2,13 @@ use crate::elements::RenderContext;
 use crate::terminal::ColorLevel;
 
 fn severity_color(pct: u8) -> &'static str {
-    if pct >= 90 { "\x1b[31m" } else if pct >= 70 { "\x1b[33m" } else { "\x1b[32m" }
+    if pct >= 90 {
+        "\x1b[31m"
+    } else if pct >= 70 {
+        "\x1b[33m"
+    } else {
+        "\x1b[32m"
+    }
 }
 
 fn format_money(amount: f64) -> String {
@@ -12,7 +18,13 @@ fn format_money(amount: f64) -> String {
         .chars()
         .rev()
         .enumerate()
-        .flat_map(|(i, c)| if i > 0 && i % 3 == 0 { vec![',', c] } else { vec![c] })
+        .flat_map(|(i, c)| {
+            if i > 0 && i % 3 == 0 {
+                vec![',', c]
+            } else {
+                vec![c]
+            }
+        })
         .collect::<String>()
         .chars()
         .rev()
@@ -29,14 +41,18 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
         let spent_str = format_money(spent);
         return Some(match usage.enterprise_limit_usd.filter(|&l| l > 0.0) {
             None => {
-                if mono { format!("spent:${}", spent_str) }
-                else { format!("\x1b[2mspent:\x1b[0m${}", spent_str) }
+                if mono {
+                    format!("spent:${}", spent_str)
+                } else {
+                    format!("\x1b[2mspent:\x1b[0m${}", spent_str)
+                }
             }
             Some(limit) => {
                 let limit_str = format_money(limit);
                 let pct = (spent / limit * 100.0).clamp(0.0, 100.0) as u8;
-                if mono { format!("spent:${spent_str}/${limit_str} ({pct}%)") }
-                else {
+                if mono {
+                    format!("spent:${spent_str}/${limit_str} ({pct}%)")
+                } else {
                     let c = severity_color(pct);
                     format!("\x1b[2mspent:\x1b[0m${spent_str}/${limit_str} {c}({pct}%)\x1b[0m")
                 }
@@ -47,7 +63,9 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     // Pro metered extra usage path
     let used = usage.extra_used_usd?;
     let limit = usage.extra_limit_usd?;
-    if limit <= 0.0 { return None; }
+    if limit <= 0.0 {
+        return None;
+    }
 
     let pct = (used / limit * 100.0).clamp(0.0, 100.0) as u8;
     let used_str = format!("{:.2}", used);

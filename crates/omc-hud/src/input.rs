@@ -196,20 +196,26 @@ impl Input {
 
     /// Used percentage 0–100 (prefer native field, compute as fallback).
     pub fn context_used_pct(&self) -> Option<f64> {
-        if let Some(pct) = self.context_window.as_ref().and_then(|cw| cw.used_percentage) {
+        if let Some(pct) = self
+            .context_window
+            .as_ref()
+            .and_then(|cw| cw.used_percentage)
+        {
             return Some(pct);
         }
         let used = self.tokens_used()? as f64;
         let max = self.tokens_max()? as f64;
-        if max == 0.0 { return None; }
+        if max == 0.0 {
+            return None;
+        }
         Some((used / max * 100.0).clamp(0.0, 100.0).round())
     }
 
     /// Model display name (prefer display_name, fall back to id).
     pub fn model_name(&self) -> Option<&str> {
-        self.model.as_ref().and_then(|m| {
-            m.display_name.as_deref().or(m.id.as_deref())
-        })
+        self.model
+            .as_ref()
+            .and_then(|m| m.display_name.as_deref().or(m.id.as_deref()))
     }
 
     /// Model id string.
@@ -219,7 +225,9 @@ impl Input {
 
     /// Total session cost — prefers nested `cost.total_cost_usd`, falls back to flat `cost_usd`.
     pub fn cost_total_usd(&self) -> Option<f64> {
-        self.cost.as_ref().and_then(|c| c.total_cost_usd)
+        self.cost
+            .as_ref()
+            .and_then(|c| c.total_cost_usd)
             .or(self.cost_usd)
     }
 
@@ -263,7 +271,10 @@ impl Input {
 
     /// Whether extended thinking mode is enabled.
     pub fn thinking_enabled(&self) -> bool {
-        self.thinking.as_ref().and_then(|t| t.enabled).unwrap_or(false)
+        self.thinking
+            .as_ref()
+            .and_then(|t| t.enabled)
+            .unwrap_or(false)
     }
 
     /// Label for the active worktree — prefers branch, falls back to name.

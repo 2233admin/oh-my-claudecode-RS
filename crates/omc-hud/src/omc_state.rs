@@ -98,11 +98,7 @@ impl OmcState {
 }
 
 /// Try session-scoped path, then global, then legacy for a given state name.
-fn load_state_with_fallbacks<T>(
-    base: &Path,
-    session_id: Option<&str>,
-    name: &str,
-) -> Option<T>
+fn load_state_with_fallbacks<T>(base: &Path, session_id: Option<&str>, name: &str) -> Option<T>
 where
     T: for<'de> Deserialize<'de>,
 {
@@ -140,7 +136,9 @@ where
 
     // Stale check: if mtime > MAX_STATE_AGE ago, treat as absent
     let mtime = metadata.modified().ok()?;
-    let age = SystemTime::now().duration_since(mtime).unwrap_or(Duration::ZERO);
+    let age = SystemTime::now()
+        .duration_since(mtime)
+        .unwrap_or(Duration::ZERO);
     if age > MAX_STATE_AGE {
         return None;
     }

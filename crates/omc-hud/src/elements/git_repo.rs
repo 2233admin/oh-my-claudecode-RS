@@ -1,7 +1,7 @@
-use std::time::Duration;
-use crate::git_util::git_output_timeout;
 use crate::elements::RenderContext;
+use crate::git_util::git_output_timeout;
 use crate::terminal::ColorLevel;
+use std::time::Duration;
 
 fn get_repo_name(cwd: &str) -> Option<String> {
     let output = git_output_timeout(
@@ -17,10 +17,13 @@ fn get_repo_name(cwd: &str) -> Option<String> {
         return None;
     }
     // Extract repo name from https://github.com/user/repo.git or git@github.com:user/repo.git
-    let name = url.rsplit('/').next()
-        .or_else(|| url.rsplit(':').next())?;
+    let name = url.rsplit('/').next().or_else(|| url.rsplit(':').next())?;
     let name = name.trim_end_matches(".git");
-    if name.is_empty() { None } else { Some(name.to_string()) }
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_string())
+    }
 }
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {

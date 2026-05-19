@@ -32,6 +32,5 @@ fn has_api_key_in_file(path: &std::path::Path) -> bool {
         Ok(v) => v,
         Err(_) => return false,
     };
-    json.get("apiKeyHelper").is_some()
-        || json.get("apiKey").is_some()
+    json.get("apiKeyHelper").is_some() || json.get("apiKey").is_some()
 }

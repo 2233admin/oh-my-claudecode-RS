@@ -1,6 +1,6 @@
 use serde::Deserialize;
-use std::collections::HashMap;
 use serde_json::Value;
+use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
 // Thresholds
@@ -33,113 +33,268 @@ impl Default for HudThresholds {
 /// Values are serde_json::Value (bool or string) matching JS PRESET_CONFIGS.
 fn preset_elements(name: &str) -> HashMap<String, Value> {
     let mut m = HashMap::new();
-    macro_rules! b { ($k:expr, $v:expr) => { m.insert($k.to_string(), Value::Bool($v)); }; }
-    macro_rules! s { ($k:expr, $v:expr) => { m.insert($k.to_string(), Value::String($v.to_string())); }; }
-    macro_rules! n { ($k:expr, $v:expr) => { m.insert($k.to_string(), Value::Number(serde_json::Number::from($v))); }; }
+    macro_rules! b {
+        ($k:expr, $v:expr) => {
+            m.insert($k.to_string(), Value::Bool($v));
+        };
+    }
+    macro_rules! s {
+        ($k:expr, $v:expr) => {
+            m.insert($k.to_string(), Value::String($v.to_string()));
+        };
+    }
+    macro_rules! n {
+        ($k:expr, $v:expr) => {
+            m.insert($k.to_string(), Value::Number(serde_json::Number::from($v)));
+        };
+    }
 
     match name {
         "minimal" => {
-            b!("cwd", false); s!("cwdFormat", "folder");
-            b!("gitRepo", false); b!("gitBranch", false); b!("gitStatus", false); s!("gitInfoPosition", "above");
-            b!("model", false); s!("modelFormat", "short");
-            b!("omcLabel", true); b!("rateLimits", true); b!("ralph", true); b!("autopilot", true);
-            b!("prdStory", false); b!("activeSkills", true); b!("lastSkill", true);
+            b!("cwd", false);
+            s!("cwdFormat", "folder");
+            b!("gitRepo", false);
+            b!("gitBranch", false);
+            b!("gitStatus", false);
+            s!("gitInfoPosition", "above");
+            b!("model", false);
+            s!("modelFormat", "short");
+            b!("omcLabel", true);
+            b!("rateLimits", true);
+            b!("ralph", true);
+            b!("autopilot", true);
+            b!("prdStory", false);
+            b!("activeSkills", true);
+            b!("lastSkill", true);
             b!("contextBar", false);
-            b!("agents", true); s!("agentsFormat", "count"); n!("agentsMaxLines", 0);
-            b!("backgroundTasks", false); b!("todos", true); b!("permissionStatus", false);
-            b!("thinking", false); s!("thinkingFormat", "text");
-            b!("apiKeySource", false); b!("hostname", false); b!("profile", true);
-            b!("missionBoard", false); b!("promptTime", false);
-            b!("sessionHealth", false); b!("showSessionDuration", true); b!("showHealthIndicator", true);
-            b!("showTokens", false); b!("useBars", false); b!("showCallCounts", false);
-            b!("showLastTool", false); b!("sessionSummary", false);
-            n!("maxOutputLines", 2); b!("safeMode", true);
+            b!("agents", true);
+            s!("agentsFormat", "count");
+            n!("agentsMaxLines", 0);
+            b!("backgroundTasks", false);
+            b!("todos", true);
+            b!("permissionStatus", false);
+            b!("thinking", false);
+            s!("thinkingFormat", "text");
+            b!("apiKeySource", false);
+            b!("hostname", false);
+            b!("profile", true);
+            b!("missionBoard", false);
+            b!("promptTime", false);
+            b!("sessionHealth", false);
+            b!("showSessionDuration", true);
+            b!("showHealthIndicator", true);
+            b!("showTokens", false);
+            b!("useBars", false);
+            b!("showCallCounts", false);
+            b!("showLastTool", false);
+            b!("sessionSummary", false);
+            n!("maxOutputLines", 2);
+            b!("safeMode", true);
         }
         "focused" => {
-            b!("cwd", false); s!("cwdFormat", "relative");
-            b!("gitRepo", false); b!("gitBranch", true); b!("gitStatus", true); s!("gitInfoPosition", "above");
-            b!("model", false); s!("modelFormat", "short");
-            b!("omcLabel", true); b!("rateLimits", true); b!("ralph", true); b!("autopilot", true);
-            b!("prdStory", true); b!("activeSkills", true); b!("lastSkill", true);
+            b!("cwd", false);
+            s!("cwdFormat", "relative");
+            b!("gitRepo", false);
+            b!("gitBranch", true);
+            b!("gitStatus", true);
+            s!("gitInfoPosition", "above");
+            b!("model", false);
+            s!("modelFormat", "short");
+            b!("omcLabel", true);
+            b!("rateLimits", true);
+            b!("ralph", true);
+            b!("autopilot", true);
+            b!("prdStory", true);
+            b!("activeSkills", true);
+            b!("lastSkill", true);
             b!("contextBar", true);
-            b!("agents", true); s!("agentsFormat", "multiline"); n!("agentsMaxLines", 3);
-            b!("backgroundTasks", true); b!("todos", true); b!("permissionStatus", false);
-            b!("thinking", true); s!("thinkingFormat", "text");
-            b!("apiKeySource", false); b!("hostname", false); b!("profile", true);
-            b!("missionBoard", false); b!("promptTime", true);
-            b!("sessionHealth", true); b!("showSessionDuration", true); b!("showHealthIndicator", true);
-            b!("showTokens", false); b!("useBars", true); b!("showCallCounts", true);
-            b!("showLastTool", false); b!("sessionSummary", false);
-            n!("maxOutputLines", 4); b!("safeMode", true);
+            b!("agents", true);
+            s!("agentsFormat", "multiline");
+            n!("agentsMaxLines", 3);
+            b!("backgroundTasks", true);
+            b!("todos", true);
+            b!("permissionStatus", false);
+            b!("thinking", true);
+            s!("thinkingFormat", "text");
+            b!("apiKeySource", false);
+            b!("hostname", false);
+            b!("profile", true);
+            b!("missionBoard", false);
+            b!("promptTime", true);
+            b!("sessionHealth", true);
+            b!("showSessionDuration", true);
+            b!("showHealthIndicator", true);
+            b!("showTokens", false);
+            b!("useBars", true);
+            b!("showCallCounts", true);
+            b!("showLastTool", false);
+            b!("sessionSummary", false);
+            n!("maxOutputLines", 4);
+            b!("safeMode", true);
         }
         "full" => {
-            b!("cwd", false); s!("cwdFormat", "relative");
-            b!("gitRepo", true); b!("gitBranch", true); b!("gitStatus", true); s!("gitInfoPosition", "above");
-            b!("model", false); s!("modelFormat", "short");
-            b!("omcLabel", true); b!("rateLimits", true); b!("ralph", true); b!("autopilot", true);
-            b!("prdStory", true); b!("activeSkills", true); b!("lastSkill", true);
+            b!("cwd", false);
+            s!("cwdFormat", "relative");
+            b!("gitRepo", true);
+            b!("gitBranch", true);
+            b!("gitStatus", true);
+            s!("gitInfoPosition", "above");
+            b!("model", false);
+            s!("modelFormat", "short");
+            b!("omcLabel", true);
+            b!("rateLimits", true);
+            b!("ralph", true);
+            b!("autopilot", true);
+            b!("prdStory", true);
+            b!("activeSkills", true);
+            b!("lastSkill", true);
             b!("contextBar", true);
-            b!("agents", true); s!("agentsFormat", "multiline"); n!("agentsMaxLines", 10);
-            b!("backgroundTasks", true); b!("todos", true); b!("permissionStatus", false);
-            b!("thinking", true); s!("thinkingFormat", "text");
-            b!("apiKeySource", true); b!("hostname", false); b!("profile", true);
-            b!("missionBoard", false); b!("promptTime", true);
-            b!("sessionHealth", true); b!("showSessionDuration", true); b!("showHealthIndicator", true);
-            b!("showTokens", false); b!("useBars", true); b!("showCallCounts", true);
-            b!("showLastTool", false); b!("sessionSummary", false);
-            n!("maxOutputLines", 12); b!("safeMode", true);
+            b!("agents", true);
+            s!("agentsFormat", "multiline");
+            n!("agentsMaxLines", 10);
+            b!("backgroundTasks", true);
+            b!("todos", true);
+            b!("permissionStatus", false);
+            b!("thinking", true);
+            s!("thinkingFormat", "text");
+            b!("apiKeySource", true);
+            b!("hostname", false);
+            b!("profile", true);
+            b!("missionBoard", false);
+            b!("promptTime", true);
+            b!("sessionHealth", true);
+            b!("showSessionDuration", true);
+            b!("showHealthIndicator", true);
+            b!("showTokens", false);
+            b!("useBars", true);
+            b!("showCallCounts", true);
+            b!("showLastTool", false);
+            b!("sessionSummary", false);
+            n!("maxOutputLines", 12);
+            b!("safeMode", true);
         }
         "opencode" => {
-            b!("cwd", false); s!("cwdFormat", "relative");
-            b!("gitRepo", false); b!("gitBranch", true); b!("gitStatus", false); s!("gitInfoPosition", "above");
-            b!("model", false); s!("modelFormat", "short");
-            b!("omcLabel", true); b!("rateLimits", false); b!("ralph", true); b!("autopilot", true);
-            b!("prdStory", false); b!("activeSkills", true); b!("lastSkill", true);
+            b!("cwd", false);
+            s!("cwdFormat", "relative");
+            b!("gitRepo", false);
+            b!("gitBranch", true);
+            b!("gitStatus", false);
+            s!("gitInfoPosition", "above");
+            b!("model", false);
+            s!("modelFormat", "short");
+            b!("omcLabel", true);
+            b!("rateLimits", false);
+            b!("ralph", true);
+            b!("autopilot", true);
+            b!("prdStory", false);
+            b!("activeSkills", true);
+            b!("lastSkill", true);
             b!("contextBar", true);
-            b!("agents", true); s!("agentsFormat", "codes"); n!("agentsMaxLines", 0);
-            b!("backgroundTasks", false); b!("todos", true); b!("permissionStatus", false);
-            b!("thinking", true); s!("thinkingFormat", "text");
-            b!("apiKeySource", false); b!("hostname", false); b!("profile", true);
-            b!("missionBoard", false); b!("promptTime", true);
-            b!("sessionHealth", true); b!("showSessionDuration", true); b!("showHealthIndicator", true);
-            b!("showTokens", false); b!("useBars", false); b!("showCallCounts", true);
-            b!("showLastTool", false); b!("sessionSummary", false);
-            n!("maxOutputLines", 4); b!("safeMode", true);
+            b!("agents", true);
+            s!("agentsFormat", "codes");
+            n!("agentsMaxLines", 0);
+            b!("backgroundTasks", false);
+            b!("todos", true);
+            b!("permissionStatus", false);
+            b!("thinking", true);
+            s!("thinkingFormat", "text");
+            b!("apiKeySource", false);
+            b!("hostname", false);
+            b!("profile", true);
+            b!("missionBoard", false);
+            b!("promptTime", true);
+            b!("sessionHealth", true);
+            b!("showSessionDuration", true);
+            b!("showHealthIndicator", true);
+            b!("showTokens", false);
+            b!("useBars", false);
+            b!("showCallCounts", true);
+            b!("showLastTool", false);
+            b!("sessionSummary", false);
+            n!("maxOutputLines", 4);
+            b!("safeMode", true);
         }
         "dense" => {
-            b!("cwd", false); s!("cwdFormat", "relative");
-            b!("gitRepo", true); b!("gitBranch", true); b!("gitStatus", true); s!("gitInfoPosition", "above");
-            b!("model", false); s!("modelFormat", "short");
-            b!("omcLabel", true); b!("rateLimits", true); b!("ralph", true); b!("autopilot", true);
-            b!("prdStory", true); b!("activeSkills", true); b!("lastSkill", true);
+            b!("cwd", false);
+            s!("cwdFormat", "relative");
+            b!("gitRepo", true);
+            b!("gitBranch", true);
+            b!("gitStatus", true);
+            s!("gitInfoPosition", "above");
+            b!("model", false);
+            s!("modelFormat", "short");
+            b!("omcLabel", true);
+            b!("rateLimits", true);
+            b!("ralph", true);
+            b!("autopilot", true);
+            b!("prdStory", true);
+            b!("activeSkills", true);
+            b!("lastSkill", true);
             b!("contextBar", true);
-            b!("agents", true); s!("agentsFormat", "multiline"); n!("agentsMaxLines", 5);
-            b!("backgroundTasks", true); b!("todos", true); b!("permissionStatus", false);
-            b!("thinking", true); s!("thinkingFormat", "text");
-            b!("apiKeySource", true); b!("hostname", false); b!("profile", true);
-            b!("missionBoard", false); b!("promptTime", true);
-            b!("sessionHealth", true); b!("showSessionDuration", true); b!("showHealthIndicator", true);
-            b!("showTokens", false); b!("useBars", true); b!("showCallCounts", true);
-            b!("showLastTool", false); b!("sessionSummary", false);
-            n!("maxOutputLines", 6); b!("safeMode", true);
+            b!("agents", true);
+            s!("agentsFormat", "multiline");
+            n!("agentsMaxLines", 5);
+            b!("backgroundTasks", true);
+            b!("todos", true);
+            b!("permissionStatus", false);
+            b!("thinking", true);
+            s!("thinkingFormat", "text");
+            b!("apiKeySource", true);
+            b!("hostname", false);
+            b!("profile", true);
+            b!("missionBoard", false);
+            b!("promptTime", true);
+            b!("sessionHealth", true);
+            b!("showSessionDuration", true);
+            b!("showHealthIndicator", true);
+            b!("showTokens", false);
+            b!("useBars", true);
+            b!("showCallCounts", true);
+            b!("showLastTool", false);
+            b!("sessionSummary", false);
+            n!("maxOutputLines", 6);
+            b!("safeMode", true);
         }
         // "default" (no preset)
         _ => {
-            b!("cwd", false); s!("cwdFormat", "relative");
-            b!("gitRepo", false); b!("gitBranch", false); b!("gitStatus", false);
-            b!("model", false); s!("modelFormat", "short");
-            b!("omcLabel", true); b!("rateLimits", true); b!("ralph", true); b!("autopilot", true);
-            b!("prdStory", true); b!("activeSkills", true); b!("lastSkill", true);
+            b!("cwd", false);
+            s!("cwdFormat", "relative");
+            b!("gitRepo", false);
+            b!("gitBranch", false);
+            b!("gitStatus", false);
+            b!("model", false);
+            s!("modelFormat", "short");
+            b!("omcLabel", true);
+            b!("rateLimits", true);
+            b!("ralph", true);
+            b!("autopilot", true);
+            b!("prdStory", true);
+            b!("activeSkills", true);
+            b!("lastSkill", true);
             b!("contextBar", true);
-            b!("agents", true); s!("agentsFormat", "multiline"); n!("agentsMaxLines", 5);
-            b!("backgroundTasks", true); b!("todos", true); b!("permissionStatus", false);
-            b!("thinking", true); s!("thinkingFormat", "text");
-            b!("apiKeySource", false); b!("hostname", false); b!("profile", true);
-            b!("missionBoard", false); b!("promptTime", true);
-            b!("sessionHealth", true); b!("showSessionDuration", true); b!("showHealthIndicator", true);
-            b!("showTokens", false); b!("useBars", true); b!("showCallCounts", true);
-            b!("showLastTool", false); b!("sessionSummary", false);
-            n!("maxOutputLines", 4); b!("safeMode", true);
+            b!("agents", true);
+            s!("agentsFormat", "multiline");
+            n!("agentsMaxLines", 5);
+            b!("backgroundTasks", true);
+            b!("todos", true);
+            b!("permissionStatus", false);
+            b!("thinking", true);
+            s!("thinkingFormat", "text");
+            b!("apiKeySource", false);
+            b!("hostname", false);
+            b!("profile", true);
+            b!("missionBoard", false);
+            b!("promptTime", true);
+            b!("sessionHealth", true);
+            b!("showSessionDuration", true);
+            b!("showHealthIndicator", true);
+            b!("showTokens", false);
+            b!("useBars", true);
+            b!("showCallCounts", true);
+            b!("showLastTool", false);
+            b!("sessionSummary", false);
+            n!("maxOutputLines", 4);
+            b!("safeMode", true);
         }
     }
     m

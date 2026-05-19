@@ -12,7 +12,8 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     let fmt = ctx.config.element_str("cwdFormat", "relative");
     if fmt == "folder" {
         let path = std::path::Path::new(cwd);
-        let folder = path.file_name()
+        let folder = path
+            .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| cwd.to_string());
         return Some(folder);

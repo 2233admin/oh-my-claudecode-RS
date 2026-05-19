@@ -1,8 +1,6 @@
 pub mod agents;
 pub mod api_key_source;
 pub mod autopilot;
-pub mod session_stats;
-pub mod pet;
 pub mod background_tasks;
 pub mod call_counts;
 pub mod cjk_width;
@@ -12,6 +10,7 @@ pub mod context_eta;
 pub mod context_warning;
 pub mod cost;
 pub mod cwd;
+pub mod effort;
 pub mod enterprise_cost;
 pub mod git_branch;
 pub mod git_repo;
@@ -23,17 +22,18 @@ pub mod mission_board_el;
 pub mod model_name;
 pub mod omc_label;
 pub mod permissions;
+pub mod pet;
 pub mod prd;
 pub mod profile;
 pub mod prompt_time;
 pub mod ralph;
 pub mod rate_limits;
 pub mod session_health;
+pub mod session_name;
+pub mod session_stats;
 pub mod skills;
-pub mod effort;
 pub mod thinking;
 pub mod todos;
-pub mod session_name;
 pub mod token_usage;
 pub mod vim_mode;
 pub mod worktree_info;
@@ -105,11 +105,7 @@ pub struct RenderContext<'a> {
 impl<'a> RenderContext<'a> {
     /// Convenience constructor for unit tests — supplies empty/default new fields.
     #[cfg(test)]
-    pub fn for_test(
-        input: &'a Input,
-        cache: &'a HudCache,
-        color_level: ColorLevel,
-    ) -> Self {
+    pub fn for_test(input: &'a Input, cache: &'a HudCache, color_level: ColorLevel) -> Self {
         use crate::i18n;
         Self {
             input,
@@ -127,9 +123,9 @@ impl<'a> RenderContext<'a> {
 
 #[cfg(test)]
 mod test_helpers {
-    use std::sync::OnceLock;
-    use crate::omc_state::OmcState;
     use crate::config::HudConfig;
+    use crate::omc_state::OmcState;
+    use std::sync::OnceLock;
 
     pub fn empty_omc_state() -> &'static OmcState {
         static S: OnceLock<OmcState> = OnceLock::new();
@@ -188,35 +184,35 @@ pub const DEFAULT_ELEMENTS: &[Element] = &[
 /// Returns None if the element has no config gate (always rendered).
 fn element_config_key(element: Element) -> Option<(&'static str, bool)> {
     match element {
-        Element::Hostname         => Some(("hostname",         false)),
-        Element::GitRepo          => Some(("gitRepo",          false)),
-        Element::GitBranch        => Some(("gitBranch",        false)),
-        Element::GitStatus        => Some(("gitStatus",        false)),
-        Element::ModelName        => Some(("model",            false)),
-        Element::ApiKeySource     => Some(("apiKeySource",     false)),
-        Element::Profile          => Some(("profile",          true)),
-        Element::OmcLabel         => Some(("omcLabel",         true)),
-        Element::RateLimits       => Some(("rateLimits",       true)),
-        Element::EnterpriseCost   => Some(("enterpriseCost",   true)),
-        Element::Permissions      => Some(("permissionStatus", false)),
-        Element::Thinking         => Some(("thinking",         true)),
-        Element::PromptTimeElapsed=> Some(("promptTime",       true)),
-        Element::SessionHealth    => Some(("sessionHealth",    true)),
-        Element::TokenUsage       => Some(("showTokens",       false)),
-        Element::Ralph            => Some(("ralph",            true)),
-        Element::AutopilotState   => Some(("autopilot",        true)),
-        Element::Prd              => Some(("prdStory",         true)),
-        Element::Skills           => Some(("activeSkills",     true)),
-        Element::LastSkill        => Some(("lastSkill",        true)),
-        Element::Context          => Some(("contextBar",       true)),
-        Element::Agents           => Some(("agents",           true)),
-        Element::BackgroundTasks  => Some(("backgroundTasks",  true)),
-        Element::CallCounts       => Some(("showCallCounts",   true)),
-        Element::LastTool         => Some(("showLastTool",     false)),
-        Element::MissionBoard     => Some(("missionBoard",     false)),
-        Element::Todos            => Some(("todos",            true)),
-        Element::Cwd              => Some(("cwd",              false)),
-        _                         => None,
+        Element::Hostname => Some(("hostname", false)),
+        Element::GitRepo => Some(("gitRepo", false)),
+        Element::GitBranch => Some(("gitBranch", false)),
+        Element::GitStatus => Some(("gitStatus", false)),
+        Element::ModelName => Some(("model", false)),
+        Element::ApiKeySource => Some(("apiKeySource", false)),
+        Element::Profile => Some(("profile", true)),
+        Element::OmcLabel => Some(("omcLabel", true)),
+        Element::RateLimits => Some(("rateLimits", true)),
+        Element::EnterpriseCost => Some(("enterpriseCost", true)),
+        Element::Permissions => Some(("permissionStatus", false)),
+        Element::Thinking => Some(("thinking", true)),
+        Element::PromptTimeElapsed => Some(("promptTime", true)),
+        Element::SessionHealth => Some(("sessionHealth", true)),
+        Element::TokenUsage => Some(("showTokens", false)),
+        Element::Ralph => Some(("ralph", true)),
+        Element::AutopilotState => Some(("autopilot", true)),
+        Element::Prd => Some(("prdStory", true)),
+        Element::Skills => Some(("activeSkills", true)),
+        Element::LastSkill => Some(("lastSkill", true)),
+        Element::Context => Some(("contextBar", true)),
+        Element::Agents => Some(("agents", true)),
+        Element::BackgroundTasks => Some(("backgroundTasks", true)),
+        Element::CallCounts => Some(("showCallCounts", true)),
+        Element::LastTool => Some(("showLastTool", false)),
+        Element::MissionBoard => Some(("missionBoard", false)),
+        Element::Todos => Some(("todos", true)),
+        Element::Cwd => Some(("cwd", false)),
+        _ => None,
     }
 }
 

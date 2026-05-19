@@ -13,9 +13,10 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
 
     let status = mission.status.as_deref().unwrap_or("?");
 
-    let progress = mission.task_counts.as_ref().map(|tc| {
-        format!("{}/{}", tc.completed, tc.total)
-    });
+    let progress = mission
+        .task_counts
+        .as_ref()
+        .map(|tc| format!("{}/{}", tc.completed, tc.total));
 
     let label = match progress {
         Some(p) => format!("MISSION [{}] {}", status, p),

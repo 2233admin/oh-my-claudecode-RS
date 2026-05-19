@@ -206,8 +206,14 @@ fn parse_anthropic_response(json: &serde_json::Value) -> Option<UsageData> {
 
     if let Some(extra) = json.get("extra_usage") {
         // used_credits / monthly_limit are in cents (minor units) — divide by 100 for USD
-        data.extra_used_usd = extra.get("used_credits").and_then(|v| v.as_f64()).map(|v| v / 100.0);
-        data.extra_limit_usd = extra.get("monthly_limit").and_then(|v| v.as_f64()).map(|v| v / 100.0);
+        data.extra_used_usd = extra
+            .get("used_credits")
+            .and_then(|v| v.as_f64())
+            .map(|v| v / 100.0);
+        data.extra_limit_usd = extra
+            .get("monthly_limit")
+            .and_then(|v| v.as_f64())
+            .map(|v| v / 100.0);
     }
 
     if let Some(enterprise) = json.get("enterprise_billing") {
@@ -225,7 +231,10 @@ fn call_zai() -> Result<UsageData, bool> {
     // SSRF guard: validate z.ai domain
     validate_zai_url(&base).map_err(|_| false)?;
 
-    let url = format!("{}/api/monitor/usage/quota/limit", base.trim_end_matches('/'));
+    let url = format!(
+        "{}/api/monitor/usage/quota/limit",
+        base.trim_end_matches('/')
+    );
 
     let client = reqwest::blocking::Client::builder()
         .timeout(API_TIMEOUT)

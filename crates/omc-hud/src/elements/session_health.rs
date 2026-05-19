@@ -10,8 +10,8 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     let elapsed = now.signed_duration_since(session_start);
     let total_mins = elapsed.num_minutes().max(0) as u64;
 
-    let show_duration  = ctx.config.element_enabled("showSessionDuration",  true);
-    let show_indicator = ctx.config.element_enabled("showHealthIndicator",   true);
+    let show_duration = ctx.config.element_enabled("showSessionDuration", true);
+    let show_indicator = ctx.config.element_enabled("showHealthIndicator", true);
 
     let label = if show_duration {
         format!("session:{}m", total_mins)
