@@ -2,7 +2,9 @@ use crate::elements::RenderContext;
 use crate::terminal::ColorLevel;
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
-    let label = ctx.input.worktree_label()?;
+    // Try --worktree session label first, then workspace.git_worktree
+    let label = ctx.input.worktree_label()
+        .or_else(|| ctx.input.workspace.as_ref()?.git_worktree.as_deref())?;
     let text = format!("wt:{label}");
     if matches!(ctx.color_level, ColorLevel::Mono) {
         Some(text)

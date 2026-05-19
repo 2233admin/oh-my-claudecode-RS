@@ -56,7 +56,7 @@ fn extract(ctx: &RenderContext<'_>) -> Option<TokenData> {
         (0, 0)
     };
 
-    // output + reasoning from transcript, fallback to hooks_state
+    // output + reasoning from transcript, fallback to hooks_state, then context_window
     let (output, reasoning) = ctx
         .transcript
         .map(|t| (t.last_request_output_tokens.unwrap_or(0), 0u64))
@@ -68,7 +68,14 @@ fn extract(ctx: &RenderContext<'_>) -> Option<TokenData> {
                     .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0)
             };
-            (g("output_tokens"), g("reasoning_tokens"))
+            let hooks_output = g("output_tokens");
+            let hooks_reasoning = g("reasoning_tokens");
+            let out = if hooks_output > 0 {
+                hooks_output
+            } else {
+                ctx.input.current_output_tokens()
+            };
+            (out, hooks_reasoning)
         });
 
     if input == 0 && output == 0 {

@@ -24,6 +24,7 @@ pub mod skills;
 pub mod effort;
 pub mod thinking;
 pub mod todos;
+pub mod session_name;
 pub mod token_usage;
 pub mod vim_mode;
 pub mod worktree_info;
@@ -64,6 +65,7 @@ pub enum Element {
     Permissions,
     MissionBoard,
     SessionStats,
+    SessionName,
     Effort,
     VimMode,
     WorktreeInfo,
@@ -128,6 +130,7 @@ static EMPTY_CONFIG: crate::config::HudConfig = crate::config::HudConfig {
 pub const DEFAULT_ELEMENTS: &[Element] = &[
     Element::SessionHealth,
     Element::SessionStats,
+    Element::SessionName,
     Element::Context,
     Element::ContextEta,
     Element::TokenUsage,
@@ -196,6 +199,7 @@ fn render_element_inner(element: Element, ctx: &RenderContext<'_>) -> Option<Str
         Element::Permissions => permissions::render(ctx),
         Element::MissionBoard => mission_board_el::render(ctx),
         Element::SessionStats => session_stats::render(ctx),
+        Element::SessionName => session_name::render(ctx),
         Element::Effort => effort::render(ctx),
         Element::VimMode => vim_mode::render(ctx),
         Element::WorktreeInfo => worktree_info::render(ctx),

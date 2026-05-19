@@ -55,17 +55,22 @@ fn extract_tokens(ctx: &RenderContext<'_>) -> Option<TokenCounts> {
     let cw_cache_create = ctx.input.current_cache_creation_tokens();
     let cw_cache_read = ctx.input.current_cache_read_tokens();
 
-    // output_tokens come from transcript (not in current_usage)
+    // output_tokens come from transcript, fallback to hooks_state, then context_window
     let output = ctx
         .transcript
         .and_then(|t| t.last_request_output_tokens)
         .unwrap_or_else(|| {
-            ctx.input
+            let hooks_output = ctx.input
                 .hooks_state
                 .as_ref()
                 .and_then(|s| s.get("output_tokens"))
                 .and_then(serde_json::Value::as_u64)
-                .unwrap_or(0)
+                .unwrap_or(0);
+            if hooks_output > 0 {
+                hooks_output
+            } else {
+                ctx.input.current_output_tokens()
+            }
         });
 
     // Fall back to hooks_state for input counts if context_window absent

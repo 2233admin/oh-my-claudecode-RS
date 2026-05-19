@@ -47,6 +47,7 @@ pub struct CurrentUsage {
     pub input_tokens: Option<u64>,
     pub cache_creation_input_tokens: Option<u64>,
     pub cache_read_input_tokens: Option<u64>,
+    pub output_tokens: Option<u64>,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -249,6 +250,14 @@ impl Input {
             .as_ref()
             .and_then(|cw| cw.current_usage.as_ref())
             .and_then(|u| u.cache_read_input_tokens)
+            .unwrap_or(0)
+    }
+
+    pub fn current_output_tokens(&self) -> u64 {
+        self.context_window
+            .as_ref()
+            .and_then(|cw| cw.current_usage.as_ref())
+            .and_then(|u| u.output_tokens)
             .unwrap_or(0)
     }
 
