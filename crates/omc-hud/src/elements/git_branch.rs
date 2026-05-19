@@ -1,12 +1,13 @@
-use std::process::Command;
+use std::time::Duration;
+use crate::git_util::git_output_timeout;
 use crate::elements::RenderContext;
 use crate::terminal::ColorLevel;
 
 fn get_branch(cwd: &str) -> Option<String> {
-    let output = Command::new("git")
-        .args(["-C", cwd, "branch", "--show-current"])
-        .output()
-        .ok()?;
+    let output = git_output_timeout(
+        &["-C", cwd, "branch", "--show-current"],
+        Duration::from_millis(2000),
+    )?;
     if !output.status.success() {
         return None;
     }

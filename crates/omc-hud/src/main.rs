@@ -1,6 +1,7 @@
 mod cache;
 mod config;
 mod elements;
+mod git_util;
 mod i18n;
 mod input;
 mod mission_board;

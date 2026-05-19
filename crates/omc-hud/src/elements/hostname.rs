@@ -31,10 +31,13 @@ fn get_hostname() -> Option<String> {
         }
     }
     // Fallback: read /etc/hostname on Unix
-    if let Ok(h) = std::fs::read_to_string("/etc/hostname") {
-        let h = h.trim().to_string();
-        if !h.is_empty() {
-            return Some(h.split('.').next().unwrap_or(&h).to_string());
+    #[cfg(unix)]
+    {
+        if let Ok(h) = std::fs::read_to_string("/etc/hostname") {
+            let h = h.trim().to_string();
+            if !h.is_empty() {
+                return Some(h.split('.').next().unwrap_or(&h).to_string());
+            }
         }
     }
     None

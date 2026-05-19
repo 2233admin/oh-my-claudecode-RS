@@ -341,6 +341,14 @@ struct Credentials {
 }
 
 fn load_credentials() -> Option<String> {
+    // Priority 1: Check ANTHROPIC_API_KEY env var
+    if let Ok(token) = std::env::var("ANTHROPIC_API_KEY") {
+        if !token.is_empty() {
+            return Some(token);
+        }
+    }
+
+    // Priority 2: Try reading ~/.claude/.credentials.json
     let home = dirs::home_dir()?;
     let creds_path = home.join(".claude").join(".credentials.json");
     let raw = std::fs::read_to_string(&creds_path).ok()?;
@@ -356,11 +364,46 @@ fn load_credentials() -> Option<String> {
     // Check expiry
     if let Some(expires_at) = effective.expires_at {
         if expires_at < now_ms() {
+            // File exists but expired, try macOS Keychain before returning None
+            #[cfg(target_os = "macos")]
+            return read_macos_keychain();
+            #[cfg(not(target_os = "macos"))]
             return None;
         }
     }
 
-    effective.access_token.clone()
+    // Return token if valid
+    if let Some(token) = effective.access_token.clone() {
+        return Some(token);
+    }
+
+    // Priority 3: Try macOS Keychain
+    #[cfg(target_os = "macos")]
+    {
+        read_macos_keychain()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
+/// Read OAuth token from macOS Keychain (Claude Code stores tokens under specific service names)
+#[cfg(target_os = "macos")]
+fn read_macos_keychain() -> Option<String> {
+    for service in &["claude.ai", "Claude"] {
+        let output = std::process::Command::new("security")
+            .args(["find-generic-password", "-s", service, "-w"])
+            .output()
+            .ok()?;
+        if output.status.success() {
+            let token = String::from_utf8(output.stdout).ok()?.trim().to_string();
+            if !token.is_empty() {
+                return Some(token);
+            }
+        }
+    }
+    None
 }
 
 fn cache_path(source: &str) -> std::path::PathBuf {

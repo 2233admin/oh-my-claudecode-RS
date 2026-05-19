@@ -1,4 +1,5 @@
-use std::process::Command;
+use std::time::Duration;
+use crate::git_util::git_output_timeout;
 
 use crate::elements::RenderContext;
 use crate::terminal::ColorLevel;
@@ -17,10 +18,10 @@ struct GitData {
 }
 
 fn get_branch(cwd: &str) -> Option<String> {
-    let output = Command::new("git")
-        .args(["-C", cwd, "rev-parse", "--abbrev-ref", "HEAD"])
-        .output()
-        .ok()?;
+    let output = git_output_timeout(
+        &["-C", cwd, "rev-parse", "--abbrev-ref", "HEAD"],
+        Duration::from_millis(2000),
+    )?;
     if !output.status.success() {
         return None;
     }
@@ -32,10 +33,10 @@ fn get_branch(cwd: &str) -> Option<String> {
 /// Parse `git --no-optional-locks status --porcelain -b` for all status counts.
 /// Returns (staged, modified, untracked, ahead, behind).
 fn get_status_counts(cwd: &str) -> Option<(u32, u32, u32, u32, u32)> {
-    let output = Command::new("git")
-        .args(["-C", cwd, "--no-optional-locks", "status", "--porcelain", "-b"])
-        .output()
-        .ok()?;
+    let output = git_output_timeout(
+        &["-C", cwd, "--no-optional-locks", "status", "--porcelain", "-b"],
+        Duration::from_millis(2000),
+    )?;
     if !output.status.success() {
         return Some((0, 0, 0, 0, 0));
     }
