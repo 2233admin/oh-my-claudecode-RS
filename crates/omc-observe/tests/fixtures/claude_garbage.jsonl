@@ -1,0 +1,4 @@
+this is not json at all
+{"type":"assistant","sessionId":"sess-garbage","timestamp":"2026-05-25T10:00:00.000Z","message":{"model":"claude-opus-4-7","usage":{"input_tokens":1,"output_tokens":2,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}
+{"type":"assistant","message":{"usage":{"input_tokens":"NaN"}}}
+{"truncated_line":
