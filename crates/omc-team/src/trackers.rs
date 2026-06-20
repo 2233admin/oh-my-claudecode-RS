@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::env;
+use std::fmt::Write as FmtWrite;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -228,7 +229,7 @@ pub fn find_run_record_by_run_id(
 
 fn load_tracker_run_records(root: &Path) -> Result<Vec<RunRecord>, String> {
     let dir = root.join(".omc/team/runs");
-    let mut records = Vec::new();
+    let mut records = Vec::default();
     if !dir.exists() {
         return Ok(records);
     }
@@ -458,6 +459,7 @@ fn github_api(root: &Path, repo: Option<&str>) -> Result<GitHubApi, String> {
 }
 
 fn github_token() -> Result<String, String> {
+    // skipcq: RS-W1015
     if let Ok(token) = env::var("GITHUB_TOKEN")
         && !token.trim().is_empty()
     {
@@ -484,6 +486,7 @@ pub(crate) fn detect_github_repo(root: &Path, explicit: Option<&str>) -> Result<
     if let Some(repo) = explicit {
         return validate_repo(repo);
     }
+    // skipcq: RS-W1015
     if let Ok(repo) = env::var("GITHUB_REPOSITORY")
         && !repo.trim().is_empty()
     {
@@ -672,8 +675,7 @@ fn write_temp_json_body(body: &Value) -> Result<PathBuf, String> {
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|duration| duration.as_nanos())
-            .unwrap_or(0)
+            .map_or(0, |duration| duration.as_nanos())
     ));
     fs::write(
         &path,
@@ -738,7 +740,7 @@ fn github_value_to_issue(repo: &str, value: &Value) -> Result<ExternalIssue, Str
         labels,
         number: Some(number),
         team_name: None,
-        comments: Vec::new(),
+        comments: Vec::default(),
     })
 }
 
@@ -776,10 +778,10 @@ fn github_issue_to_card(repo: &str, issue: &ExternalIssue) -> TaskCard {
 
 fn github_ready_with_api(api: &GitHubApi, limit: usize) -> Result<Vec<ReadyIssue>, String> {
     if limit == 0 {
-        return Ok(Vec::new());
+        return Ok(Vec::default());
     }
     let now = unix_timestamp();
-    let mut ready = Vec::new();
+    let mut ready = Vec::default();
     let mut page = 1;
     while ready.len() < limit {
         let value = github_request(
@@ -831,7 +833,7 @@ fn github_ready_with_api(api: &GitHubApi, limit: usize) -> Result<Vec<ReadyIssue
 }
 
 fn github_issue_comments(api: &GitHubApi, number: u64) -> Result<Vec<TrackerComment>, String> {
-    let mut comments = Vec::new();
+    let mut comments = Vec::default();
     let mut page = 1;
     loop {
         let value = github_request(
@@ -851,10 +853,7 @@ fn github_issue_comments(api: &GitHubApi, number: u64) -> Result<Vec<TrackerComm
         }
         comments.extend(items.iter().map(|item| {
             TrackerComment {
-                id: item
-                    .get("id")
-                    .map(value_id)
-                    .unwrap_or_else(|| "".to_string()),
+                id: item.get("id").map_or_else(|| "".to_string(), value_id),
                 body: item
                     .get("body")
                     .and_then(Value::as_str)
@@ -991,7 +990,7 @@ fn github_post_handoff(
 }
 
 fn github_label_set(api: &GitHubApi) -> Result<HashSet<String>, String> {
-    let mut labels = HashSet::new();
+    let mut labels = HashSet::default();
     let mut page = 1;
     loop {
         let value = github_request(
@@ -1080,6 +1079,7 @@ fn github_required_labels() -> &'static [&'static str] {
 }
 
 fn linear_api() -> Result<LinearApi, String> {
+    // skipcq: RS-W1015
     if let Ok(token) = env::var("LINEAR_API_KEY")
         && !token.trim().is_empty()
     {
@@ -1131,13 +1131,13 @@ fn linear_graphql(api: &LinearApi, query: &str, variables: Value) -> Result<Valu
 fn linear_find_team(api: &LinearApi, team: &str) -> Result<Value, String> {
     let data = linear_graphql(
         api,
-        r#"
+        r"
         query Teams {
           teams {
             nodes { id name key }
           }
         }
-        "#,
+        ",
         json!({}),
     )?;
     data["teams"]["nodes"]
@@ -1156,19 +1156,18 @@ fn linear_find_team(api: &LinearApi, team: &str) -> Result<Value, String> {
 fn linear_team_states(api: &LinearApi, team_id: &str) -> Result<HashSet<String>, String> {
     let data = linear_graphql(
         api,
-        r#"
+        r"
         query TeamStates($id: String!) {
           team(id: $id) {
             states { nodes { id name type } }
           }
         }
-        "#,
+        ",
         json!({ "id": team_id }),
     )?;
     Ok(data["team"]["states"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .filter_map(|item| item.get("name").and_then(Value::as_str))
         .map(ToString::to_string)
@@ -1178,19 +1177,18 @@ fn linear_team_states(api: &LinearApi, team_id: &str) -> Result<HashSet<String>,
 fn linear_team_labels(api: &LinearApi, team_id: &str) -> Result<HashSet<String>, String> {
     let data = linear_graphql(
         api,
-        r#"
+        r"
         query TeamLabels($id: String!) {
           team(id: $id) {
             labels { nodes { id name } }
           }
         }
-        "#,
+        ",
         json!({ "id": team_id }),
     )?;
     Ok(data["team"]["labels"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .filter_map(|item| item.get("name").and_then(Value::as_str))
         .map(ToString::to_string)
@@ -1215,7 +1213,7 @@ fn linear_create_label(api: &LinearApi, team_id: &str, label: &str) -> Result<()
 fn linear_find_issue(api: &LinearApi, issue_ref: &str) -> Result<ExternalIssue, String> {
     let data = linear_graphql(
         api,
-        r#"
+        r"
         query Issue($id: String!) {
           issue(id: $id) {
             id identifier title description
@@ -1225,7 +1223,7 @@ fn linear_find_issue(api: &LinearApi, issue_ref: &str) -> Result<ExternalIssue, 
             comments(first: 100) { nodes { id body createdAt } }
           }
         }
-        "#,
+        ",
         json!({ "id": issue_ref }),
     )?;
     if !data["issue"].is_null() {
@@ -1246,7 +1244,7 @@ fn linear_find_issue_by_identifier(
     loop {
         let data = linear_graphql(
             api,
-            r#"
+            r"
             query Issues($teamKey: String!, $after: String) {
               issues(filter: { team: { key: { eq: $teamKey } } }, first: 100, after: $after) {
                 pageInfo { hasNextPage endCursor }
@@ -1259,7 +1257,7 @@ fn linear_find_issue_by_identifier(
                 }
               }
             }
-            "#,
+            ",
             json!({ "teamKey": team_key, "after": after }),
         )?;
         let nodes = data["issues"]["nodes"]
@@ -1277,7 +1275,7 @@ fn linear_find_issue_by_identifier(
         {
             break;
         }
-        after = data["issues"]["pageInfo"]["endCursor"].clone();
+        after.clone_from(&data["issues"]["pageInfo"]["endCursor"]);
     }
     Err(format!("Linear issue not found: {issue_ref}"))
 }
@@ -1288,11 +1286,11 @@ fn linear_team_issues(
     wanted: usize,
 ) -> Result<Vec<ExternalIssue>, String> {
     let mut after = Value::Null;
-    let mut out = Vec::new();
+    let mut out = Vec::default();
     loop {
         let data = linear_graphql(
             api,
-            r#"
+            r"
             query TeamIssues($teamId: String!, $after: String) {
               issues(filter: { team: { id: { eq: $teamId } } }, first: 100, after: $after) {
                 pageInfo { hasNextPage endCursor }
@@ -1305,7 +1303,7 @@ fn linear_team_issues(
                 }
               }
             }
-            "#,
+            ",
             json!({ "teamId": team_id, "after": after }),
         )?;
         for node in data["issues"]["nodes"]
@@ -1324,7 +1322,7 @@ fn linear_team_issues(
         {
             break;
         }
-        after = data["issues"]["pageInfo"]["endCursor"].clone();
+        after.clone_from(&data["issues"]["pageInfo"]["endCursor"]);
     }
     Ok(out)
 }
@@ -1332,16 +1330,14 @@ fn linear_team_issues(
 fn linear_value_to_issue(value: &Value) -> Result<ExternalIssue, String> {
     let labels = value["labels"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .filter_map(|label| label.get("name").and_then(Value::as_str))
         .map(ToString::to_string)
         .collect::<Vec<_>>();
     let comments = value["comments"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .map(|item| TrackerComment {
             id: item
@@ -1437,13 +1433,13 @@ fn linear_claim_issue(issue_id: &str, run_id: &str) -> Result<String, String> {
     let body = lease_comment(run_id);
     let created = linear_graphql(
         &api,
-        r#"
+        r"
         mutation CommentCreate($issueId: String!, $body: String!) {
           commentCreate(input: { issueId: $issueId, body: $body }) {
             comment { id body createdAt }
           }
         }
-        "#,
+        ",
         json!({ "issueId": issue_id, "body": body }),
     )?;
     let created_id = created["commentCreate"]["comment"]["id"]
@@ -1471,13 +1467,13 @@ fn linear_mark_started(record: &RunRecord) -> Result<Option<String>, String> {
     );
     let created = linear_graphql(
         &api,
-        r#"
+        r"
         mutation CommentCreate($issueId: String!, $body: String!) {
           commentCreate(input: { issueId: $issueId, body: $body }) {
             comment { id }
           }
         }
-        "#,
+        ",
         json!({ "issueId": record.issue_id, "body": body }),
     )?;
     let comment_id = created["commentCreate"]["comment"]["id"]
@@ -1502,13 +1498,13 @@ fn linear_post_handoff(
     let comment_id = if let Some(id) = &record.handoff_comment_id {
         let updated = linear_graphql(
             &api,
-            r#"
+            r"
             mutation CommentUpdate($id: String!, $body: String!) {
               commentUpdate(id: $id, input: { body: $body }) {
                 comment { id }
               }
             }
-            "#,
+            ",
             json!({ "id": id, "body": body }),
         )?;
         updated["commentUpdate"]["comment"]["id"]
@@ -1517,13 +1513,13 @@ fn linear_post_handoff(
     } else {
         let created = linear_graphql(
             &api,
-            r#"
+            r"
             mutation CommentCreate($issueId: String!, $body: String!) {
               commentCreate(input: { issueId: $issueId, body: $body }) {
                 comment { id }
               }
             }
-            "#,
+            ",
             json!({ "issueId": record.issue_id, "body": body }),
         )?;
         created["commentCreate"]["comment"]["id"]
@@ -1546,11 +1542,11 @@ fn linear_update_state_by_name(
     let issue = linear_find_issue(api, issue_id)?;
     let data = linear_graphql(
         api,
-        r#"
+        r"
         query IssueTeam($id: String!) {
           issue(id: $id) { team { id } }
         }
-        "#,
+        ",
         json!({ "id": issue.id }),
     )?;
     let Some(team_id) = data["issue"]["team"]["id"].as_str() else {
@@ -1558,19 +1554,18 @@ fn linear_update_state_by_name(
     };
     let states_data = linear_graphql(
         api,
-        r#"
+        r"
         query TeamStates($id: String!) {
           team(id: $id) {
             states { nodes { id name } }
           }
         }
-        "#,
+        ",
         json!({ "id": team_id }),
     )?;
     let Some(state_id) = states_data["team"]["states"]["nodes"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .find(|state| state.get("name").and_then(Value::as_str) == Some(state_name))
         .and_then(|state| state.get("id").and_then(Value::as_str))
@@ -1579,13 +1574,13 @@ fn linear_update_state_by_name(
     };
     linear_graphql(
         api,
-        r#"
+        r"
         mutation IssueUpdate($id: String!, $stateId: String!) {
           issueUpdate(id: $id, input: { stateId: $stateId }) {
             issue { id }
           }
         }
-        "#,
+        ",
         json!({ "id": issue.id, "stateId": state_id }),
     )?;
     Ok(())
@@ -1659,7 +1654,7 @@ fn section_or_default(body: &str, heading: &str, default: &str) -> Vec<String> {
 
 fn parse_markdown_section(body: &str, heading: &str) -> Option<Vec<String>> {
     let mut in_section = false;
-    let mut lines = Vec::new();
+    let mut lines = Vec::default();
     for line in body.lines() {
         let trimmed = line.trim();
         let normalized = trimmed.trim_start_matches('#').trim();
@@ -1688,12 +1683,12 @@ fn value_id(value: &Value) -> String {
 }
 
 fn percent_encode(raw: &str) -> String {
-    let mut out = String::new();
+    let mut out = String::default();
     for byte in raw.bytes() {
         if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
             out.push(byte as char);
         } else {
-            out.push_str(&format!("%{byte:02X}"));
+            write!(out, "%{byte:02X}").unwrap();
         }
     }
     out

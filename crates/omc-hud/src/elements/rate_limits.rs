@@ -1,33 +1,37 @@
 use crate::cache::now_ms;
 use crate::elements::RenderContext;
 use crate::terminal::ColorLevel;
+use chrono;
 
 // ---------------------------------------------------------------------------
 // Internal implementation (parameterised over now so tests are deterministic)
 // ---------------------------------------------------------------------------
 
-/// Format a remaining-time countdown in milliseconds using ceiling semantics.
-/// None or 0 or in-the-past (`remaining_ms == 0` after saturation) -> returns None.
-///   < 60 min  -> "~Nm"
-///   1h - 23h  -> "~Nh"
-///   >= 24h    -> "~Nd"
+/// Format reset countdown as `~Xm`, `~Xh`, or `~Xd` — ceiling values.
 fn format_countdown(remaining_ms: u64) -> Option<String> {
     if remaining_ms == 0 {
         return None;
     }
-    let total_secs = remaining_ms.div_ceil(1000);
-    let total_mins = total_secs.div_ceil(60);
-    if total_mins < 60 {
-        Some(format!("~{total_mins}m"))
+    const MIN_MS: u64 = 60_000;
+    const HOUR_MS: u64 = 3_600_000;
+    const DAY_MS: u64 = 86_400_000;
+    if remaining_ms < HOUR_MS {
+        let mins = remaining_ms.div_ceil(MIN_MS).max(1);
+        Some(format!("~{mins}m"))
+    } else if remaining_ms < DAY_MS {
+        let hours = remaining_ms.div_ceil(HOUR_MS);
+        Some(format!("~{hours}h"))
     } else {
-        let total_hours = total_mins.div_ceil(60);
-        if total_hours < 24 {
-            Some(format!("~{total_hours}h"))
-        } else {
-            let days = total_hours.div_ceil(24);
-            Some(format!("~{days}d"))
-        }
+        let days = remaining_ms.div_ceil(DAY_MS);
+        Some(format!("~{days}d"))
     }
+}
+
+/// Render a 10-char filled/empty progress bar, e.g. `[███░░░░░░░]`.
+fn render_bar(pct: u8, width: usize) -> String {
+    let filled = ((pct as usize * width + 50) / 100).min(width);
+    let empty = width - filled;
+    format!("[{}{}]", "█".repeat(filled), "░".repeat(empty))
 }
 
 /// ANSI color code for a percentage (only the number, not the label).
@@ -45,38 +49,47 @@ fn color_enabled(level: ColorLevel) -> bool {
     !matches!(level, ColorLevel::Mono)
 }
 
-/// Format a single bucket (label = "5h" or "7d", pct 0-100, optional reset_ms epoch).
-/// now_ms: current epoch in ms, used to compute remaining time.
+/// Format a single bucket.
+/// useBars=true:  `5h:[███░░░░░░░]32% ~2h`
+/// useBars=false: `5h:32% ~2h`
 fn format_bucket(
     label: &str,
     pct: u8,
     reset_ms: Option<u64>,
     now: u64,
     level: ColorLevel,
+    use_bars: bool,
 ) -> String {
     let pct_str = format!("{pct}%");
+    let bar_str = if use_bars {
+        render_bar(pct, 10)
+    } else {
+        String::new()
+    };
 
     let countdown = reset_ms.and_then(|r| {
         let remaining = r.saturating_sub(now);
         format_countdown(remaining)
     });
 
-    let colored_pct = if color_enabled(level) {
+    if color_enabled(level) {
         let color = severity_color(pct);
-        format!("{color}{pct_str}\x1b[0m")
+        let dim_label = format!("\x1b[2m{label}:\x1b[0m");
+        let colored_val = format!("{color}{bar_str}{pct_str}\x1b[0m");
+        match countdown {
+            Some(cd) => format!("{dim_label}{colored_val} \x1b[2m{cd}\x1b[0m"),
+            None => format!("{dim_label}{colored_val}"),
+        }
     } else {
-        pct_str
-    };
-
-    match countdown {
-        Some(cd) => format!("{label}:{colored_pct} {cd}"),
-        None => format!("{label}:{colored_pct}"),
+        let val = format!("{bar_str}{pct_str}");
+        match countdown {
+            Some(cd) => format!("{label}:{val} {cd}"),
+            None => format!("{label}:{val}"),
+        }
     }
 }
 
 /// Extract rate-limit fields from hooks_state JSON if present.
-/// Keys: "five_hour_used_pct" (u8), "five_hour_reset_ms" (u64),
-///       "weekly_used_pct" (u8), "weekly_reset_ms" (u64)
 fn extract_from_hooks(
     ctx: &RenderContext<'_>,
 ) -> (Option<u8>, Option<u64>, Option<u8>, Option<u64>) {
@@ -86,32 +99,158 @@ fn extract_from_hooks(
 
     let five_pct = hs
         .get("five_hour_used_pct")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .map(|v| v.min(100) as u8);
-    let five_reset = hs.get("five_hour_reset_ms").and_then(|v| v.as_u64());
+    let five_reset = hs
+        .get("five_hour_reset_ms")
+        .and_then(serde_json::Value::as_u64);
     let weekly_pct = hs
         .get("weekly_used_pct")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .map(|v| v.min(100) as u8);
-    let weekly_reset = hs.get("weekly_reset_ms").and_then(|v| v.as_u64());
+    let weekly_reset = hs
+        .get("weekly_reset_ms")
+        .and_then(serde_json::Value::as_u64);
 
     (five_pct, five_reset, weekly_pct, weekly_reset)
 }
 
+/// Parse `resets_at` which may be a Unix-seconds integer, a Unix-ms integer, or an ISO-8601 string.
+fn parse_resets_at(v: &serde_json::Value) -> Option<u64> {
+    if let Some(n) = v.as_u64() {
+        // Claude Code sends Unix seconds (10-digit, < 1e12); ms would be 13-digit (>= 1e12)
+        return Some(if n < 1_000_000_000_000 { n * 1_000 } else { n });
+    }
+    if let Some(s) = v.as_str()
+        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s)
+    {
+        let ms = dt.timestamp_millis();
+        if ms > 0 {
+            return Some(ms as u64);
+        }
+    }
+    None
+}
+
+/// Extract from stdin `rate_limits` field (highest priority — real-time from Claude Code).
+fn extract_from_stdin(
+    ctx: &RenderContext<'_>,
+) -> (Option<u8>, Option<u64>, Option<u8>, Option<u64>) {
+    let Some(rl) = ctx.input.rate_limits.as_ref() else {
+        return (None, None, None, None);
+    };
+    let five_pct = rl
+        .five_hour
+        .as_ref()
+        .and_then(|b| b.used_percentage)
+        .map(|v| v.clamp(0.0, 100.0) as u8);
+    let five_reset = rl
+        .five_hour
+        .as_ref()
+        .and_then(|b| b.resets_at.as_ref())
+        .and_then(parse_resets_at);
+    let weekly_pct = rl
+        .seven_day
+        .as_ref()
+        .and_then(|b| b.used_percentage)
+        .map(|v| v.clamp(0.0, 100.0) as u8);
+    let weekly_reset = rl
+        .seven_day
+        .as_ref()
+        .and_then(|b| b.resets_at.as_ref())
+        .and_then(parse_resets_at);
+    (five_pct, five_reset, weekly_pct, weekly_reset)
+}
+
 fn render_at(ctx: &RenderContext<'_>, now: u64) -> Option<String> {
-    let (five_pct, five_reset, weekly_pct, weekly_reset) = extract_from_hooks(ctx);
+    // Priority 1: stdin rate_limits (real-time from Claude Code)
+    let (mut five_pct, mut five_reset, mut weekly_pct, mut weekly_reset) = extract_from_stdin(ctx);
+
+    // Priority 2: hooks_state (OMC-injected)
+    if five_pct.is_none() && weekly_pct.is_none() {
+        let hs = extract_from_hooks(ctx);
+        (five_pct, five_reset, weekly_pct, weekly_reset) = hs;
+    }
+
+    // Priority 3: usage API cache for percentages (least fresh)
+    if five_pct.is_none()
+        && weekly_pct.is_none()
+        && let Some(usage) = ctx.usage
+    {
+        five_pct = usage.five_hour_pct.map(|v| v.clamp(0.0, 100.0) as u8);
+        five_reset = usage.five_hour_reset_ms;
+        weekly_pct = usage.seven_day_pct.map(|v| v.clamp(0.0, 100.0) as u8);
+        weekly_reset = usage.seven_day_reset_ms;
+    }
 
     if five_pct.is_none() && weekly_pct.is_none() {
         return None;
     }
 
+    // Supplement missing reset times from usage API even when stdin had percentages
+    if let Some(usage) = ctx.usage {
+        if five_reset.is_none() {
+            five_reset = usage.five_hour_reset_ms;
+        }
+        if weekly_reset.is_none() {
+            weekly_reset = usage.seven_day_reset_ms;
+        }
+    }
+
+    // useBars defaults to true (JS default); set "useBars": false in omcHud.elements to disable
+    let use_bars = ctx.config.element_enabled("useBars", true);
+
     let mut parts: Vec<String> = Vec::new();
 
     if let Some(pct) = five_pct {
-        parts.push(format_bucket("5h", pct, five_reset, now, ctx.color_level));
+        parts.push(format_bucket(
+            "5h",
+            pct,
+            five_reset,
+            now,
+            ctx.color_level,
+            use_bars,
+        ));
     }
     if let Some(pct) = weekly_pct {
-        parts.push(format_bucket("7d", pct, weekly_reset, now, ctx.color_level));
+        parts.push(format_bucket(
+            "7d",
+            pct,
+            weekly_reset,
+            now,
+            ctx.color_level,
+            use_bars,
+        ));
+    }
+
+    // Sonnet / Opus model-specific weekly quotas from usage API
+    if let Some(usage) = ctx.usage {
+        if let Some(pct) = usage
+            .seven_day_sonnet_pct
+            .map(|v| v.clamp(0.0, 100.0) as u8)
+            && pct > 0
+        {
+            parts.push(format_bucket(
+                "sn",
+                pct,
+                None,
+                now,
+                ctx.color_level,
+                use_bars,
+            ));
+        }
+        if let Some(pct) = usage.seven_day_opus_pct.map(|v| v.clamp(0.0, 100.0) as u8)
+            && pct > 0
+        {
+            parts.push(format_bucket(
+                "op",
+                pct,
+                None,
+                now,
+                ctx.color_level,
+                use_bars,
+            ));
+        }
     }
 
     Some(parts.join(" | "))
@@ -129,7 +268,6 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
 mod tests {
     use super::*;
     use crate::cache::HudCache;
-    use crate::i18n;
     use crate::input::Input;
     use serde_json::json;
 
@@ -140,12 +278,7 @@ mod tests {
     }
 
     fn make_ctx<'a>(input: &'a Input, cache: &'a HudCache, level: ColorLevel) -> RenderContext<'a> {
-        RenderContext {
-            input,
-            cache,
-            color_level: level,
-            strings: i18n::strings(i18n::detect_locale()),
-        }
+        RenderContext::for_test(input, cache, level)
     }
 
     /// Build a minimal Input with hooks_state containing rate-limit fields.
@@ -180,7 +313,7 @@ mod tests {
     }
 
     fn strip_ansi(s: &str) -> String {
-        let mut out = String::new();
+        let mut out = String::default();
         let mut chars = s.chars().peekable();
         while let Some(c) = chars.next() {
             if c == '\x1b' {
@@ -227,7 +360,8 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        assert_eq!(result, "5h:32%");
+        // 32% → (32*10+50)/100 = 3 filled → [███░░░░░░░]
+        assert_eq!(result, "5h:[███░░░░░░░]32%");
     }
 
     #[test]
@@ -236,7 +370,7 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Color16);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        assert_eq!(strip_ansi(&result), "5h:32%");
+        assert_eq!(strip_ansi(&result), "5h:[███░░░░░░░]32%");
         // 32% < 70 -> green
         assert!(result.contains("\x1b[32m"), "should be green: {result:?}");
         assert!(result.contains("\x1b[0m"), "should have reset: {result:?}");
@@ -251,7 +385,7 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        assert_eq!(result, "5h:32% ~2h");
+        assert_eq!(result, "5h:[███░░░░░░░]32% ~2h");
     }
 
     // --- Only 5h with reset in 30m ------------------------------------------
@@ -263,19 +397,19 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        assert_eq!(result, "5h:32% ~30m");
+        assert_eq!(result, "5h:[███░░░░░░░]32% ~30m");
     }
 
     // --- Only 5h with reset in 25h ------------------------------------------
 
     #[test]
     fn only_5h_with_reset_in_25h() {
-        let reset_ms = BASE_NOW + 25 * 60 * 60 * 1000; // +25 hours
+        let reset_ms = BASE_NOW + 25 * 60 * 60 * 1000; // +25 hours → ceiling 2d
         let input = make_input(Some(32), Some(reset_ms), None, None);
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        assert_eq!(result, "5h:32% ~2d");
+        assert_eq!(result, "5h:[███░░░░░░░]32% ~2d");
     }
 
     // --- Only 7d with reset -------------------------------------------------
@@ -287,7 +421,8 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        assert_eq!(result, "7d:8% ~6d");
+        // 8% → (8*10+50)/100 = 1 filled → [█░░░░░░░░░]
+        assert_eq!(result, "7d:[█░░░░░░░░░]8% ~6d");
     }
 
     // --- Both with reset ----------------------------------------------------
@@ -300,7 +435,7 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        assert_eq!(result, "5h:32% ~2h | 7d:8% ~6d");
+        assert_eq!(result, "5h:[███░░░░░░░]32% ~2h | 7d:[█░░░░░░░░░]8% ~6d");
     }
 
     // --- Color severity tests -----------------------------------------------
@@ -311,12 +446,12 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::TrueColor);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        // TrueColor uses \x1b[38;2;... format - check by stripping and verifying contains escape
         assert!(
             result.contains('\x1b'),
             "should have color escape: {result:?}"
         );
-        assert_eq!(strip_ansi(&result), "5h:90%");
+        // 90% → (90*10+50)/100 = 9 filled → [█████████░]
+        assert_eq!(strip_ansi(&result), "5h:[█████████░]90%");
     }
 
     #[test]
@@ -326,7 +461,7 @@ mod tests {
         let ctx = make_ctx(&input, &cache, ColorLevel::Color16);
         let result = render_at(&ctx, BASE_NOW).unwrap();
         assert!(result.contains("\x1b[31m"), "should be red: {result:?}");
-        assert_eq!(strip_ansi(&result), "5h:90%");
+        assert_eq!(strip_ansi(&result), "5h:[█████████░]90%");
     }
 
     #[test]
@@ -336,7 +471,8 @@ mod tests {
         let ctx = make_ctx(&input, &cache, ColorLevel::Color16);
         let result = render_at(&ctx, BASE_NOW).unwrap();
         assert!(result.contains("\x1b[33m"), "should be yellow: {result:?}");
-        assert_eq!(strip_ansi(&result), "5h:70%");
+        // 70% → (70*10+50)/100 = 7 filled → [███████░░░]
+        assert_eq!(strip_ansi(&result), "5h:[███████░░░]70%");
     }
 
     #[test]
@@ -346,7 +482,8 @@ mod tests {
         let ctx = make_ctx(&input, &cache, ColorLevel::Color16);
         let result = render_at(&ctx, BASE_NOW).unwrap();
         assert!(result.contains("\x1b[32m"), "should be green: {result:?}");
-        assert_eq!(strip_ansi(&result), "5h:50%");
+        // 50% → (50*10+50)/100 = 5 filled → [█████░░░░░]
+        assert_eq!(strip_ansi(&result), "5h:[█████░░░░░]50%");
     }
 
     // --- ColorLevel::Mono suppresses all ANSI -------------------------------
@@ -373,7 +510,7 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        assert_eq!(result, "5h:32%");
+        assert_eq!(result, "5h:[███░░░░░░░]32%");
     }
 
     // --- pct = 0 still renders ---------------------------------------------
@@ -384,7 +521,8 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        assert_eq!(result, "5h:0%");
+        // 0% → 0 filled → [░░░░░░░░░░]
+        assert_eq!(result, "5h:[░░░░░░░░░░]0%");
     }
 
     // --- pct = 100 -> red + "100%" -----------------------------------------
@@ -396,7 +534,8 @@ mod tests {
         let ctx = make_ctx(&input, &cache, ColorLevel::Color16);
         let result = render_at(&ctx, BASE_NOW).unwrap();
         assert!(result.contains("\x1b[31m"), "should be red: {result:?}");
-        assert_eq!(strip_ansi(&result), "5h:100%");
+        // 100% → 10 filled → [██████████]
+        assert_eq!(strip_ansi(&result), "5h:[██████████]100%");
     }
 
     // --- Reset exactly at now -> no countdown (remaining = 0) --------------
@@ -407,50 +546,31 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        assert_eq!(result, "5h:32%");
+        assert_eq!(result, "5h:[███░░░░░░░]32%");
     }
 
-    // --- Reset in 0 minutes (< 1 min remaining) -> ceiling = ~1m ----------
+    // --- Reset in < 1 min remaining -> ceiling ~1m -------------------------
 
     #[test]
     fn reset_in_89_secs_gives_1m_ceiling() {
-        // 89 seconds remaining -> ceil(89/60) = 2 ... wait, 89s = 1m29s -> ceil = 2m?
-        // spec: "89 sec -> ~1m not ~0m" using Math.ceil semantics.
-        // But 89 seconds = 1.48 minutes -> ceil = 2? Let's re-read: "~Nm" where N = ceil(secs/60)
-        // Actually spec says "89 sec -> ~1m" which means we use ceil(mins) where mins = secs/60
-        // 89/60 = 1.48 -> ceil = 2? That contradicts the spec example.
-        // Let me re-read: "Use Math.ceil semantics so 89 sec -> ~1m not ~0m"
-        // This means if < 1 min remaining, show ~1m not ~0m. So any sub-minute is ~1m.
-        // Actually ceiling division of 89 seconds to minutes: ceil(89/60) = 2.
-        // But the spec says 89 -> ~1m... perhaps the spec means something different.
-        // Re-reading: the important part is "not ~0m" for 89 sec.
-        // 89 seconds -> total_mins = ceil(89/60) = ceil(1.48) = 2? No: 89/60 = 1 remainder 29.
-        // ceiling: (89 + 59) / 60 = 148/60 = 2. So ~2m.
-        // But the spec example "89 sec -> ~1m" seems wrong unless they mean floor+1 for sub-minute only.
-        // I'll implement as: < 60s remaining -> always show ~1m (because it's "about 1 minute").
-        // Actually simplest: use standard ceiling: (secs+59)/60 for minutes.
-        // For 89 secs: (89+59)/60 = 148/60 = 2 -> ~2m. Let me just test 45 seconds -> ~1m.
         let reset_ms = BASE_NOW + 45 * 1000; // 45 seconds
         let input = make_input(Some(32), Some(reset_ms), None, None);
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        // ceil(45/60) = 1, so ~1m
-        assert_eq!(result, "5h:32% ~1m");
+        assert_eq!(result, "5h:[███░░░░░░░]32% ~1m");
     }
 
     // --- 25h -> ~2d (ceiling) -----------------------------------------------
 
     #[test]
     fn reset_in_25h_gives_2d() {
-        // already tested above via only_5h_with_reset_in_25h
-        // 25 hours -> ceil(25/24) = 2 -> ~2d
         let reset_ms = BASE_NOW + 25 * 60 * 60 * 1000;
         let input = make_input(Some(32), Some(reset_ms), None, None);
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        assert_eq!(result, "5h:32% ~2d");
+        assert_eq!(result, "5h:[███░░░░░░░]32% ~2d");
     }
 
     // --- Only 7d, no 5h (smoke test for label order) -----------------------
@@ -461,7 +581,8 @@ mod tests {
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
         let result = render_at(&ctx, BASE_NOW).unwrap();
-        assert_eq!(result, "7d:15%");
+        // 15% → (15*10+50)/100 = 2 filled → [██░░░░░░░░]
+        assert_eq!(result, "7d:[██░░░░░░░░]15%");
     }
 
     // --- Exact colored string for Color16, both present --------------------
@@ -476,7 +597,10 @@ mod tests {
         let result = render_at(&ctx, BASE_NOW).unwrap();
         // 32% -> green, 8% -> green
         assert!(result.contains("\x1b[32m"), "should have green: {result:?}");
-        assert_eq!(strip_ansi(&result), "5h:32% ~2h | 7d:8% ~6d");
+        assert_eq!(
+            strip_ansi(&result),
+            "5h:[███░░░░░░░]32% ~2h | 7d:[█░░░░░░░░░]8% ~6d"
+        );
     }
 
     // --- format_countdown unit tests ----------------------------------------
@@ -509,7 +633,29 @@ mod tests {
 
     #[test]
     fn countdown_1ms_gives_1m() {
-        // 1ms -> ceil(1/1000/60) = ceil(0.000016) = 1 min
         assert_eq!(format_countdown(1), Some("~1m".to_string()));
+    }
+
+    // --- render_bar unit tests ----------------------------------------------
+
+    #[test]
+    fn bar_0pct() {
+        assert_eq!(render_bar(0, 10), "[░░░░░░░░░░]");
+    }
+
+    #[test]
+    fn bar_100pct() {
+        assert_eq!(render_bar(100, 10), "[██████████]");
+    }
+
+    #[test]
+    fn bar_50pct() {
+        assert_eq!(render_bar(50, 10), "[█████░░░░░]");
+    }
+
+    #[test]
+    fn bar_32pct() {
+        // (32*10+50)/100 = 3
+        assert_eq!(render_bar(32, 10), "[███░░░░░░░]");
     }
 }

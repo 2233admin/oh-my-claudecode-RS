@@ -1,0 +1,20 @@
+[package]
+name = "omc-observe"
+description = "Read-only session/token observability for Claude Code and Codex CLI"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+dirs = { workspace = true }
+anyhow = { workspace = true }
+
+[[bin]]
+name = "omc-observe"
+path = "src/main.rs"

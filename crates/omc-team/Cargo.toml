@@ -11,6 +11,14 @@ repository.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 dirs = "5"
+tokio = { workspace = true }
+chrono = { workspace = true }
+anyhow = { workspace = true }
+uuid = { version = "1", features = ["v4"] }
+futures = "0.3"
+
+[dev-dependencies]
+tempfile = { workspace = true }
 
 [[bin]]
 name = "omc-team"

@@ -1,0 +1,19 @@
+[package]
+name = "omc-hooks"
+description = "Claude Code hooks integration for OMC-RS"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+omc-shared = { path = "../omc-shared" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = "1"
+parking_lot = "0.12"
+dirs = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

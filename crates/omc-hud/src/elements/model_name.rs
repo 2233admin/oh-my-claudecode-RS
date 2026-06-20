@@ -54,15 +54,33 @@ fn color_enabled(level: ColorLevel) -> bool {
 }
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
-    let raw = ctx.input.model.as_deref()?.trim();
+    let id = ctx.input.model_id().filter(|s| !s.is_empty());
+    let display_name = ctx
+        .input
+        .model
+        .as_ref()
+        .and_then(|m| m.display_name.as_deref())
+        .filter(|s| !s.is_empty());
+    let raw = id.or(display_name)?.trim();
     if raw.is_empty() {
         return None;
     }
 
-    let (label, family) = parse_model(raw);
+    // modelFormat: 'full' shows the raw model ID; 'short' (default) shows friendly label
+    let fmt = ctx.config.element_str("modelFormat", "short");
+    if fmt == "full" {
+        let full_id = ctx.input.model_id().unwrap_or(raw);
+        return if color_enabled(ctx.color_level) {
+            let (_, family) = parse_model(full_id);
+            let color = color_for_family(family);
+            Some(format!("{color}{full_id}\x1b[0m"))
+        } else {
+            Some(full_id.to_string())
+        };
+    }
 
+    let (label, family) = parse_model(raw);
     let display: &str = if label.is_empty() {
-        // Unknown model: truncate to 20 chars (ASCII labels only)
         &raw[..raw.len().min(20)]
     } else {
         label
@@ -80,21 +98,19 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
 mod tests {
     use super::*;
     use crate::cache::HudCache;
-    use crate::i18n;
     use crate::input::Input;
 
     fn make_ctx<'a>(input: &'a Input, cache: &'a HudCache, level: ColorLevel) -> RenderContext<'a> {
-        RenderContext {
-            input,
-            cache,
-            color_level: level,
-            strings: i18n::strings(i18n::detect_locale()),
-        }
+        RenderContext::for_test(input, cache, level)
     }
 
     fn make_input(model: Option<&str>) -> Input {
+        use crate::input::ModelInfo;
         Input {
-            model: model.map(|s| s.to_string()),
+            model: model.map(|s| ModelInfo {
+                id: Some(s.to_string()),
+                display_name: None,
+            }),
             ..Input::default()
         }
     }

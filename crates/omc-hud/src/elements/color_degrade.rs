@@ -18,6 +18,7 @@ pub fn detect_color_level() -> ColorLevel {
         return ColorLevel::Mono;
     }
 
+    // skipcq: RS-W1015
     let force_color = env::var("FORCE_COLOR").unwrap_or_default();
     if !force_color.is_empty() && force_color != "0" {
         return match force_color.as_str() {
@@ -28,6 +29,7 @@ pub fn detect_color_level() -> ColorLevel {
         };
     }
 
+    // skipcq: RS-W1015
     let colorterm = env::var("COLORTERM")
         .unwrap_or_default()
         .to_ascii_lowercase();
@@ -35,10 +37,34 @@ pub fn detect_color_level() -> ColorLevel {
         return ColorLevel::TrueColor;
     }
 
+    // skipcq: RS-W1015
     let term = env::var("TERM").unwrap_or_default().to_ascii_lowercase();
     if term.contains("256color") {
-        ColorLevel::Color256
-    } else if term.is_empty() || term == "dumb" {
+        return ColorLevel::Color256;
+    }
+    if term.contains("xterm") || term.contains("ansi") || term.contains("vt1") {
+        return ColorLevel::Color16;
+    }
+
+    // Windows-specific: TERM is often unset even in capable terminals (Warp, Windows Terminal).
+    // Check known Windows terminal indicators before falling back to Mono.
+    if env::var_os("WT_SESSION").is_some()   // Windows Terminal
+        || env::var_os("WT_PROFILE_ID").is_some()
+        || env::var("TERM_PROGRAM")
+            .map(|v| !v.is_empty())
+            .unwrap_or(false)
+    {
+        return ColorLevel::TrueColor;
+    }
+
+    // On Windows with no color env vars set, default to Color256 — modern Windows
+    // terminals all support color and the Unix "empty TERM = dumb terminal" heuristic
+    // does not apply.
+    if cfg!(target_os = "windows") {
+        return ColorLevel::Color256;
+    }
+
+    if term.is_empty() || term == "dumb" {
         ColorLevel::Mono
     } else {
         ColorLevel::Color16

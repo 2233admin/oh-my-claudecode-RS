@@ -1,8 +1,8 @@
 use crate::elements::RenderContext;
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
-    let max = ctx.input.context_window_max?;
-    let current = ctx.input.context_window_tokens?;
+    let max = ctx.input.tokens_max()?;
+    let current = ctx.input.tokens_used()?;
     if current >= max {
         return Some("~0m".to_string());
     }

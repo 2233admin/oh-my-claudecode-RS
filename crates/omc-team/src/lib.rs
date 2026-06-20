@@ -7,9 +7,25 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+pub mod agent_handle;
+pub mod agent_lifecycle;
+pub mod agents;
+pub mod background;
+pub mod communication;
+pub mod dispatch;
+pub mod fault_tolerance;
+pub mod forbidden;
+pub mod governance;
+pub mod heartbeat;
+pub mod idle_nudge;
 mod observability;
+pub mod phase_controller;
 mod runtimes;
+pub mod task_graph;
 mod trackers;
+pub mod usage;
+pub mod work_stealing;
+pub mod worker_health;
 pub use observability::{
     AgentInvocationRecord, AgentSessionRecord, AgentSessionState, CellPlan, ContextBudget,
     ContextGuardAction, ContextGuardDecision, ObservabilityDoctorReport, ObservabilityStartReport,
@@ -208,8 +224,11 @@ pub fn init_project(root: &Path) -> Result<InitReport, String> {
     Ok(report)
 }
 
+static CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: &str = "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS";
+
 pub fn check_claude_ready() -> Result<(), String> {
-    if env::var("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS")
+    // skipcq: RS-W1015
+    if env::var(CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS)
         .ok()
         .as_deref()
         != Some("1")
@@ -276,7 +295,7 @@ pub fn prepare_start_mission(
             issue_ref: imported.issue_ref,
             issue_id: imported.issue_id,
             team_name,
-            mission_path: String::new(),
+            mission_path: String::default(),
             started_at: unix_timestamp(),
             lease_comment_id: Some(lease_comment_id),
             start_comment_id: None,
@@ -363,7 +382,7 @@ pub fn collect_handoff(root: &Path, team_name: &str) -> Result<String, String> {
         candidates.push(home.join(format!(".claude/tasks/{team_name}")));
     }
 
-    let mut sections = Vec::new();
+    let mut sections = Vec::default();
     for dir in candidates {
         if !dir.exists() {
             continue;
@@ -626,7 +645,9 @@ fn upsert_settings(root: &Path, report: &mut InitReport) -> Result<(), String> {
         json!({})
     };
 
+    // skipcq: RS-E1015
     ensure_object_field(&mut value, "env")?;
+    // skipcq: RS-E1015
     ensure_object_field(&mut value, "hooks")?;
     value["env"]["CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"] = json!("1");
     value["hooks"]["TaskCreated"] = json!([{
@@ -642,7 +663,9 @@ fn upsert_settings(root: &Path, report: &mut InitReport) -> Result<(), String> {
         "hooks": [{"type": "command", "command": "omc-team hook teammate-idle"}]
     }]);
 
-    let rendered = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())? + "\n";
+    // skipcq: RS-E1015
+    let mut rendered = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
+    rendered.push('\n');
     upsert_file(path, &rendered, report)
 }
 
@@ -657,7 +680,7 @@ fn ensure_object_field(value: &mut Value, field: &str) -> Result<(), String> {
 }
 
 fn native_agent_discipline() -> &'static str {
-    r#"## OMC Native Agent Discipline
+    r"## OMC Native Agent Discipline
 
 This project uses OMC's built-in agent discipline, inspired by Karpathy-style guidance for reducing common LLM coding mistakes. Source inspiration: https://github.com/forrestchang/andrej-karpathy-skills
 
@@ -703,24 +726,24 @@ This project uses OMC's built-in agent discipline, inspired by Karpathy-style gu
 - Do not require x-cmd or x-cmd skills for normal project work.
 - Treat x-cmd as an optional toolbox only when a task explicitly benefits from it.
 - Do not use x-cmd as a hidden tracker, scheduler, memory layer, or source of team truth.
-"#
+"
 }
 
 fn native_agent_discipline_prompt() -> &'static str {
-    r#"OMC Native Agent Discipline:
+    r"OMC Native Agent Discipline:
 - Think before coding: state assumptions, ask on meaningful ambiguity, and surface tradeoffs.
 - Simplicity first: choose the smallest implementation that satisfies the mission.
 - Surgical changes: every changed line must trace to this mission; preserve unrelated code and user edits.
 - Goal-driven execution: define verification early, loop until it passes, and report evidence.
 - GitHub contract discipline: follow repository templates and CONTRIBUTING guidance for issues and PRs.
 - Tooling boundary: use OMC native adapters first; x-cmd is optional and must not become the tracker, scheduler, memory layer, or team truth.
-"#
+"
 }
 
 fn implementation_prompt(task: &TaskCard, opts: &StartOptions) -> String {
     let team_size = opts.team_size;
     format!(
-        r#"Create a Claude Code agent team for this implementation mission.
+        r"Create a Claude Code agent team for this implementation mission.
 
 {discipline}
 
@@ -765,7 +788,7 @@ Completion requirements:
 - Each teammate must leave a resume brief that lets a fresh session continue without raw transcript replay.
 - The lead must synthesize a final handoff suitable for GitHub/Linear.
 - If this maps to Linear or GitHub, include the external issue ID in the final summary.
-"#,
+",
         discipline = native_agent_discipline_prompt(),
         id = task.meta.id,
         title = task.meta.title,
@@ -780,7 +803,7 @@ Completion requirements:
 fn runtime_adapter_prompt(task: &TaskCard, opts: &StartOptions) -> String {
     let runtime = opts.runtime.as_str();
     format!(
-        r#"Prepare an OMC runtime mission for the local `{runtime}` adapter.
+        r"Prepare an OMC runtime mission for the local `{runtime}` adapter.
 
 {discipline}
 
@@ -810,7 +833,7 @@ Verification:
 
 Context:
 {body}
-"#,
+",
         discipline = native_agent_discipline_prompt(),
         id = task.meta.id,
         title = task.meta.title,
@@ -824,7 +847,7 @@ Context:
 
 fn research_prompt(topic: &str, opts: &StartOptions) -> String {
     format!(
-        r#"Create a Claude Code agent team for a research mission.
+        r"Create a Claude Code agent team for a research mission.
 
 {discipline}
 
@@ -845,7 +868,7 @@ Final output:
 - Concrete options.
 - Risks and unknowns.
 - Recommended next implementation slice.
-"#,
+",
         discipline = native_agent_discipline_prompt(),
         team_size = opts.team_size,
         topic = topic
@@ -865,7 +888,7 @@ fn review_prompt(target: &str, opts: StartOptions) -> String {
         lenses.push("test reliability and missing scenarios");
     }
     format!(
-        r#"Create a Claude Code agent team to review {target}.
+        r"Create a Claude Code agent team to review {target}.
 
 {discipline}
 
@@ -879,10 +902,15 @@ Rules:
 - Do not make code changes during review unless I explicitly approve a fix pass.
 - Use existing tests and project docs as the source of truth.
 - If this is a PR, include the PR identifier in the final handoff.
-"#,
+",
         discipline = native_agent_discipline_prompt(),
         team_size = opts.team_size,
-        lenses = bullets(&lenses.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        lenses = bullets(
+            &lenses
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect::<Vec<_>>()
+        )
     )
 }
 
@@ -937,7 +965,7 @@ fn looks_like_linear_id(raw: &str) -> bool {
 }
 
 pub(crate) fn slug(raw: &str) -> String {
-    let mut out = String::new();
+    let mut out = String::default();
     for ch in raw.chars() {
         if ch.is_ascii_alphanumeric() {
             out.push(ch.to_ascii_lowercase());
@@ -949,7 +977,7 @@ pub(crate) fn slug(raw: &str) -> String {
 }
 
 fn agent_planner() -> &'static str {
-    r#"---
+    r"---
 name: omc-planner
 description: Split OMC Team missions into ownership-safe tasks with acceptance and verification.
 ---
@@ -957,11 +985,11 @@ description: Split OMC Team missions into ownership-safe tasks with acceptance a
 You are the planning teammate for OMC Team. Produce task slices that avoid file conflicts. Every task must include ownership, acceptance, verification, and dependencies when relevant.
 
 Follow OMC Native Agent Discipline: state assumptions, prefer the simplest viable task split, keep ownership surgical, and define verification before implementation.
-"#
+"
 }
 
 fn agent_executor() -> &'static str {
-    r#"---
+    r"---
 name: omc-executor
 description: Implement one ownership-bounded task in a Claude Code agent team.
 ---
@@ -969,11 +997,11 @@ description: Implement one ownership-bounded task in a Claude Code agent team.
 You implement only the task you claimed. Stay inside ownership boundaries, preserve user changes, run verification, and leave a handoff with changed files, tests, risks, and follow-ups.
 
 Follow OMC Native Agent Discipline: minimize code, avoid speculative abstractions, touch only task-relevant lines, and keep looping until verification passes or the blocker is explicit.
-"#
+"
 }
 
 fn agent_reviewer() -> &'static str {
-    r#"---
+    r"---
 name: omc-reviewer
 description: Review OMC Team implementation work for correctness, regressions, and verification quality.
 ---
@@ -981,11 +1009,11 @@ description: Review OMC Team implementation work for correctness, regressions, a
 You review completed teammate work. Lead with concrete findings and evidence. Verify acceptance criteria and test results before recommending completion.
 
 Follow OMC Native Agent Discipline: challenge assumptions, flag unnecessary complexity, protect unrelated code, and require clear verification evidence.
-"#
+"
 }
 
 fn agent_security() -> &'static str {
-    r#"---
+    r"---
 name: omc-security-auditor
 description: Audit high-risk OMC Team tasks for security and unsafe automation behavior.
 ---
@@ -993,11 +1021,11 @@ description: Audit high-risk OMC Team tasks for security and unsafe automation b
 You inspect security-sensitive changes, secrets handling, command execution, auth, data boundaries, and destructive operations. Report severity and exact evidence.
 
 Follow OMC Native Agent Discipline: state risk assumptions, avoid broad rewrites, keep findings scoped, and require concrete mitigation or explicit residual risk.
-"#
+"
 }
 
 fn agent_linear_reporter() -> &'static str {
-    r#"---
+    r"---
 name: omc-linear-reporter
 description: Prepare Linear/GitHub handoff comments from OMC Team results.
 ---
@@ -1005,7 +1033,7 @@ description: Prepare Linear/GitHub handoff comments from OMC Team results.
 You turn teammate handoffs into concise Linear/GitHub updates: status, changed files, tests, risks, blockers, and next action.
 
 Follow OMC Native Agent Discipline and repository contract discipline: preserve issue/PR templates, include verification, and avoid overstating completion.
-"#
+"
 }
 
 pub(crate) fn unix_timestamp() -> u64 {
@@ -1018,8 +1046,7 @@ pub(crate) fn unix_timestamp() -> u64 {
 fn unix_timestamp_nanos() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0)
+        .map_or(0, |duration| duration.as_nanos())
 }
 
 #[cfg(test)]
@@ -1068,7 +1095,7 @@ mod tests {
                 github_repo: None,
                 github_issue_number: None,
             },
-            body: String::new(),
+            body: String::default(),
         };
         assert!(ensure_ready(&task).unwrap_err().contains("verification"));
     }

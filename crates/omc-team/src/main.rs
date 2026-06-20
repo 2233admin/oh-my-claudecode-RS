@@ -295,7 +295,7 @@ fn run() -> Result<(), String> {
         "hook" => {
             let hook = take_required(&mut args, "hook-kind")?;
             let kind = HookKind::parse(&hook)?;
-            let mut stdin = String::new();
+            let mut stdin = String::default();
             io::stdin()
                 .read_to_string(&mut stdin)
                 .map_err(|e| format!("failed to read hook stdin: {e}"))?;

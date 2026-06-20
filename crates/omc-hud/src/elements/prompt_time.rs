@@ -6,22 +6,33 @@ fn color_enabled(level: ColorLevel) -> bool {
     !matches!(level, ColorLevel::Mono)
 }
 
-/// Format elapsed milliseconds into a human-readable string.
-/// <60s -> "Ns", <60m -> "Nm", <24h -> "Nh", else -> "Nd"
+/// Format elapsed milliseconds — JS-compatible format:
+///   < 60s      → "13s"
+///   1m–59m59s  → "1m23s" (seconds omitted if zero: "5m")
+///   1h–23h59m  → "2h3m"  (minutes omitted if zero: "1h")
+///   >= 24h     → "1d"    (floor days, no hours shown)
 fn format_elapsed(ms: u64) -> String {
-    let secs = ms / 1_000;
-    if secs < 60 {
-        return format!("{secs}s");
+    let total_secs = ms / 1_000;
+    if total_secs < 60 {
+        return format!("{total_secs}s");
     }
-    let mins = secs / 60;
-    if mins < 60 {
-        return format!("{mins}m");
+    let total_mins = total_secs / 60;
+    let rem_secs = total_secs % 60;
+    if total_mins < 60 {
+        if rem_secs == 0 {
+            return format!("{total_mins}m");
+        }
+        return format!("{total_mins}m{rem_secs}s");
     }
-    let hours = mins / 60;
-    if hours < 24 {
-        return format!("{hours}h");
+    let total_hours = total_mins / 60;
+    let rem_mins = total_mins % 60;
+    if total_hours < 24 {
+        if rem_mins == 0 {
+            return format!("{total_hours}h");
+        }
+        return format!("{total_hours}h{rem_mins}m");
     }
-    let days = hours / 24;
+    let days = total_hours / 24;
     format!("{days}d")
 }
 
@@ -40,30 +51,62 @@ fn color_for_elapsed(ms: u64) -> Option<&'static str> {
     }
 }
 
-/// Internal implementation parameterised over the current time so tests can
-/// inject synthetic timestamps without mocking the clock.
-fn render_at(ctx: &RenderContext<'_>, now: u64) -> Option<String> {
-    let start = ctx.input.prompt_start_ms?;
-    if start == 0 {
-        return None;
+/// Resolve the prompt start timestamp (ms since epoch).
+/// Priority: omc_state.hud.last_prompt_timestamp → stdin.prompt_start_ms
+fn resolve_start_ms(ctx: &RenderContext<'_>) -> Option<u64> {
+    // Primary: hud-state.json lastPromptTimestamp (ISO-8601 or Unix ms string)
+    if let Some(ts_str) = ctx
+        .omc_state
+        .hud
+        .as_ref()
+        .and_then(|h| h.last_prompt_timestamp.as_deref())
+    {
+        // Try parsing as Unix ms integer string first
+        if let Ok(ms) = ts_str.parse::<u64>() {
+            return Some(ms);
+        }
+        // Try ISO-8601
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts_str) {
+            let ms = dt.timestamp_millis();
+            if ms > 0 {
+                return Some(ms as u64);
+            }
+        }
     }
+    // Fallback: stdin prompt_start_ms
+    ctx.input.prompt_start_ms.filter(|&v| v > 0)
+}
+
+/// Core rendering logic, parameterised over `now` so tests are deterministic.
+/// Returns just the elapsed time string without emoji or wall clock.
+fn render_at(ctx: &RenderContext<'_>, now: u64) -> Option<String> {
+    let start = resolve_start_ms(ctx)?;
 
     // Clamp negative elapsed (clock skew) to 0.
     let elapsed_ms = now.saturating_sub(start);
-
     let time_str = format_elapsed(elapsed_ms);
 
-    if color_enabled(ctx.color_level)
-        && let Some(color) = color_for_elapsed(elapsed_ms)
-    {
-        return Some(format!("{color}{time_str}\x1b[0m"));
+    if color_enabled(ctx.color_level) {
+        if let Some(color) = color_for_elapsed(elapsed_ms) {
+            return Some(format!("{color}{time_str}\x1b[0m"));
+        }
+        // White/default tier: no color code at all
+        return Some(time_str);
     }
 
     Some(time_str)
 }
 
 pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
-    render_at(ctx, now_ms())
+    let now = now_ms();
+    let base = render_at(ctx, now)?;
+    // Wall clock time (local timezone)
+    let clock = chrono::Local::now().format("%H:%M:%S").to_string();
+    if color_enabled(ctx.color_level) {
+        Some(format!("⏱{base} \x1b[2m{clock}\x1b[0m"))
+    } else {
+        Some(format!("⏱{base} {clock}"))
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -74,18 +117,12 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
 mod tests {
     use super::*;
     use crate::cache::HudCache;
-    use crate::i18n;
     use crate::input::Input;
 
     // Helpers ----------------------------------------------------------------
 
     fn make_ctx<'a>(input: &'a Input, cache: &'a HudCache, level: ColorLevel) -> RenderContext<'a> {
-        RenderContext {
-            input,
-            cache,
-            color_level: level,
-            strings: i18n::strings(i18n::detect_locale()),
-        }
+        RenderContext::for_test(input, cache, level)
     }
 
     fn make_input(prompt_start_ms: Option<u64>) -> Input {
@@ -99,14 +136,12 @@ mod tests {
         HudCache::new("test".to_string())
     }
 
-    // Convenience: build a `now` that is `delta_ms` milliseconds after `start`.
     fn now_after(start: u64, delta_ms: u64) -> u64 {
         start + delta_ms
     }
 
-    // Strip ANSI escapes for plain-text assertions.
     fn strip_ansi(s: &str) -> String {
-        let mut out = String::new();
+        let mut out = String::default();
         let mut chars = s.chars().peekable();
         while let Some(c) = chars.next() {
             if c == '\x1b' {
@@ -129,7 +164,6 @@ mod tests {
         let input = make_input(None);
         let cache = empty_cache();
         let ctx = make_ctx(&input, &cache, ColorLevel::TrueColor);
-        // Any `now` is fine since start is None.
         assert_eq!(render_at(&ctx, 1_000_000), None);
     }
 
@@ -199,6 +233,17 @@ mod tests {
     }
 
     #[test]
+    fn one_minute_twenty_three_seconds() {
+        let start = 1_000_000_u64;
+        let input = make_input(Some(start));
+        let cache = empty_cache();
+        let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
+        let now = now_after(start, 83_000); // 1m23s
+        let result = render_at(&ctx, now).unwrap();
+        assert_eq!(strip_ansi(&result), "1m23s");
+    }
+
+    #[test]
     fn fifty_nine_minutes() {
         let start = 1_000_000_u64;
         let input = make_input(Some(start));
@@ -218,6 +263,17 @@ mod tests {
         let now = now_after(start, 60 * 60 * 1_000);
         let result = render_at(&ctx, now).unwrap();
         assert_eq!(strip_ansi(&result), "1h");
+    }
+
+    #[test]
+    fn two_hours_three_minutes() {
+        let start = 1_000_000_u64;
+        let input = make_input(Some(start));
+        let cache = empty_cache();
+        let ctx = make_ctx(&input, &cache, ColorLevel::Mono);
+        let now = now_after(start, (2 * 60 + 3) * 60 * 1_000); // 2h3m
+        let result = render_at(&ctx, now).unwrap();
+        assert_eq!(strip_ansi(&result), "2h3m");
     }
 
     #[test]
@@ -296,7 +352,6 @@ mod tests {
 
     #[test]
     fn negative_elapsed_clamped_to_zero_seconds() {
-        // now < start simulates clock skew
         let start = 1_000_000_u64;
         let input = make_input(Some(start));
         let cache = empty_cache();
@@ -321,5 +376,47 @@ mod tests {
             "mono should have no ANSI: {result:?}"
         );
         assert_eq!(result, "10m");
+    }
+
+    // --- format_elapsed unit tests ------------------------------------------
+
+    #[test]
+    fn elapsed_0s() {
+        assert_eq!(format_elapsed(0), "0s");
+    }
+
+    #[test]
+    fn elapsed_exact_1min_no_seconds() {
+        assert_eq!(format_elapsed(60_000), "1m");
+    }
+
+    #[test]
+    fn elapsed_1m30s() {
+        assert_eq!(format_elapsed(90_000), "1m30s");
+    }
+
+    #[test]
+    fn elapsed_exact_1h_no_minutes() {
+        assert_eq!(format_elapsed(3_600_000), "1h");
+    }
+
+    #[test]
+    fn elapsed_2h3m() {
+        assert_eq!(format_elapsed((2 * 60 + 3) * 60 * 1_000), "2h3m");
+    }
+
+    #[test]
+    fn elapsed_24h_becomes_1d() {
+        assert_eq!(format_elapsed(24 * 3_600_000), "1d");
+    }
+
+    #[test]
+    fn elapsed_25h_becomes_1d() {
+        assert_eq!(format_elapsed(25 * 3_600_000), "1d");
+    }
+
+    #[test]
+    fn elapsed_48h_becomes_2d() {
+        assert_eq!(format_elapsed(48 * 3_600_000), "2d");
     }
 }

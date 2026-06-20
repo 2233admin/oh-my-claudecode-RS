@@ -1,139 +1,335 @@
 # oh-my-claudecode-RS
 
-[![CI](https://github.com/2233admin/oh-my-claudecode-RS/actions/workflows/ci.yml/badge.svg)](https://github.com/2233admin/oh-my-claudecode-RS/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](CHANGELOG.md)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Cold-start](https://img.shields.io/badge/cold--start-3.81ms-brightgreen.svg)](#performance)
-[![Tests](https://img.shields.io/badge/tests-204-brightgreen.svg)](#testing)
-[![Edition](https://img.shields.io/badge/rust-2024-orange.svg)](https://blog.rust-lang.org/2025/02/20/Rust-1.85.0.html)
+[English](#english) | [中文](#中文)
 
-Rust rewrite of [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode). Performance and maintainability over the TS upstream.
+---
 
-> **Sub-5ms cold-start, statically-linked Rust binary, single-author.**
-> No npm, no `node_modules`, no upstream churn dependency.
+<a id="english"></a>
 
-## Status
+[![CI](https://github.com/2233admin/oh-my-claudecode-RS/actions/workflows/ci.yml/badge.svg)](https://github.com/2233admin/oh-my-claudecode-RS/actions)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-1.85+-orange.svg)](https://www.rust-lang.org)
+[![Tests](https://img.shields.io/badge/tests-816-brightgreen.svg)](#build--test)
+[![Binary Size](https://img.shields.io/badge/binary-397%20KB-brightgreen.svg)](#performance)
 
-**0.1.0 — first usable release.** All 13 HUD elements implemented; cold-start under 5ms target.
+## What is OMC-RS
+
+A **Rust rewrite** of [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) — multi-agent orchestration, hooks, skills, MCP routing, statusline, and context injection for Claude Code.
+
+**No npm. No node_modules. No upstream churn dependency.**
 
 | Metric | Value |
-|---|---|
-| Cold-start median (10 idle runs, Win11 / Ryzen 9800X3D) | **3.81ms** ✓ (target `<5ms`; TS upstream issue [#2843](https://github.com/Yeachan-Heo/oh-my-claudecode/issues/2843) reports 390-502ms) |
-| Cold-start in git repo (2× git CLI spawns) | ~20ms |
-| Binary size (release, `opt-z` + `lto` + `strip` + `panic=abort`) | **397 KB** |
-| Render pipeline | end-to-end wired (stdin → cache → render → stdout → save) |
-| Elements visible | **10 / 13** (context, context_eta, model_name, prompt_time, todos, token_usage, cost, autopilot, git_status, rate_limits) |
-| Elements utility (no visible output) | **3 / 13** (color_degrade, cjk_width, i18n) |
-| Tests (inline `#[cfg(test)]`) | **204 passing** |
-| Lint / fmt / clippy `-D warnings` | clean |
-| GitHub remote | [public](https://github.com/2233admin/oh-my-claudecode-RS), CI matrix Linux + macOS + Windows |
+|--------|-------|
+| Crates | **17** |
+| Lines of Rust | **42,000+** |
+| Tests | **816** |
+| HUD cold-start median | **3.81ms** (Win11, Ryzen 9800X3D) |
+| Binary size (HUD) | **397 KB** |
+| Edition | Rust 2024, rustc 1.85+ |
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for design rationale, hot-path budget, and decision log. See [CHANGELOG.md](CHANGELOG.md) for the full 0.1.0 deliverables and known limitations.
+## Install (one-liner)
 
-## Why
+> No Rust toolchain required — downloads a pre-built binary.
 
-- **Performance.** TS HUD spawn-per-render hits 390-502ms cold-start ([upstream #2843](https://github.com/Yeachan-Heo/oh-my-claudecode/issues/2843)). Rust target: `<5ms`. **Achieved: 3.81ms median.**
-- **Memory.** OMC's bun + haiku MCP stack is 663MB. Sibling [`omc-hub-rs`](https://github.com/2233admin/omc-hub-rs) already proved a 7.4MB Rust replacement for that layer; same playbook applied to the rest of OMC.
-- **Maintenance.** Single-author Rust fork = full control, no upstream churn dependency, no npm dep hell.
-- **Decoupling.** Upstream's design and maintainer style are immaterial here.
-
-## Architecture (one paragraph)
-
-Cargo workspace, edition 2024, [mimalloc](https://crates.io/crates/mimalloc) global allocator, sync hot path (no tokio in MVP — tokio runtime init costs ~1ms cold-start with zero benefit on a non-concurrent path). Single binary today: `omc-hud` (statusline, replaces upstream HUD). 13 elements rendered via `enum` + `match` dispatch with `catch_unwind` per element so a single panic returns `"?"` instead of crashing the line. Cache lives at `.omc/state/sessions/<id>/hud-cache.json` with atomic `.tmp + rename` writes. See [ARCHITECTURE.md](ARCHITECTURE.md).
-
-## Sibling project
-
-- **[omc-hub-rs](https://github.com/2233admin/omc-hub-rs)** — independent MCP server replacement (already shipped, v0.1.0+, 7.4MB binary replacing 663MB bun + haiku). Lives separately. **Will not be absorbed.** This monorepo will reference it as a runtime dependency when needed.
-
-## Roadmap
-
-| Phase | Crate | Description | Status |
-|-------|-------|-------------|--------|
-| 0 | `omc-hud` | Statusline (Context ETA / color degrade / CJK width / i18n / 13 elements) | ✅ **0.1.0 released** |
-| 1 | `omc-shared` | Common config / state-path / protocol utilities | ⚪ planned |
-| 2 | `omc-hooks` | Hook engine (PostToolUse, SessionStart, etc.) | ⚪ planned |
-| 3 | `omc-cli` | Top-level commands (autopilot / ralph / ultrawork / team) | ⚪ planned |
-| 4 | `omc-team` | Claude Code experimental agent team orchestration shell | 🧪 v0.4 session + runtime adapters |
-
-## Build
-
-```bash
-git clone https://github.com/2233admin/oh-my-claudecode-RS.git
-cd oh-my-claudecode-RS
-cargo build --release
-# binary at target/release/omc-hud (.exe on Windows)
+**macOS / Linux**
+```sh
+curl -fsSL https://raw.githubusercontent.com/2233admin/oh-my-claudecode-RS/master/install.sh | sh
 ```
 
-Wire into Claude Code via `~/.claude/settings.json`:
+**Windows (PowerShell)**
+```powershell
+irm https://raw.githubusercontent.com/2233admin/oh-my-claudecode-RS/master/install.ps1 | iex
+```
+
+The installer:
+1. Downloads the right binary for your platform from [Releases](https://github.com/2233admin/oh-my-claudecode-RS/releases)
+2. Puts it in `~/.local/bin/` (macOS/Linux) or `%USERPROFILE%\.local\bin\` (Windows)
+3. Writes the `statusLine` entry to `~/.claude/settings.json` automatically
+
+Restart Claude Code — the HUD appears immediately.
+
+---
+
+## Build from source
+
+```bash
+# Clone
+git clone https://github.com/2233admin/oh-my-claudecode-RS.git
+cd oh-my-claudecode-RS
+
+# Build
+cargo build --release
+
+# Test
+cargo test --workspace
+```
+
+### Manual Claude Code integration
+
+Add to `~/.claude/settings.json`:
 
 ```json
 {
   "statusLine": {
     "type": "command",
-    "command": "/absolute/path/to/oh-my-claudecode-RS/target/release/omc-hud"
+    "command": "/absolute/path/to/target/release/omc-hud"
   }
 }
 ```
 
-## Testing
+### CLI Usage
 
 ```bash
-cargo test --workspace          # 204 tests, all green on master
-cargo clippy --workspace --all-targets -- -D warnings
+# HUD
+cargo run -p omc-hud
+
+# CLI
+cargo run -p omc-cli -- --help
+
+# Team
+cargo run -p omc-team -- init
+cargo run -p omc-team -- start ./task.md --team-size 3
+```
+
+## Key Features
+
+### Agent Orchestration
+- **DAG task graph** with dependency resolution
+- **8-state lifecycle FSM**: spawn → idle → busy → waiting → blocked → done → failed → terminated
+- **3-layer fault tolerance**: retry, circuit breaker, fallback
+- **Priority scheduler** for task execution
+
+### Claude Code Integration
+- **Statusline** with 13 elements, i18n, CJK width support
+- **Hooks system** with 15 event types
+- **Skills system** with 40+ built-in templates
+- **MCP tool server** with JSON-RPC over stdio
+
+### Multi-Provider Support
+- **Git providers**: GitHub, GitLab, Gitea, Bitbucket, Azure DevOps
+- **Notifications**: Slack, tmux, QQ, Feishu
+- **Host adapters**: Claude Code, Codex CLI
+
+## Architecture
+
+```
+omc-shared          (foundation -- types, config, routing, resilience)
+  │
+  ├── omc-macros    (proc macros: #[derive(Tool)])
+  │
+  ├── omc-hooks     (15 event types)
+  ├── omc-skills    (40+ templates)
+  ├── omc-context   (AGENTS.md, rules injection)
+  ├── omc-hud       (13 elements, i18n)
+  ├── omc-mcp       (tool registry)
+  ├── omc-git-provider (6 providers)
+  ├── omc-notifications
+  ├── omc-wiki
+  ├── omc-interop
+  ├── omc-autoresearch
+  ├── omc-python
+  └── omc-xcmd
+  │
+  ├── omc-team      (DAG, lifecycle, comms, governance)
+  ├── omc-host     (Claude/Codex adapters)
+  │
+  ├── omc-cli      (26+ commands)
+  └── omc-installer
+```
+
+## Crate Reference
+
+| Crate | Lines | Tests | Description |
+|-------|---|---|---|
+| omc-shared | 7,931 | 100 | Types, config, routing, tools, state, memory, circuit breaker |
+| omc-team | 14,218 | 234 | DAG task graph, 8-state FSM, priority scheduler, fault tolerance |
+| omc-hud | 4,449 | 205 | Statusline binary, 13 elements, CJK width, i18n |
+| omc-mcp | 2,732 | 11 | MCP tool server, JSON-RPC over stdio |
+| omc-interop | 2,399 | 43 | Cross-tool interoperability (OMC/OMX) |
+| omc-hooks | 1,853 | 58 | Claude Code hooks (15 events) |
+| omc-skills | 1,729 | 31 | Skills loader (40+ templates) |
+| omc-git-provider | 1,463 | 10 | Git hosting abstraction |
+| omc-notifications | 1,292 | 22 | Multi-platform notifications |
+| omc-autoresearch | 1,218 | 10 | Autoresearch runtime |
+| omc-wiki | 1,213 | 4 | Wiki knowledge layer |
+| omc-context | 1,119 | 7 | Context injection |
+| omc-cli | 559 | 11 | CLI dispatcher |
+| omc-installer | 578 | 9 | Installation, update |
+| omc-python | 335 | 2 | Persistent Python REPL |
+| omc-macros | 378 | 0 | Proc macros |
+| omc-xcmd | 243 | 0 | x-cmd integration |
+| omc-host | - | 68 | Host abstraction layer |
+
+## Build & Test
+
+```bash
+cargo build --release                # optimized binary (~400 KB)
+cargo test --workspace               # all 816 tests
+cargo clippy --workspace -- -D warnings
 cargo fmt --check
 ```
 
-## Experimental Team Orchestration
+## Performance
 
-`omc-team` is an aggressive v0.4 orchestration shell. Claude Code experimental agent teams remain the default runtime, while GitHub/Linear stay as visibility adapters. FSC and KohakuTerrarium can be selected as local runtime adapters for users who want swarm execution or creature/terrarium execution without turning those projects into trackers. v0.4 adds the local Agent Memory & Observability Kernel: every team launch writes durable session records, invocation records, usage ledgers, run briefings, and whiteboard files under `.omc/team/`.
+Measured on Windows 11 (Ryzen 9800X3D):
 
-```bash
-cargo run -p omc-team -- init
-set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
-cargo run -p omc-team -- linear doctor --team OMC-RS --fix
-cargo run -p omc-team -- github doctor --repo 2233admin/oh-my-claudecode-RS --fix
-cargo run -p omc-team -- runtime doctor kohaku
-cargo run -p omc-team -- runtime doctor fsc
-cargo run -p omc-team -- start XAR-123 --tracker linear --team-size 3
-cargo run -p omc-team -- start '#123' --tracker github --team-size 3
-cargo run -p omc-team -- start ./task.md --runtime kohaku --team-size 4
-cargo run -p omc-team -- start ./task.md --runtime fsc --team-size 5
-cargo run -p omc-team -- start ./task.md --team-size 16
-cargo run -p omc-team -- session list
-cargo run -p omc-team -- session resume <agent-id-or-run-id>
-cargo run -p omc-team -- usage report --by agent
-cargo run -p omc-team -- top
-cargo run -p omc-team -- doctor observability
-cargo run -p omc-team -- handoff 2233admin-oh-my-claudecode-rs-123 --github
-cargo run -p omc-team -- handoff <run-id> --runtime kohaku
-cargo run -p omc-team -- research "investigate parser architecture"
-cargo run -p omc-team -- review PR-142 --security --tests
+| Process | Time | Memory |
+|---------|------|--------|
+| `omc-hud` cold-start (median) | **3.81ms** | **7.4 MB** |
+| `node hub.mjs` (upstream) | ~390-502ms | 84.5 MB |
+
+```powershell
+# Reproduce
+$n = Start-Process node -ArgumentList "$env:USERPROFILE/.omc/mcp-hub/hub.mjs" -PassThru
+Start-Sleep 4; (Get-Process -Id $n.Id).WorkingSet64 / 1MB  # ~84 MB
+
+$r = Start-Process "target/release/omc-hud.exe" -PassThru
+Start-Sleep 4; (Get-Process -Id $r.Id).WorkingSet64 / 1MB  # ~7 MB
 ```
 
-Claude Code v2.1.32+ is required for the default runtime. Generated missions tell Claude to create the official agent team and use its shared task list, mailbox, hooks, and worktree isolation. Linear and GitHub Issues are visibility adapters only: `agent-ready` is the intake gate, OMC writes lease/start/handoff comments, and the selected runtime remains the execution source of truth.
+## Documentation
 
-Runtime adapters are local-only in v0.3:
+| Document | Description |
+|----------|-------------|
+| [README.md](README.md) | This file |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture and design decisions |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Developer guide, building, testing |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
+| [CLAUDE.md](CLAUDE.md) | AI agent instructions |
 
-- `--runtime claude` is the default and preserves the official Claude Code team model.
-- `--runtime kohaku` generates a temporary Kohaku package under `.omc/team/kohaku/<run_id>/`, with an OMC Lead as root creature and developer/reviewer/tester/security peer creatures inside the terrarium. OMC follows Kohaku's core boundary: creatures are self-contained, terrariums are wiring only, root is outside the terrarium, and prompts do not inline tool lists or tool-call syntax.
-- `--runtime fsc` generates FSC mission/task artifacts under `.omc/team/fsc/<run_id>/` and treats FSC as a local swarm execution backend. FSC handles decomposition and scheduling; OMC collects reports and handoff output.
+## Contributing
 
-The session layer treats native subagents as ephemeral. OMC persists the durable identity instead: `.omc/team/sessions/*.json` tracks agent state, `.omc/team/invocations/*.json` tracks each model/runtime call, `.omc/team/usage.jsonl` records token/time/cost events with source and confidence, `.omc/team/runs/<run_id>/briefing.md` is the resume packet seed, and `.omc/team/whiteboard/` stores accepted facts, decisions, risks, questions, and handoffs. Context budget rules are explicit: checkpoint at 70%, resume brief at 85%, stop new work at 92%, and force handoff at 95%. A 16-agent run is organized as one lead plus five builder/reviewer/verifier cells rather than one flat chat.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-OMC native commands and adapters are the default control plane. X-CMD and [`abtop`](https://github.com/graykode/abtop) are reference/optional observability inputs, not hard dependencies. X-CMD's Claude usage/session ideas inform accounting and export/import flows; abtop's read-only Claude/Codex monitoring informs future `omc-team top` work for context, rate limits, ports, and child processes.
+### Quick Contribution Steps
 
-OMC does not auto-open upstream PRs for FSC or KohakuTerrarium. Any future external contribution flow must first record a public issue/discussion approval trail before PR creation is allowed.
+```bash
+# 1. Fork and clone
+git clone https://github.com/YOUR_NAME/oh-my-claudecode-RS.git
 
-OMC includes native Karpathy-style agent discipline by default, inspired by [`forrestchang/andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills): think before coding, keep implementations simple, make surgical changes, and drive work with explicit verification. `omc-team init` writes this into `AGENTS.md` and `CLAUDE.md`, and the generated team prompts/subagents carry the same discipline without requiring an external plugin install or x-cmd skill.
+# 2. Create feature branch
+git checkout -b feat/your-feature
 
-## Inspiration credits
+# 3. Make changes
+cargo build --release
+cargo test --workspace
+cargo clippy --workspace -- -D warnings
 
-Independent re-implementation, no source code copying. See [CHANGELOG.md § Inspiration](CHANGELOG.md#inspiration--attribution) and [ARCHITECTURE.md § Inspiration](ARCHITECTURE.md#inspiration--attribution) for the full attribution table.
+# 4. Commit and push
+git commit -m "feat: add your feature"
+git push origin feat/your-feature
 
-- [codachi](https://github.com/vincent-k2026/codachi) (MIT, vincent-k2026) — Context ETA concept, CJK width awareness, terminal-degrade idea
-- [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) (Apache 2.0, Yeachan-Heo) — stdin schema, element catalog, OMC state path conventions
-- Codex via `codex-rescue` agent — initial production skeleton (commit [`d813abf`](https://github.com/2233admin/oh-my-claudecode-RS/commit/d813abf))
+# 5. Open PR
+```
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+Independent re-implementation. No source code copying from upstream.
+
+---
+
+<a id="中文"></a>
+
+# oh-my-claudecode-RS
+
+[![CI](https://github.com/2233admin/oh-my-claudecode-RS/actions/workflows/ci.yml/badge.svg)](https://github.com/2233admin/oh-my-claudecode-RS/actions)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-1.85+-orange.svg)](https://www.rust-lang.org)
+
+## 是什么
+
+[oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) 的 **Rust 重写版** — 专注于 Claude Code 的多 Agent 编排、钩子、Skills、MCP 路由、状态栏和上下文注入。
+
+**无 npm。无 node_modules。无上游依赖。**
+
+| 指标 | 数值 |
+|------|------|
+| Crates | **17 个** |
+| Rust 代码 | **42,000+ 行** |
+| 测试 | **816 个** |
+| HUD 冷启动 | **3.81ms** (Win11, Ryzen 9800X3D) |
+| 二进制大小 | **397 KB** |
+
+## 一键安装
+
+> 无需 Rust 工具链，直接下载预编译二进制。
+
+**macOS / Linux**
+```sh
+curl -fsSL https://raw.githubusercontent.com/2233admin/oh-my-claudecode-RS/master/install.sh | sh
+```
+
+**Windows（PowerShell）**
+```powershell
+irm https://raw.githubusercontent.com/2233admin/oh-my-claudecode-RS/master/install.ps1 | iex
+```
+
+安装脚本会自动：
+1. 从 [Releases](https://github.com/2233admin/oh-my-claudecode-RS/releases) 下载对应平台二进制
+2. 安装到 `~/.local/bin/`（macOS/Linux）或 `%USERPROFILE%\.local\bin\`（Windows）
+3. 自动写入 `~/.claude/settings.json` 的 `statusLine` 配置
+
+重启 Claude Code，HUD 立即生效。
+
+---
+
+## 从源码构建
+
+```bash
+# 克隆
+git clone https://github.com/2233admin/oh-my-claudecode-RS.git
+cd oh-my-claudecode-RS
+
+# 构建
+cargo build --release
+
+# 测试
+cargo test --workspace
+```
+
+### 手动 Claude Code 集成
+
+在 `~/.claude/settings.json` 中添加：
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "/absolute/path/to/target/release/omc-hud"
+  }
+}
+```
+
+## 核心功能
+
+### Agent 编排
+- **DAG 任务图** 带依赖解析
+- **8 状态生命周期 FSM**
+- **3 层容错**：重试、熔断、兜底
+- **优先级调度器**
+
+### Claude Code 集成
+- **状态栏**：13 个元素、i18n、CJK 宽度支持
+- **钩子系统**：15 种事件类型
+- **Skill 系统**：40+ 内置模板
+- **MCP 工具服务器**
+
+## 文档
+
+| 文档 | 说明 |
+|------|------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | 系统架构和设计决策 |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | 开发者指南、构建、测试 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献指南 |
+| [CHANGELOG.md](CHANGELOG.md) | 版本历史 |
+
+## 贡献
+
+欢迎贡献！请查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解指南。
+
+## 许可证
+
+MIT — 见 [LICENSE](LICENSE)。

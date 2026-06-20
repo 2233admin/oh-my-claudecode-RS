@@ -24,7 +24,7 @@ pub fn list_skills() -> Vec<Skill> {
 
     let mut skills = vec![];
     if let Ok(entries) = std::fs::read_dir(&skills_dir) {
-        for entry in entries.filter_map(|e| e.ok()) {
+        for entry in entries.filter_map(std::result::Result::ok) {
             let path = entry.path();
             if path.is_dir() {
                 let name = path

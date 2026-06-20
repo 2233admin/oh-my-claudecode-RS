@@ -43,17 +43,55 @@ struct TokenData {
 ///   "reasoning_tokens"     -- last-request reasoning tokens
 ///   "session_total_tokens" -- cumulative session total
 ///
-/// Returns `None` only if hooks_state is absent.
 fn extract(ctx: &RenderContext<'_>) -> Option<TokenData> {
-    let state = ctx.input.hooks_state.as_ref()?;
+    // input/cache from context_window.current_usage (primary), hooks_state (fallback)
+    let cw_input = ctx.input.current_input_tokens();
 
-    let get_u64 = |key: &str| -> u64 { state.get(key).and_then(|v| v.as_u64()).unwrap_or(0) };
+    let (input, session_total) = if cw_input > 0 {
+        (cw_input, ctx.input.tokens_used().unwrap_or(0))
+    } else if let Some(state) = ctx.input.hooks_state.as_ref() {
+        let g = |k: &str| {
+            state
+                .get(k)
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        };
+        (g("input_tokens"), g("session_total_tokens"))
+    } else {
+        (0, 0)
+    };
+
+    // output + reasoning from transcript, fallback to hooks_state, then context_window
+    let (output, reasoning) = ctx
+        .transcript
+        .map(|t| (t.last_request_output_tokens.unwrap_or(0), 0u64))
+        .unwrap_or_else(|| {
+            let state = ctx.input.hooks_state.as_ref();
+            let g = |k: &str| {
+                state
+                    .and_then(|s| s.get(k))
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0)
+            };
+            let hooks_output = g("output_tokens");
+            let hooks_reasoning = g("reasoning_tokens");
+            let out = if hooks_output > 0 {
+                hooks_output
+            } else {
+                ctx.input.current_output_tokens()
+            };
+            (out, hooks_reasoning)
+        });
+
+    if input == 0 && output == 0 {
+        return None;
+    }
 
     Some(TokenData {
-        input: get_u64("input_tokens"),
-        output: get_u64("output_tokens"),
-        reasoning: get_u64("reasoning_tokens"),
-        session_total: get_u64("session_total_tokens"),
+        input,
+        output,
+        reasoning,
+        session_total,
     })
 }
 
@@ -85,14 +123,14 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
     let reasoning_part = if data.reasoning > 0 {
         format!(" r{}", compact(data.reasoning))
     } else {
-        String::new()
+        String::default()
     };
 
     // Optional session suffix
     let session_part = if data.session_total > 0 {
         format!(" s{}", compact(data.session_total))
     } else {
-        String::new()
+        String::default()
     };
 
     if color_enabled(ctx.color_level) {
@@ -122,18 +160,12 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
 mod tests {
     use super::*;
     use crate::cache::HudCache;
-    use crate::i18n;
     use crate::input::Input;
 
     // --- Helpers ------------------------------------------------------------
 
     fn make_ctx<'a>(input: &'a Input, cache: &'a HudCache, level: ColorLevel) -> RenderContext<'a> {
-        RenderContext {
-            input,
-            cache,
-            color_level: level,
-            strings: i18n::strings(i18n::detect_locale()),
-        }
+        RenderContext::for_test(input, cache, level)
     }
 
     fn empty_cache() -> HudCache {
@@ -171,7 +203,7 @@ mod tests {
 
     /// Strip ANSI escape sequences for plain-text assertions.
     fn strip_ansi(s: &str) -> String {
-        let mut out = String::new();
+        let mut out = String::default();
         let mut chars = s.chars().peekable();
         while let Some(c) = chars.next() {
             if c == '\x1b' {

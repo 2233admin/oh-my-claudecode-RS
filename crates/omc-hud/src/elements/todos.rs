@@ -32,14 +32,14 @@ fn extract_from_hooks(ctx: &RenderContext<'_>) -> Option<(u32, u32)> {
     // Try primary key-pair
     let completed = state
         .get("todos_completed")
-        .and_then(|v| v.as_u64())
-        .or_else(|| state.get("completed").and_then(|v| v.as_u64()))
+        .and_then(serde_json::Value::as_u64)
+        .or_else(|| state.get("completed").and_then(serde_json::Value::as_u64))
         .map(|v| v as u32);
 
     let total = state
         .get("todos_total")
-        .and_then(|v| v.as_u64())
-        .or_else(|| state.get("total").and_then(|v| v.as_u64()))
+        .and_then(serde_json::Value::as_u64)
+        .or_else(|| state.get("total").and_then(serde_json::Value::as_u64))
         .map(|v| v as u32);
 
     let completed = completed?;
@@ -85,18 +85,12 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
 mod tests {
     use super::*;
     use crate::cache::HudCache;
-    use crate::i18n;
     use crate::input::Input;
 
     // Helpers ----------------------------------------------------------------
 
     fn make_ctx<'a>(input: &'a Input, cache: &'a HudCache, level: ColorLevel) -> RenderContext<'a> {
-        RenderContext {
-            input,
-            cache,
-            color_level: level,
-            strings: i18n::strings(i18n::detect_locale()),
-        }
+        RenderContext::for_test(input, cache, level)
     }
 
     fn empty_cache() -> HudCache {
@@ -131,7 +125,7 @@ mod tests {
 
     /// Strip ANSI escape sequences for plain-text assertions.
     fn strip_ansi(s: &str) -> String {
-        let mut out = String::new();
+        let mut out = String::default();
         let mut chars = s.chars().peekable();
         while let Some(c) = chars.next() {
             if c == '\x1b' {

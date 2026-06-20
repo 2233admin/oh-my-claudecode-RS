@@ -1,0 +1,21 @@
+[package]
+name = "omc-git-provider"
+description = "Git hosting provider abstraction for oh-my-claudecode-RS (GitHub, GitLab, Gitea, Bitbucket, Azure DevOps)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[lib]
+name = "omc_git_provider"
+path = "src/lib.rs"
+
+[dependencies]
+async-trait = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true, features = ["process"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }

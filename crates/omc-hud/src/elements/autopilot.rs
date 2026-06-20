@@ -13,35 +13,83 @@ struct AutopilotState {
 }
 
 fn extract_state(ctx: &RenderContext<'_>) -> Option<AutopilotState> {
-    let state = ctx.input.hooks_state.as_ref()?;
+    // Primary: hooks_state JSON injected by OMC
+    if let Some(state) = ctx.input.hooks_state.as_ref() {
+        let mode = state
+            .get("mode")
+            .and_then(|v| v.as_str())
+            .map(std::string::ToString::to_string)
+            .filter(|s| !s.is_empty());
 
-    let mode = state
-        .get("mode")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .filter(|s| !s.is_empty())?;
+        if let Some(mode) = mode {
+            let iteration = state
+                .get("iteration")
+                .and_then(serde_json::Value::as_u64)
+                .map(|v| v as u32);
 
-    let iteration = state
-        .get("iteration")
-        .and_then(|v| v.as_u64())
-        .map(|v| v as u32);
+            let max_iterations = state
+                .get("max_iterations")
+                .and_then(serde_json::Value::as_u64)
+                .map(|v| v as u32);
 
-    let max_iterations = state
-        .get("max_iterations")
-        .and_then(|v| v.as_u64())
-        .map(|v| v as u32);
+            let worker_count = state
+                .get("worker_count")
+                .and_then(serde_json::Value::as_u64)
+                .map(|v| v as u32);
 
-    let worker_count = state
-        .get("worker_count")
-        .and_then(|v| v.as_u64())
-        .map(|v| v as u32);
+            return Some(AutopilotState {
+                mode,
+                iteration,
+                max_iterations,
+                worker_count,
+            });
+        }
+    }
 
-    Some(AutopilotState {
-        mode,
-        iteration,
-        max_iterations,
-        worker_count,
-    })
+    // Fallback: .omc/state/ files
+    extract_state_from_files(ctx)
+}
+
+fn extract_state_from_files(ctx: &RenderContext<'_>) -> Option<AutopilotState> {
+    let omc = &ctx.omc_state;
+
+    // Ralph
+    if let Some(ralph) = &omc.ralph
+        && ralph.active
+    {
+        return Some(AutopilotState {
+            mode: "ralph".to_string(),
+            iteration: Some(ralph.iteration),
+            max_iterations: Some(ralph.max_iterations),
+            worker_count: None,
+        });
+    }
+
+    // Ultrawork
+    if let Some(uw) = &omc.ultrawork
+        && uw.active
+    {
+        return Some(AutopilotState {
+            mode: "ultrawork".to_string(),
+            iteration: None,
+            max_iterations: None,
+            worker_count: None,
+        });
+    }
+
+    // Autopilot
+    if let Some(ap) = &omc.autopilot
+        && ap.active
+    {
+        return Some(AutopilotState {
+            mode: "autopilot".to_string(),
+            iteration: ap.iteration,
+            max_iterations: ap.max_iterations,
+            worker_count: None,
+        });
+    }
+
+    None
 }
 
 // ---------------------------------------------------------------------------
@@ -134,18 +182,12 @@ pub fn render(ctx: &RenderContext<'_>) -> Option<String> {
 mod tests {
     use super::*;
     use crate::cache::HudCache;
-    use crate::i18n;
     use crate::input::Input;
 
     // --- Helpers ------------------------------------------------------------
 
     fn make_ctx<'a>(input: &'a Input, cache: &'a HudCache, level: ColorLevel) -> RenderContext<'a> {
-        RenderContext {
-            input,
-            cache,
-            color_level: level,
-            strings: i18n::strings(i18n::detect_locale()),
-        }
+        RenderContext::for_test(input, cache, level)
     }
 
     fn empty_cache() -> HudCache {
@@ -180,7 +222,7 @@ mod tests {
 
     /// Strip ANSI escape sequences for plain-text assertions.
     fn strip_ansi(s: &str) -> String {
-        let mut out = String::new();
+        let mut out = String::default();
         let mut chars = s.chars().peekable();
         while let Some(c) = chars.next() {
             if c == '\x1b' {
