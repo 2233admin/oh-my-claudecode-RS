@@ -27,7 +27,30 @@ A **Rust rewrite** of [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-cl
 | Binary size (HUD) | **397 KB** |
 | Edition | Rust 2024, rustc 1.85+ |
 
-## Quick Start
+## Install (one-liner)
+
+> No Rust toolchain required — downloads a pre-built binary.
+
+**macOS / Linux**
+```sh
+curl -fsSL https://raw.githubusercontent.com/2233admin/oh-my-claudecode-RS/master/install.sh | sh
+```
+
+**Windows (PowerShell)**
+```powershell
+irm https://raw.githubusercontent.com/2233admin/oh-my-claudecode-RS/master/install.ps1 | iex
+```
+
+The installer:
+1. Downloads the right binary for your platform from [Releases](https://github.com/2233admin/oh-my-claudecode-RS/releases)
+2. Puts it in `~/.local/bin/` (macOS/Linux) or `%USERPROFILE%\.local\bin\` (Windows)
+3. Writes the `statusLine` entry to `~/.claude/settings.json` automatically
+
+Restart Claude Code — the HUD appears immediately.
+
+---
+
+## Build from source
 
 ```bash
 # Clone
@@ -41,7 +64,7 @@ cargo build --release
 cargo test --workspace
 ```
 
-### Claude Code Integration
+### Manual Claude Code integration
 
 Add to `~/.claude/settings.json`:
 
@@ -230,7 +253,30 @@ Independent re-implementation. No source code copying from upstream.
 | HUD 冷启动 | **3.81ms** (Win11, Ryzen 9800X3D) |
 | 二进制大小 | **397 KB** |
 
-## 快速开始
+## 一键安装
+
+> 无需 Rust 工具链，直接下载预编译二进制。
+
+**macOS / Linux**
+```sh
+curl -fsSL https://raw.githubusercontent.com/2233admin/oh-my-claudecode-RS/master/install.sh | sh
+```
+
+**Windows（PowerShell）**
+```powershell
+irm https://raw.githubusercontent.com/2233admin/oh-my-claudecode-RS/master/install.ps1 | iex
+```
+
+安装脚本会自动：
+1. 从 [Releases](https://github.com/2233admin/oh-my-claudecode-RS/releases) 下载对应平台二进制
+2. 安装到 `~/.local/bin/`（macOS/Linux）或 `%USERPROFILE%\.local\bin\`（Windows）
+3. 自动写入 `~/.claude/settings.json` 的 `statusLine` 配置
+
+重启 Claude Code，HUD 立即生效。
+
+---
+
+## 从源码构建
 
 ```bash
 # 克隆
@@ -244,7 +290,7 @@ cargo build --release
 cargo test --workspace
 ```
 
-### Claude Code 集成
+### 手动 Claude Code 集成
 
 在 `~/.claude/settings.json` 中添加：
 
