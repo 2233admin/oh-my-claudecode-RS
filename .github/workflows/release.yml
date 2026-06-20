@@ -1,79 +1,89 @@
-name: Release
+name: release
 
 on:
   push:
-    tags:
-      - 'v*'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+    branches: [master]
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   build:
-    name: Build Release
+    name: build (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: omc-hud
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact: omc-hud
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact: omc-hud
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact: omc-hud.exe
+
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Build
-        run: cargo build --release --workspace
-      - name: Package (linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          tar czf omc-hud-linux-x86_64.tar.gz -C target/release omc-hud
-          tar czf omc-team-linux-x86_64.tar.gz -C target/release omc-team
-          tar czf omc-xcmd-linux-x86_64.tar.gz -C target/release omc-xcmd
-      - name: Package (macos)
-        if: matrix.os == 'macos-latest'
-        run: |
-          tar czf omc-hud-macos.tar.gz -C target/release omc-hud
-          tar czf omc-team-macos.tar.gz -C target/release omc-team
-          tar czf omc-xcmd-macos.tar.gz -C target/release omc-xcmd
-      - name: Package (windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          powershell -Command "Compress-Archive -Path target/release/omc-hud.exe -DestinationPath omc-hud-windows-x86_64.zip"
-          powershell -Command "Compress-Archive -Path target/release/omc-team.exe -DestinationPath omc-team-windows-x86_64.zip"
-          powershell -Command "Compress-Archive -Path target/release/omc-xcmd.exe -DestinationPath omc-xcmd-windows-x86_64.zip"
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
-          name: release-${{ matrix.os }}
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
           path: |
-            *.tar.gz
-            *.zip
-          if-no-files-found: error
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+      - name: Build omc-hud
+        run: cargo build --release -p omc-hud --target ${{ matrix.target }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: omc-hud-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/${{ matrix.artifact }}
 
   release:
-    name: Create Release
-    needs: [build]
+    name: publish release
+    needs: build
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
       - name: Download all artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           path: artifacts
-      - name: Prepare Release Files
+
+      - name: Rename artifacts
         run: |
-          ls -la artifacts/
-          find artifacts -type f -name "*.tar.gz" -o -name "*.zip" | head -20
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+          mkdir dist
+          cp artifacts/omc-hud-x86_64-unknown-linux-gnu/omc-hud   dist/omc-hud-linux-x86_64
+          cp artifacts/omc-hud-x86_64-apple-darwin/omc-hud         dist/omc-hud-macos-x86_64
+          cp artifacts/omc-hud-aarch64-apple-darwin/omc-hud        dist/omc-hud-macos-arm64
+          cp artifacts/omc-hud-x86_64-pc-windows-msvc/omc-hud.exe  dist/omc-hud-windows-x86_64.exe
+          cd dist && sha256sum * > sha256sums.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
         with:
-          files: artifacts/**/*.tar.gz,artifacts/**/*.zip
+          files: dist/*
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

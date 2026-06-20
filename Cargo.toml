@@ -13,6 +13,7 @@ members = [
     "crates/omc-macros",
     "crates/omc-mcp",
     "crates/omc-notifications",
+    "crates/omc-observe",
     "crates/omc-python",
     "crates/omc-skills",
     "crates/omc-team",
