@@ -1,3 +1,4 @@
+use crate::buddy_state::BuddyState;
 use crate::cache::HudCache;
 use crate::config::HudConfig;
 use crate::elements::pet;
@@ -69,6 +70,7 @@ const ROW2: &[Element] = &[
     Element::MissionBoard,
     Element::LastTool,
     Element::BackgroundTasks,
+    Element::BuddyReaction,
 ];
 
 /// Compute the visual (terminal column) width of a string that may contain
@@ -113,6 +115,7 @@ pub fn render_statusline(
     transcript: Option<&TranscriptData>,
     mission_board: Option<&MissionBoardState>,
     config: &HudConfig,
+    buddy: Option<&BuddyState>,
 ) -> String {
     let ctx = RenderContext {
         input,
@@ -124,6 +127,7 @@ pub fn render_statusline(
         transcript,
         mission_board,
         config,
+        buddy,
     };
 
     let sep = match color_level {

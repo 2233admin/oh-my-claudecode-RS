@@ -22,6 +22,7 @@ pub mod mission_board_el;
 pub mod model_name;
 pub mod omc_label;
 pub mod permissions;
+pub mod buddy_reaction;
 pub mod pet;
 pub mod prd;
 pub mod profile;
@@ -87,6 +88,7 @@ pub enum Element {
     Profile,
     OmcLabel,
     LastSkill,
+    BuddyReaction,
 }
 
 pub struct RenderContext<'a> {
@@ -100,6 +102,7 @@ pub struct RenderContext<'a> {
     pub transcript: Option<&'a crate::transcript::TranscriptData>,
     pub mission_board: Option<&'a crate::mission_board::MissionBoardState>,
     pub config: &'a crate::config::HudConfig,
+    pub buddy: Option<&'a crate::buddy_state::BuddyState>,
 }
 
 impl<'a> RenderContext<'a> {
@@ -117,6 +120,7 @@ impl<'a> RenderContext<'a> {
             transcript: None,
             mission_board: None,
             config: test_helpers::empty_config(),
+            buddy: None,
         }
     }
 }
@@ -187,6 +191,7 @@ fn element_config_key(element: Element) -> Option<(&'static str, bool)> {
         Element::Prd => Some(("prdStory", true)),
         Element::Skills => Some(("activeSkills", true)),
         Element::LastSkill => Some(("lastSkill", true)),
+        Element::BuddyReaction => Some(("buddyReaction", true)),
         Element::Context => Some(("contextBar", true)),
         Element::Agents => Some(("agents", true)),
         Element::BackgroundTasks => Some(("backgroundTasks", true)),
@@ -257,6 +262,7 @@ fn render_element_inner(element: Element, ctx: &RenderContext<'_>) -> Option<Str
         Element::Profile => profile::render(ctx),
         Element::OmcLabel => omc_label::render(ctx),
         Element::LastSkill => last_skill::render(ctx),
+        Element::BuddyReaction => buddy_reaction::render(ctx, ctx.buddy),
     }
 }
 

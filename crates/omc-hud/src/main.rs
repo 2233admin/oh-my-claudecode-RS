@@ -1,3 +1,4 @@
+mod buddy_state;
 mod cache;
 mod config;
 mod elements;
@@ -45,6 +46,7 @@ fn run() -> Result<(), String> {
     let transcript_data = input.transcript_path.as_deref().and_then(transcript::parse);
     let usage_data = usage_api::fetch(config.usage_api_poll_interval_ms);
     let mission_board_data = mission_board::load(input.cwd.as_deref());
+    let buddy_data = buddy_state::load();
 
     let locale = i18n::detect_locale();
     let strings = i18n::strings(locale);
@@ -60,6 +62,7 @@ fn run() -> Result<(), String> {
         transcript_data.as_ref(),
         mission_board_data.as_ref(),
         &config,
+        buddy_data.as_ref(),
     );
 
     let mut stdout = io::stdout();
