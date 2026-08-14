@@ -3,6 +3,8 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
+use omc_shared::operation_contract::{ArtifactRef, TaskState, TaskStatus, TypedSubagentResult};
+
 use crate::worker_health::WorkerHealth;
 
 /// Priority level for dispatch tasks.
@@ -25,6 +27,19 @@ pub enum DispatchStatus {
     Cancelled,
 }
 
+impl From<&DispatchStatus> for TaskState {
+    fn from(status: &DispatchStatus) -> Self {
+        match status {
+            DispatchStatus::Queued => Self::Queued,
+            DispatchStatus::Dispatched => Self::Dispatched,
+            DispatchStatus::Acknowledged => Self::Acknowledged,
+            DispatchStatus::Completed => Self::Succeeded,
+            DispatchStatus::Failed => Self::Failed,
+            DispatchStatus::Cancelled => Self::Cancelled,
+        }
+    }
+}
+
 /// A task in the dispatch system.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DispatchTask {
@@ -36,6 +51,33 @@ pub struct DispatchTask {
     pub created_at: String,
     pub dispatched_at: Option<String>,
     pub completed_at: Option<String>,
+}
+
+impl DispatchTask {
+    /// Project the internal dispatch record onto the host-neutral task status
+    /// contract without exposing queue implementation details.
+    pub fn operation_status(&self, observed_at: impl Into<String>) -> TaskStatus {
+        self.operation_status_with_result(observed_at, None)
+    }
+
+    /// Project a completed worker result without exposing provider/runtime
+    /// details to the host contract.
+    pub fn operation_status_with_result(
+        &self,
+        observed_at: impl Into<String>,
+        result: Option<TypedSubagentResult>,
+    ) -> TaskStatus {
+        TaskStatus {
+            schema_version: omc_shared::operation_contract::TASK_SCHEMA_VERSION.into(),
+            task_id: self.id.clone(),
+            correlation_id: self.id.clone(),
+            state: TaskState::from(&self.status),
+            observed_at: observed_at.into(),
+            artifact_refs: Vec::<ArtifactRef>::new(),
+            result,
+            error: None,
+        }
+    }
 }
 
 /// FIFO dispatch queue with concurrency limits and ack timeouts.
@@ -427,6 +469,34 @@ mod tests {
         // Status was Acknowledged before complete() changed it
         // Since complete removes and sets Completed, verify via in_flight_count
         assert_eq!(completed.status, DispatchStatus::Completed);
+    }
+
+    #[test]
+    fn operation_status_projects_dispatch_state() {
+        let mut task = make_task("t-1");
+        task.status = DispatchStatus::Completed;
+        let status = task.operation_status("2026-08-12T00:00:00Z");
+        assert_eq!(status.schema_version, "omc.task.v1");
+        assert_eq!(status.task_id, "t-1");
+        assert_eq!(status.correlation_id, "t-1");
+        assert_eq!(status.state, TaskState::Succeeded);
+        assert!(status.artifact_refs.is_empty());
+        assert!(status.result.is_none());
+    }
+
+    #[test]
+    fn operation_status_projects_typed_result() {
+        let mut task = make_task("t-typed");
+        task.status = DispatchStatus::Completed;
+        let result = TypedSubagentResult::new(
+            "omc.agent.findings.v1",
+            serde_json::json!({"summary":"done"}),
+            Vec::new(),
+        )
+        .unwrap();
+        let status =
+            task.operation_status_with_result("2026-08-12T00:00:00Z", Some(result.clone()));
+        assert_eq!(status.result, Some(result));
     }
 
     // -- AllocationPolicy tests --

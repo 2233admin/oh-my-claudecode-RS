@@ -81,12 +81,12 @@ impl HookRegistry {
 
     /// Returns the host-specific project hooks config path.
     ///
-    /// - `"claude"` → `<root>/.claude/hooks.json`
+    /// - `"claude"` → `<root>/.claude/settings.json`
     /// - `"codex"` → `<root>/.codex/hooks.json`
     /// - other → `<root>/.omc/hooks/<host>.json`
     pub fn host_config_path(root: &Path, host: &str) -> PathBuf {
         match host {
-            "claude" => root.join(".claude").join("hooks.json"),
+            "claude" => root.join(".claude").join("settings.json"),
             "codex" => root.join(".codex").join("hooks.json"),
             _ => root.join(".omc").join("hooks").join(format!("{host}.json")),
         }
@@ -687,7 +687,7 @@ mod tests {
     fn host_config_path_claude() {
         let root = PathBuf::from("/project");
         let path = HookRegistry::host_config_path(&root, "claude");
-        assert_eq!(path, PathBuf::from("/project/.claude/hooks.json"));
+        assert_eq!(path, PathBuf::from("/project/.claude/settings.json"));
     }
 
     #[test]
@@ -719,8 +719,8 @@ mod tests {
         let hooks_dir = root.path().join(".claude");
         std::fs::create_dir_all(&hooks_dir).unwrap();
         std::fs::write(
-            hooks_dir.join("hooks.json"),
-            r#"{"hooks":{"SessionStart":[{"matcher":"*","hooks":[]}]}}"#,
+            hooks_dir.join("settings.json"),
+            r#"{"permissions":{},"hooks":{"SessionStart":[{"matcher":"*","hooks":[]}]}}"#,
         )
         .unwrap();
 
@@ -765,12 +765,12 @@ mod tests {
         let hooks_dir = root.path().join(".claude");
         std::fs::create_dir_all(&hooks_dir).unwrap();
         std::fs::write(
-            hooks_dir.join("hooks.json"),
+            hooks_dir.join("settings.json"),
             r#"{"hooks":{"SessionStart":[{"matcher":"*","hooks":[]}]}}"#,
         )
         .unwrap();
 
-        // Loading for "codex" should not pick up .claude/hooks.json
+        // Loading for "codex" should not pick up .claude/settings.json
         let registry = HookRegistry::load_for_host(root.path(), "codex").unwrap();
         assert_eq!(registry.stats().project_events, 0);
     }

@@ -1,11 +1,11 @@
-//! Claude Code settings.json generation.
+//! Claude Code settings.json and project MCP configuration generation.
 
 use serde_json::json;
 
 use crate::types::{ConfigGenOptions, GeneratedConfig, GeneratedFile};
 use std::path::PathBuf;
 
-/// Generate `.claude/settings.json` content.
+/// Generate Claude project configuration files.
 pub fn generate_claude_config(opts: &ConfigGenOptions) -> Result<GeneratedConfig, String> {
     let mut settings = serde_json::Map::new();
 
@@ -46,12 +46,6 @@ pub fn generate_claude_config(opts: &ConfigGenOptions) -> Result<GeneratedConfig
         }
     }
 
-    // MCP servers
-    if !opts.mcp_servers.is_empty() {
-        let mcp = crate::mcp_reg::claude_mcp_json(&opts.mcp_servers);
-        settings.insert("mcpServers".into(), mcp);
-    }
-
     // Custom instructions
     if let Some(ref instructions) = opts.custom_instructions {
         settings.insert("customInstructions".into(), json!(instructions));
@@ -60,12 +54,24 @@ pub fn generate_claude_config(opts: &ConfigGenOptions) -> Result<GeneratedConfig
     let content = serde_json::to_string_pretty(&serde_json::Value::Object(settings))
         .map_err(|e| e.to_string())?;
 
-    Ok(GeneratedConfig {
-        files: vec![GeneratedFile {
-            relative_path: PathBuf::from(".claude").join("settings.json"),
-            content,
-        }],
-    })
+    let mut files = vec![GeneratedFile {
+        relative_path: PathBuf::from(".claude").join("settings.json"),
+        content,
+    }];
+    if !opts.mcp_servers.is_empty() {
+        files.push(GeneratedFile {
+            relative_path: PathBuf::from(".mcp.json"),
+            content: format!(
+                "{}\n",
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "mcpServers": crate::mcp_reg::claude_mcp_json(&opts.mcp_servers),
+                }))
+                .map_err(|e| e.to_string())?
+            ),
+        });
+    }
+
+    Ok(GeneratedConfig { files })
 }
 
 #[cfg(test)]
@@ -122,7 +128,12 @@ mod tests {
             ..Default::default()
         };
         let cfg = generate_claude_config(&opts).unwrap();
-        let content = &cfg.files[0].content;
+        let content = &cfg
+            .files
+            .iter()
+            .find(|file| file.relative_path == std::path::Path::new(".mcp.json"))
+            .unwrap()
+            .content;
         assert!(content.contains("mcpServers"));
         assert!(content.contains("omc-state"));
     }

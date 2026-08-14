@@ -12,7 +12,7 @@ pub struct SkillTemplate {
     pub content: String,
 }
 
-/// All available built-in skill names (40 total)
+/// All available built-in skill names (41 total)
 pub const SKILL_NAMES: &[&str] = &[
     "ai-slop-cleaner",
     "ask",
@@ -30,6 +30,7 @@ pub const SKILL_NAMES: &[&str] = &[
     "improve-codebase-architecture",
     "learner",
     "mcp-setup",
+    "omc-agent-tool",
     "omc-doctor",
     "omc-setup",
     "omc-teams",
@@ -331,6 +332,26 @@ pub fn get_templates() -> HashMap<String, SkillTemplate> {
                 protocol_version: None,
             },
             content: include_str!("templates/omc-doctor.md").to_string(),
+        },
+    );
+
+    templates.insert(
+        "omc-agent-tool".to_string(),
+        SkillTemplate {
+            metadata: SkillMetadata {
+                name: "omc-agent-tool".to_string(),
+                description:
+                    "Host-neutral OMC-RS capability discovery and progressive task routing"
+                        .to_string(),
+                argument_hint: None,
+                level: Some("2".to_string()),
+                aliases: vec![],
+                agent: None,
+                model: None,
+                hosts: vec!["claude".to_string(), "codex".to_string()],
+                protocol_version: Some("1.0".to_string()),
+            },
+            content: include_str!("templates/omc-agent-tool.md").to_string(),
         },
     );
 
