@@ -190,7 +190,13 @@ pub(super) fn path_to_file_uri(path: &Path) -> String {
     let normalized = path.to_string_lossy().replace('\\', "/");
     let normalized = normalized.strip_prefix("//?/").unwrap_or(&normalized);
     let encoded = percent_encode_path(normalized);
-    if cfg!(windows) {
+    // A Windows path can arrive while the consumer is running on another OS
+    // (for example, contract tests or a remote host). Choose URI shape from
+    // the path syntax instead of the build target.
+    let bytes = normalized.as_bytes();
+    let has_windows_drive =
+        bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/';
+    if has_windows_drive {
         format!("file:///{encoded}")
     } else {
         format!("file://{encoded}")

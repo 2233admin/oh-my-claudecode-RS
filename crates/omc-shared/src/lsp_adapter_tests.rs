@@ -22,6 +22,12 @@ fn file_uri_removes_windows_verbatim_prefix() {
 }
 
 #[test]
+fn file_uri_preserves_unix_absolute_path_shape() {
+    let uri = path_to_file_uri(Path::new("/work dir/src/lib.rs"));
+    assert_eq!(uri, "file:///work%20dir/src/lib.rs");
+}
+
+#[test]
 fn oversized_lsp_message_is_rejected_before_allocation() {
     let input = format!("Content-Length: {}\r\n\r\n", MAX_MESSAGE_BYTES + 1);
     let error = read_message(&mut input.as_bytes()).unwrap_err();
