@@ -4,9 +4,11 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+pub mod goal_ledger;
 pub mod reader;
 pub mod writer;
 
+pub use goal_ledger::GoalLedger;
 pub use reader::StateReader;
 pub use writer::StateWriter;
 
