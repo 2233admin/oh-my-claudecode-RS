@@ -16,6 +16,7 @@ pub mod paths;
 pub mod prelude;
 pub mod resilience;
 pub mod routing;
+pub mod session_pool;
 pub mod shared_memory;
 pub mod state;
 pub mod team_contract;
