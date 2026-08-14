@@ -69,6 +69,13 @@ pub enum Commands {
         tools: bool,
     },
 
+    /// Show one read-only project/platform health snapshot
+    Status {
+        /// Emit the versioned machine-readable contract
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Start the MCP stdio server
     Mcp,
 

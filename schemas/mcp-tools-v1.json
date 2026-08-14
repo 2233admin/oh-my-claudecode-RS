@@ -1,0 +1,914 @@
+{
+  "schemaVersion": "omc.mcp-tools.v1",
+  "tools": [
+    {
+      "name": "agent_capabilities",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "agent_route",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "agentType": {
+            "type": "string"
+          },
+          "previousFailures": {
+            "type": "number",
+            "minimum": 0
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "task"
+        ]
+      }
+    },
+    {
+      "name": "code_intel_artifact_query",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "artifactRoot": {
+            "type": "string"
+          },
+          "artifactSchema": {
+            "type": "string"
+          },
+          "artifactType": {
+            "type": "string"
+          },
+          "artifactUri": {
+            "type": "string"
+          },
+          "contains": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "repo": {
+            "type": "string"
+          },
+          "repoPath": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo"
+        ]
+      }
+    },
+    {
+      "name": "debug_inspect",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "loadedSources",
+              "modules",
+              "output",
+              "scopes",
+              "stackTrace",
+              "threads",
+              "variables"
+            ]
+          },
+          "adapterArgs": {
+            "type": "array"
+          },
+          "adapterCommand": {
+            "type": "string"
+          },
+          "allowSideEffects": {
+            "type": "boolean"
+          },
+          "attachArguments": {
+            "type": "object"
+          },
+          "frameId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "launchArguments": {
+            "type": "object"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "attach",
+              "launch"
+            ]
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "threadId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 5000,
+            "maximum": 300000
+          },
+          "variablesReference": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "adapterCommand",
+          "allowSideEffects",
+          "mode"
+        ]
+      }
+    },
+    {
+      "name": "goal_block",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "goalId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "goalId",
+          "reason"
+        ]
+      }
+    },
+    {
+      "name": "goal_checkpoint",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "artifactRefs": {
+            "type": "array"
+          },
+          "checkpointId": {
+            "type": "string"
+          },
+          "goalId": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "checkpointId",
+          "goalId",
+          "summary"
+        ]
+      }
+    },
+    {
+      "name": "goal_complete",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "goalId": {
+            "type": "string"
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "goalId"
+        ]
+      }
+    },
+    {
+      "name": "goal_create",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "goalId": {
+            "type": "string"
+          },
+          "objective": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "goalId",
+          "objective"
+        ]
+      }
+    },
+    {
+      "name": "goal_get",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "goalId": {
+            "type": "string"
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "goalId"
+        ]
+      }
+    },
+    {
+      "name": "goal_list",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "workingDirectory": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "goal_start",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "goalId": {
+            "type": "string"
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "goalId"
+        ]
+      }
+    },
+    {
+      "name": "hash_edit",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "anchors": {
+            "type": "array"
+          },
+          "endLine": {
+            "type": "number",
+            "minimum": 0
+          },
+          "expectedFileSha256": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "replacement": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "startLine": {
+            "type": "number",
+            "minimum": 0
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "anchors",
+          "endLine",
+          "path",
+          "replacement",
+          "startLine"
+        ]
+      }
+    },
+    {
+      "name": "interop_bridge",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "send_message",
+              "send_task"
+            ]
+          },
+          "allowSideEffects": {
+            "type": "boolean"
+          },
+          "content": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "omc",
+              "omx"
+            ]
+          },
+          "target": {
+            "type": "string",
+            "enum": [
+              "omc",
+              "omx"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "custom",
+              "implement",
+              "review",
+              "test"
+            ]
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "allowSideEffects",
+          "source",
+          "target"
+        ]
+      }
+    },
+    {
+      "name": "interop_snapshot",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "lsp_document_symbols",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 5000,
+            "maximum": 60000
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ]
+      }
+    },
+    {
+      "name": "notepad_read",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "section": {
+            "type": "string",
+            "enum": [
+              "all",
+              "manual",
+              "priority",
+              "working"
+            ]
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "notepad_write_manual",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "max_length": 4000
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      }
+    },
+    {
+      "name": "notepad_write_priority",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "max_length": 2000
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      }
+    },
+    {
+      "name": "notepad_write_working",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "max_length": 4000
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      }
+    },
+    {
+      "name": "project_memory_add_directive",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "context": {
+            "type": "string",
+            "max_length": 500
+          },
+          "directive": {
+            "type": "string",
+            "max_length": 500
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "high",
+              "normal"
+            ]
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "directive"
+        ]
+      }
+    },
+    {
+      "name": "project_memory_add_note",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "max_length": 50
+          },
+          "content": {
+            "type": "string",
+            "max_length": 1000
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "content"
+        ]
+      }
+    },
+    {
+      "name": "project_memory_read",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "section": {
+            "type": "string",
+            "enum": [
+              "all",
+              "build",
+              "conventions",
+              "directives",
+              "notes",
+              "structure",
+              "techStack"
+            ]
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "project_memory_write",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "memory": {
+            "type": "object"
+          },
+          "merge": {
+            "type": "boolean"
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "memory"
+        ]
+      }
+    },
+    {
+      "name": "python_repl",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "execute",
+              "get_state",
+              "interrupt",
+              "reset"
+            ]
+          },
+          "allowSideEffects": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "executionTimeout": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 300000
+          },
+          "projectDir": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "sessionId"
+        ]
+      }
+    },
+    {
+      "name": "state_clear",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "autopilot",
+              "autoresearch",
+              "deep-interview",
+              "omc-teams",
+              "ralph",
+              "ralplan",
+              "self-improve",
+              "skill-active",
+              "team",
+              "ultraqa",
+              "ultrawork"
+            ]
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      }
+    },
+    {
+      "name": "state_get_status",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "autopilot",
+              "autoresearch",
+              "deep-interview",
+              "omc-teams",
+              "ralph",
+              "ralplan",
+              "self-improve",
+              "skill-active",
+              "team",
+              "ultraqa",
+              "ultrawork"
+            ]
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "state_list_active",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "state_read",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "autopilot",
+              "autoresearch",
+              "deep-interview",
+              "omc-teams",
+              "ralph",
+              "ralplan",
+              "self-improve",
+              "skill-active",
+              "team",
+              "ultraqa",
+              "ultrawork"
+            ]
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      }
+    },
+    {
+      "name": "state_write",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "completed_at": {
+            "type": "string",
+            "max_length": 100
+          },
+          "current_phase": {
+            "type": "string",
+            "max_length": 200
+          },
+          "error": {
+            "type": "string",
+            "max_length": 2000
+          },
+          "iteration": {
+            "type": "number"
+          },
+          "max_iterations": {
+            "type": "number"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "autopilot",
+              "autoresearch",
+              "deep-interview",
+              "omc-teams",
+              "ralph",
+              "ralplan",
+              "self-improve",
+              "skill-active",
+              "team",
+              "ultraqa",
+              "ultrawork"
+            ]
+          },
+          "plan_path": {
+            "type": "string",
+            "max_length": 500
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string",
+            "max_length": 100
+          },
+          "state": {
+            "type": "object"
+          },
+          "task_description": {
+            "type": "string",
+            "max_length": 2000
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      }
+    },
+    {
+      "name": "subagent_result_validate",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "payload": {
+            "type": "object"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "requiredFields": {
+            "type": "array"
+          },
+          "resultType": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload",
+          "resultType"
+        ]
+      }
+    },
+    {
+      "name": "team_observability",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "view": {
+            "type": "string",
+            "enum": [
+              "doctor",
+              "sessions",
+              "top"
+            ]
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "view"
+        ]
+      }
+    },
+    {
+      "name": "workflow_advance",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "allTasksAssigned": {
+            "type": "boolean"
+          },
+          "allTasksCompleted": {
+            "type": "boolean"
+          },
+          "currentStage": {
+            "type": "string"
+          },
+          "fixAttempts": {
+            "type": "number",
+            "minimum": 0
+          },
+          "hasBlockers": {
+            "type": "boolean"
+          },
+          "hasFailures": {
+            "type": "boolean"
+          },
+          "maxFixAttempts": {
+            "type": "number",
+            "minimum": 0
+          },
+          "planApproved": {
+            "type": "boolean"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "requirementsClarified": {
+            "type": "boolean"
+          },
+          "verificationPassed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "currentStage"
+        ]
+      }
+    }
+  ]
+}

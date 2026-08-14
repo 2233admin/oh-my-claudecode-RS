@@ -35,9 +35,9 @@ mod tool;
 use tool::run_tool;
 pub use tool::run_tool_value;
 mod host;
-#[cfg(test)]
 use host::collect_doctor_reports;
 use host::{run_doctor, run_setup_host};
+mod status;
 mod templates;
 use templates::{list_skills, load_template, substitute_arguments};
 
@@ -66,6 +66,7 @@ fn skill_name(cmd: &Commands) -> Option<&'static str> {
         Commands::Goal { .. } => None,
         Commands::OmcSetup { .. } => Some("omc-setup"),
         Commands::OmcDoctor { .. } => None,
+        Commands::Status { .. } => None,
         Commands::Mcp => None,
         Commands::Team { .. } => None,
         Commands::ConfigureNotifications(_) => Some("configure-notifications"),
@@ -103,6 +104,7 @@ fn skill_args(cmd: &Commands) -> Option<SkillArgs> {
         Commands::Tool { .. } => None,
         Commands::Goal { .. } => None,
         Commands::OmcDoctor { .. } => None,
+        Commands::Status { .. } => None,
         Commands::Mcp => None,
         Commands::Team { .. } => None,
         Commands::OmcSetup { args, .. } => Some(SkillArgs { args: args.clone() }),
@@ -158,6 +160,11 @@ pub fn run(cli: Cli) -> Result<(), DispatchError> {
     if let Commands::OmcDoctor { host, json, tools } = &cli.command {
         let root = std::env::current_dir().map_err(DispatchError::Io)?;
         return run_doctor(&root, host.as_deref(), *json, *tools);
+    }
+
+    if let Commands::Status { json } = &cli.command {
+        let root = std::env::current_dir().map_err(DispatchError::Io)?;
+        return status::run_status(&root, *json);
     }
 
     if matches!(&cli.command, Commands::List) {

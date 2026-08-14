@@ -64,6 +64,7 @@ cargo run -p omc-hud
 cargo run -p omc-cli -- --help
 cargo run -p omc-cli -- setup --host codex
 cargo run -p omc-cli -- doctor --host codex --json
+cargo run -p omc-cli -- status --json
 
 # MCP stdio server for Agent hosts (the legacy omc-mcp binary remains valid)
 cargo run -p omc-cli -- mcp
@@ -73,6 +74,7 @@ cargo run -p omc-cli -- tool capabilities
 cargo run -p omc-cli -- tool route --task "review the repository architecture"
 cargo run -p omc-cli -- tool python-repl --action execute --session-id demo \
   --code "print(6 * 7)" --allow-side-effects
+# MCP process lifecycle actions: list_sessions and close
 # External stdio DAP adapter; launch/attach requires explicit opt-in
 cargo run -p omc-cli -- tool debug-inspect --adapter-command codelldb \
   --adapter-args-json '["--stdio"]' --mode launch --action threads \

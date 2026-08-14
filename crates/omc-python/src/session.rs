@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -18,6 +19,7 @@ pub(crate) const MAX_TIMEOUT_MS: u64 = 300_000;
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const MAX_CODE_BYTES: usize = 256 * 1024;
 const MAX_SESSIONS: usize = 16;
+const DEFAULT_IDLE_TTL: Duration = Duration::from_secs(30 * 60);
 
 /// Input contract exposed by the OMC Python tool.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -101,6 +103,15 @@ struct SessionKey {
 
 struct PythonSession {
     kernel: PythonKernel,
+    last_used: Instant,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PythonSessionInfo {
+    pub session_id: String,
+    pub project_dir: String,
+    pub idle_ms: u64,
 }
 
 /// Process-local session store. MCP owns one for its process lifetime; the
@@ -109,6 +120,7 @@ pub struct PythonReplService {
     // ponytail: one process-global lock serializes cells; split to per-session
     // locks if concurrent Python sessions become a measured bottleneck.
     sessions: Mutex<HashMap<SessionKey, PythonSession>>,
+    idle_ttl: Duration,
 }
 
 impl Default for PythonReplService {
@@ -121,6 +133,14 @@ impl PythonReplService {
     pub fn new() -> Self {
         Self {
             sessions: Mutex::new(HashMap::new()),
+            idle_ttl: DEFAULT_IDLE_TTL,
+        }
+    }
+
+    pub fn with_idle_ttl(idle_ttl: Duration) -> Self {
+        Self {
+            sessions: Mutex::new(HashMap::new()),
+            idle_ttl,
         }
     }
 
@@ -136,6 +156,7 @@ impl PythonReplService {
         }
         let project_dir = resolve_project_dir(input.project_dir.as_deref())?;
         let mut sessions = self.lock_sessions()?;
+        reap_idle(&mut sessions, self.idle_ttl);
         let key = SessionKey {
             id: input.research_session_id.clone(),
             project_dir: project_dir.clone(),
@@ -148,11 +169,19 @@ impl PythonReplService {
         if !sessions.contains_key(&key) {
             let kernel =
                 PythonKernel::start(&project_dir).map_err(PythonSessionError::Unavailable)?;
-            sessions.insert(key.clone(), PythonSession { kernel });
+            sessions.insert(
+                key.clone(),
+                PythonSession {
+                    kernel,
+                    last_used: Instant::now(),
+                },
+            );
         }
-        sessions
+        let session = sessions
             .get_mut(&key)
-            .ok_or_else(|| PythonSessionError::Failed("session was not stored".into()))?
+            .ok_or_else(|| PythonSessionError::Failed("session was not stored".into()))?;
+        session.last_used = Instant::now();
+        session
             .kernel
             .execute(code, input.execution_timeout.unwrap_or(DEFAULT_TIMEOUT_MS))
     }
@@ -198,7 +227,43 @@ impl PythonReplService {
     }
 
     pub fn session_count(&self) -> Result<usize, PythonSessionError> {
-        Ok(self.lock_sessions()?.len())
+        Ok(self.list_sessions()?.len())
+    }
+
+    pub fn list_sessions(&self) -> Result<Vec<PythonSessionInfo>, PythonSessionError> {
+        let mut sessions = self.lock_sessions()?;
+        reap_idle(&mut sessions, self.idle_ttl);
+        let mut result = sessions
+            .iter()
+            .map(|(key, session)| PythonSessionInfo {
+                session_id: key.id.clone(),
+                project_dir: key.project_dir.display().to_string(),
+                idle_ms: session
+                    .last_used
+                    .elapsed()
+                    .as_millis()
+                    .min(u128::from(u64::MAX)) as u64,
+            })
+            .collect::<Vec<_>>();
+        result.sort_by(|left, right| {
+            left.session_id
+                .cmp(&right.session_id)
+                .then(left.project_dir.cmp(&right.project_dir))
+        });
+        Ok(result)
+    }
+
+    pub fn close(
+        &self,
+        session_id: &str,
+        project_dir: Option<&str>,
+    ) -> Result<bool, PythonSessionError> {
+        validate_session_id(session_id)?;
+        let key = SessionKey {
+            id: session_id.to_string(),
+            project_dir: resolve_project_dir(project_dir)?,
+        };
+        Ok(self.lock_sessions()?.remove(&key).is_some())
     }
 
     fn with_session<T>(
@@ -217,6 +282,7 @@ impl PythonReplService {
         let session = sessions
             .get_mut(&key)
             .ok_or_else(|| PythonSessionError::InvalidRequest("session does not exist".into()))?;
+        session.last_used = Instant::now();
         operation(session)
     }
 
@@ -228,6 +294,10 @@ impl PythonReplService {
             .lock()
             .map_err(|_| PythonSessionError::Failed("session store was poisoned".into()))
     }
+}
+
+fn reap_idle(sessions: &mut HashMap<SessionKey, PythonSession>, idle_ttl: Duration) {
+    sessions.retain(|_, session| session.last_used.elapsed() < idle_ttl);
 }
 
 fn validate_session_id(session_id: &str) -> Result<(), PythonSessionError> {
@@ -348,5 +418,33 @@ mod tests {
                 .iter()
                 .any(|marker| marker.subtype.as_deref() == Some("stdout_truncated"))
         );
+    }
+
+    #[test]
+    fn sessions_can_be_discovered_and_closed() {
+        let service = PythonReplService::new();
+        let root = tempdir().unwrap();
+        let input = PythonReplInput {
+            action: ReplAction::Execute,
+            research_session_id: "lifecycle".into(),
+            code: Some("value = 1".into()),
+            execution_label: None,
+            execution_timeout: Some(10_000),
+            queue_timeout: None,
+            project_dir: Some(root.path().to_string_lossy().into_owned()),
+        };
+        if matches!(
+            service.execute(&input),
+            Err(PythonSessionError::Unavailable(_))
+        ) {
+            return;
+        }
+        assert_eq!(service.list_sessions().unwrap()[0].session_id, "lifecycle");
+        assert!(
+            service
+                .close("lifecycle", input.project_dir.as_deref())
+                .unwrap()
+        );
+        assert_eq!(service.session_count().unwrap(), 0);
     }
 }

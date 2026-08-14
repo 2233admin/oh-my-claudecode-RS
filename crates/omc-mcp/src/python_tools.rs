@@ -39,6 +39,8 @@ impl McpTool for PythonReplTool {
                     "get_state".into(),
                     "reset".into(),
                     "interrupt".into(),
+                    "list_sessions".into(),
+                    "close".into(),
                 ]),
                 max_length: None,
                 minimum: None,
@@ -110,7 +112,11 @@ impl McpTool for PythonReplTool {
             Ok(input) => input,
             Err(error) => return encode_error(request_id, map_error(error)),
         };
-        if !matches!(action, omc_python::ReplAction::GetState) && !allow_side_effects {
+        if !matches!(
+            action,
+            omc_python::ReplAction::GetState | omc_python::ReplAction::ListSessions
+        ) && !allow_side_effects
+        {
             return encode_error(
                 request_id,
                 ToolError::new(
@@ -146,6 +152,14 @@ impl McpTool for PythonReplTool {
                     serde_json::to_value(value)
                         .map_err(|error| PythonSessionError::Failed(error.to_string()))
                 }),
+            omc_python::ReplAction::ListSessions => self.service.list_sessions().map(|value| {
+                serde_json::to_value(value)
+                    .map_err(|error| PythonSessionError::Failed(error.to_string()))
+            }),
+            omc_python::ReplAction::Close => self
+                .service
+                .close(&session_id, project_dir.as_deref())
+                .map(|closed| Ok(serde_json::json!({ "closed": closed }))),
         };
         match result.and_then(|value| value) {
             Ok(result) => {

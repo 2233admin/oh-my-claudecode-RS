@@ -9,6 +9,7 @@ pub mod memory_tools;
 pub mod notepad_tools;
 pub mod protocol_registry;
 pub mod python_tools;
+pub mod schema_contract;
 pub mod server;
 pub mod state_tools;
 pub mod team_tools;
@@ -48,5 +49,12 @@ mod catalog_tests {
             .map(str::to_string)
             .collect::<BTreeSet<_>>();
         assert_eq!(registered, catalog);
+    }
+
+    #[test]
+    fn released_v1_schema_remains_backward_compatible() {
+        let baseline = include_str!("../../../schemas/mcp-tools-v1.json");
+        schema_contract::verify_backward_compatible(baseline, &schema_contract::current_manifest())
+            .expect("MCP v1 schema contains an undeclared breaking change");
     }
 }

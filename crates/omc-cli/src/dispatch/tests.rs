@@ -140,3 +140,12 @@ fn doctor_rejects_unknown_host() {
     let error = collect_doctor_reports(tmp.path(), Some("sentinel")).unwrap_err();
     assert!(error.to_string().contains("unknown host"));
 }
+
+#[test]
+fn status_has_a_stable_schema_and_complete_catalog_counts() {
+    let tmp = tempfile::tempdir().unwrap();
+    let status = super::status::build_status(tmp.path());
+    assert_eq!(status.schema_version, "omc.status.v1");
+    assert_eq!(status.capabilities.total, 16);
+    assert_eq!(status.capabilities.mcp_tools, 32);
+}

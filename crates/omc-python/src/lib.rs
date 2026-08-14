@@ -8,4 +8,6 @@ pub use repl::{
     ExecuteResult, ExecutionError, InterruptResult, MarkerInfo, MemoryInfo, PythonReplInput,
     ReplAction, ResetResult, StateResult, TimingInfo,
 };
-pub use session::{PythonReplService, PythonSessionError, PythonToolPayload, PythonToolRequest};
+pub use session::{
+    PythonReplService, PythonSessionError, PythonSessionInfo, PythonToolPayload, PythonToolRequest,
+};

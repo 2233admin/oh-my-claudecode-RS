@@ -160,7 +160,9 @@ pub fn run_tool_value(command: &ToolCommand) -> Result<Value, DispatchError> {
                     ))?);
                 }
             };
-            if !matches!(action, ReplAction::GetState) && !allow_side_effects {
+            if !matches!(action, ReplAction::GetState | ReplAction::ListSessions)
+                && !allow_side_effects
+            {
                 return Ok(serde_json::to_value(ToolResponse::<Value>::failure(
                     request_id,
                     omc_shared::agent_tool::ToolError::new(
@@ -189,6 +191,14 @@ pub fn run_tool_value(command: &ToolCommand) -> Result<Value, DispatchError> {
                             .map_err(|e| PythonSessionError::Failed(e.to_string()))
                     })
                 }
+                ReplAction::ListSessions => service.list_sessions().and_then(|value| {
+                    serde_json::to_value(value)
+                        .map_err(|e| PythonSessionError::Failed(e.to_string()))
+                }),
+                ReplAction::Close => service.close(session_id, Some(root)).and_then(|closed| {
+                    serde_json::to_value(serde_json::json!({ "closed": closed }))
+                        .map_err(|e| PythonSessionError::Failed(e.to_string()))
+                }),
             };
             match result {
                 Ok(result) => {
