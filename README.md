@@ -9,7 +9,7 @@
 [![CI](https://github.com/2233admin/oh-my-claudecode-RS/actions/workflows/ci.yml/badge.svg)](https://github.com/2233admin/oh-my-claudecode-RS/actions)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.85+-orange.svg)](https://www.rust-lang.org)
-[![Tests](https://img.shields.io/badge/tests-816-brightgreen.svg)](#build--test)
+[![Tests](https://img.shields.io/badge/tests-1176-brightgreen.svg)](#build--test)
 [![Binary Size](https://img.shields.io/badge/binary-397%20KB-brightgreen.svg)](#performance)
 
 ## What is OMC-RS
@@ -20,9 +20,9 @@ A **Rust rewrite** of [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-cl
 
 | Metric | Value |
 |--------|-------|
-| Crates | **17** |
-| Lines of Rust | **42,000+** |
-| Tests | **816** |
+| Crates | **19** |
+| Lines of Rust | **63,000+** |
+| Tests | **1,176** |
 | HUD cold-start median | **3.81ms** (Win11, Ryzen 9800X3D) |
 | Binary size (HUD) | **397 KB** |
 | Edition | Rust 2024, rustc 1.85+ |
@@ -60,13 +60,38 @@ Add to `~/.claude/settings.json`:
 # HUD
 cargo run -p omc-hud
 
-# CLI
+# CLI help and host setup
 cargo run -p omc-cli -- --help
+cargo run -p omc-cli -- setup --host codex
+cargo run -p omc-cli -- doctor --host codex --json
+
+# MCP stdio server for Agent hosts (the legacy omc-mcp binary remains valid)
+cargo run -p omc-cli -- mcp
+
+# Host-neutral tools
+cargo run -p omc-cli -- tool capabilities
+cargo run -p omc-cli -- tool route --task "review the repository architecture"
+cargo run -p omc-cli -- tool python-repl --action execute --session-id demo \
+  --code "print(6 * 7)" --allow-side-effects
+# External stdio DAP adapter; launch/attach requires explicit opt-in
+cargo run -p omc-cli -- tool debug-inspect --adapter-command codelldb \
+  --adapter-args-json '["--stdio"]' --mode launch --action threads \
+  --launch-arguments '{"program":"target/debug/app"}' \
+  --allow-side-effects
+
+# Durable project goal / checkpoint ledger
+cargo run -p omc-cli -- goal create --id internalize-omx --objective "absorb portable workflow capabilities"
+cargo run -p omc-cli -- goal start --id internalize-omx
+cargo run -p omc-cli -- goal checkpoint --id internalize-omx --checkpoint-id s0 --summary "setup and host doctor verified"
+cargo run -p omc-cli -- goal show --id internalize-omx
 
 # Team
 cargo run -p omc-team -- init
 cargo run -p omc-team -- start ./task.md --team-size 3
 ```
+
+`setup` and `doctor` also accept the legacy aliases `omc-setup` and
+`omc-doctor`. `doctor --json` is intended for automation and host adapters.
 
 ## Key Features
 
@@ -141,7 +166,7 @@ omc-shared          (foundation -- types, config, routing, resilience)
 
 ```bash
 cargo build --release                # optimized binary (~400 KB)
-cargo test --workspace               # all 816 tests
+cargo test --workspace               # all 1,176 tests
 cargo clippy --workspace -- -D warnings
 cargo fmt --check
 ```
@@ -224,9 +249,9 @@ Independent re-implementation. No source code copying from upstream.
 
 | 指标 | 数值 |
 |------|------|
-| Crates | **17 个** |
-| Rust 代码 | **42,000+ 行** |
-| 测试 | **816 个** |
+| Crates | **19 个** |
+| Rust 代码 | **63,000+ 行** |
+| 测试 | **1,176 个** |
 | HUD 冷启动 | **3.81ms** (Win11, Ryzen 9800X3D) |
 | 二进制大小 | **397 KB** |
 

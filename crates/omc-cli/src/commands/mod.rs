@@ -2,6 +2,9 @@
 
 use clap::{Parser, Subcommand};
 
+mod agent;
+pub use agent::{GoalCommand, ToolCommand};
+
 /// oh-my-claudecode CLI dispatcher.
 ///
 /// Loads and outputs skill instructions for the given subcommand.
@@ -14,16 +17,32 @@ pub struct Cli {
 
 /// All available OMC commands.
 ///
-/// Each subcommand maps to a skill template. The dispatcher loads the
-/// corresponding SKILL.md, substitutes `$ARGUMENTS`, and prints the
-/// rendered content to stdout.
+/// Most subcommands map to a skill template. Tool commands use the shared
+/// JSON contract directly and do not render a skill.
 #[derive(Subcommand, Debug)]
 pub enum Commands {
+    /// Expose the stable OMC-RS agent tool contract
+    Tool {
+        #[command(subcommand)]
+        command: ToolCommand,
+    },
+
+    /// Create and resume a project-scoped goal ledger
+    Goal {
+        #[command(subcommand)]
+        command: GoalCommand,
+    },
+
     /// Setup OMC for a specific host
+    #[command(name = "setup", visible_alias = "omc-setup")]
     OmcSetup {
-        /// Target host: claude or codex
-        #[arg(long, value_parser = ["claude", "codex"])]
+        /// Target host: claude, codex, or Hermes MCP consumer
+        #[arg(long, value_parser = ["claude", "codex", "hermes"])]
         host: Option<String>,
+
+        /// Hermes home directory; defaults to HERMES_HOME or ~/.hermes
+        #[arg(long, value_name = "PATH")]
+        hermes_home: Option<std::path::PathBuf>,
 
         /// Force overwrite existing configuration
         #[arg(long, default_value = "false")]
@@ -34,8 +53,28 @@ pub enum Commands {
         args: Vec<String>,
     },
 
-    /// Diagnose OMC installation and environment
-    OmcDoctor(SkillArgs),
+    /// Diagnose OMC host configuration and environment
+    #[command(name = "doctor", visible_alias = "omc-doctor")]
+    OmcDoctor {
+        /// Check only one host; omit to check both Claude Code and Codex CLI
+        #[arg(long, value_parser = ["claude", "codex"])]
+        host: Option<String>,
+
+        /// Emit machine-readable JSON instead of a human report
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Start the MCP stdio server
+    Mcp,
+
+    /// Run the existing OMC team runtime through the unified CLI
+    #[command(name = "team")]
+    Team {
+        /// Arguments forwarded to the omc-team runtime
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
 
     /// Configure notification preferences
     ConfigureNotifications(SkillArgs),

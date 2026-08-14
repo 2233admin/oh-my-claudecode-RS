@@ -1,12 +1,12 @@
 # OMC-RS — oh-my-claudecode in Rust
 
-Rust rewrite of oh-my-claudecode: a toolkit for Claude Code that adds agent orchestration, hooks, skills, MCP routing, statusline, context injection, and multi-provider git integration. 18 crates, 51K+ lines, 392 tests.
+Rust rewrite of oh-my-claudecode: a toolkit for Claude Code that adds agent orchestration, hooks, skills, MCP routing, statusline, context injection, and multi-provider git integration. 19 crates, 63K+ lines, 1,176 tests.
 
 ## Build and Test
 
 ```bash
 cargo build                          # debug build
-cargo test --workspace               # run all 392 tests
+cargo test --workspace               # run all 1,176 tests
 cargo test -p omc-team               # single crate
 cargo clippy --workspace -- -D warnings
 cargo fmt --check
@@ -92,7 +92,7 @@ protocol_version: "1.0"       # absent = v0 (legacy)
 - Integration tests go in `tests/` directory per crate.
 - Use `tempfile` for filesystem tests, `tokio::test` for async tests.
 - Test behavior, not implementation. One logical assertion per test case.
-- Current: 392 tests, 0 failures. Do not merge code that breaks this.
+- Current: 1,176 tests, 0 failures. Do not merge code that breaks this.
 
 ## Commits and PRs
 

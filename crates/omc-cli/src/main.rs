@@ -1,9 +1,5 @@
-mod commands;
-
 use clap::Parser;
-use commands::Cli;
-
-mod dispatch;
+use omc_cli::{commands::Cli, dispatch};
 
 fn main() {
     let cli = Cli::parse();

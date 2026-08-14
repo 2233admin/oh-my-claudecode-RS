@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Added fail-closed `--force` replacement for Claude, Codex, and Hermes MCP
+  registrations with atomic writes and adjacent configuration backups.
+- Added byte-accurate UTF-8 Python output limits with explicit truncation
+  markers and deterministic UTF-8 subprocess I/O on Windows.
+- Split CLI dispatch, MCP agent tools, and DAP/LSP transports into focused
+  modules so new host-neutral adapters do not accumulate in monolithic files.
+
+- Added the bounded `omc.debug.v1` / `debug_inspect` adapter for explicit
+  launch/attach sessions through externally supplied stdio DAP adapters.
+
+- Unified `omc mcp` stdio entry that reuses the `omc-mcp` server library.
+- `omc setup --host codex|claude` registration of the `omc-rs -> omc mcp`
+  host server, with idempotent writes and fail-closed conflict handling.
+- Versioned host-neutral agent-tool contracts for capabilities, routing,
+  workflow evidence, typed results, hash edits, artifacts, LSP, and Python.
+
 ## [0.1.0] — 2026-05-05
 
 First usable release. 13/13 HUD elements implemented; cold-start under 5ms target (median 3.81ms on Windows 11 / Ryzen 9800X3D, 10-run sample).

@@ -11,13 +11,23 @@ repository.workspace = true
 clap = { version = "4", features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
 serde_yaml = "0.9"
+serde_json = { workspace = true }
+chrono = { workspace = true }
 dirs = { workspace = true }
 thiserror = { workspace = true }
 walkdir = "2.4"
 regex = "1"
 omc-host = { path = "../omc-host" }
+omc-interop = { path = "../omc-interop" }
+omc-mcp = { path = "../omc-mcp" }
+omc-python = { path = "../omc-python" }
 omc-skills = { path = "../omc-skills" }
+omc-shared = { path = "../omc-shared" }
+omc-team = { path = "../omc-team" }
 tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
 
 [[bin]]
 name = "omc"
