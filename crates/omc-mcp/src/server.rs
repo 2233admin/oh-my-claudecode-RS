@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::io::{self, BufRead, Write};
 
-use crate::{McpTool, ToolDefinition, all_tools};
+use crate::{McpTool, McpToolRegistry, ToolDefinition};
 
 #[derive(Debug, Deserialize)]
 struct JsonRpcRequest {
@@ -76,7 +76,9 @@ struct McpServer {
 
 impl McpServer {
     fn new() -> Self {
-        Self { tools: all_tools() }
+        Self {
+            tools: McpToolRegistry::all_enabled().into_tools(),
+        }
     }
 
     fn handle_request(&self, request: JsonRpcRequest) -> JsonRpcResponse {

@@ -17,11 +17,27 @@ pub(super) fn collect_doctor_reports(
         .collect())
 }
 
-pub(super) fn run_doctor(root: &Path, host: Option<&str>, json: bool) -> Result<(), DispatchError> {
+pub(super) fn run_doctor(
+    root: &Path,
+    host: Option<&str>,
+    json: bool,
+    tools: bool,
+) -> Result<(), DispatchError> {
     let reports = collect_doctor_reports(root, host)?;
+    let capabilities = tools.then(omc_shared::agent_tool::capabilities_payload);
 
     if json {
-        println!("{}", serde_json::to_string_pretty(&reports)?);
+        if let Some(capabilities) = &capabilities {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "hosts": reports,
+                    "capabilities": capabilities.capabilities,
+                }))?
+            );
+        } else {
+            println!("{}", serde_json::to_string_pretty(&reports)?);
+        }
     } else {
         println!("OMC Doctor");
         println!("Project root: {}\n", root.display());
@@ -32,6 +48,18 @@ pub(super) fn run_doctor(root: &Path, host: Option<&str>, json: bool) -> Result<
                 println!("  - {message}");
             }
             println!();
+        }
+        if let Some(capabilities) = &capabilities {
+            println!("Platform capabilities:");
+            for capability in &capabilities.capabilities {
+                println!(
+                    "  [{:?}] {}",
+                    capability.availability.status, capability.name
+                );
+                if let Some(reason) = &capability.availability.reason {
+                    println!("    {reason}");
+                }
+            }
         }
     }
 

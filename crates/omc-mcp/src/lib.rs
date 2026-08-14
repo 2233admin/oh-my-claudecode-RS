@@ -31,3 +31,22 @@ pub fn all_tools() -> Vec<Box<dyn McpTool>> {
     tools.extend(team_tools::team_tools());
     tools
 }
+
+#[cfg(test)]
+mod catalog_tests {
+    use super::*;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn registered_tools_exactly_match_the_shared_catalog() {
+        let registered = all_tools()
+            .into_iter()
+            .map(|tool| tool.definition().name)
+            .collect::<BTreeSet<_>>();
+        let catalog = omc_shared::capability_catalog::mcp_tool_names()
+            .into_iter()
+            .map(str::to_string)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(registered, catalog);
+    }
+}

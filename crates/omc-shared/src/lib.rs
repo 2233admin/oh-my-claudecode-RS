@@ -1,6 +1,7 @@
 //! omc-shared: Shared types, config, and state for oh-my-claudecode-RS
 
 pub mod agent_tool;
+pub mod capability_catalog;
 pub mod code_intel;
 pub mod config;
 pub mod context_strategy;

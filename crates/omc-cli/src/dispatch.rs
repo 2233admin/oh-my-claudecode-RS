@@ -155,9 +155,9 @@ pub fn run(cli: Cli) -> Result<(), DispatchError> {
         return run_goal(command, &root);
     }
 
-    if let Commands::OmcDoctor { host, json } = &cli.command {
+    if let Commands::OmcDoctor { host, json, tools } = &cli.command {
         let root = std::env::current_dir().map_err(DispatchError::Io)?;
-        return run_doctor(&root, host.as_deref(), *json);
+        return run_doctor(&root, host.as_deref(), *json, *tools);
     }
 
     if matches!(&cli.command, Commands::List) {

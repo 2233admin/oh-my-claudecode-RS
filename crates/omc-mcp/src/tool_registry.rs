@@ -62,7 +62,14 @@ const DEFAULT_GROUPS: &[(&str, &str, bool, &[&str])] = &[
         "core",
         "omc-mcp",
         true,
-        &["state_", "notepad_", "goal_", "workflow_", "interop_"],
+        &[
+            "state_",
+            "notepad_",
+            "goal_",
+            "workflow_",
+            "team_",
+            "interop_",
+        ],
     ),
     ("agents", "omc-mcp", true, &["agent_", "subagent_", "hash_"]),
     ("memory", "omc-mcp", true, &["project_memory_"]),
@@ -106,6 +113,20 @@ impl McpToolRegistry {
             groups,
             cache: ToolCache::new(ttl),
         }
+    }
+
+    /// Build the production registry with every released group enabled.
+    pub fn all_enabled() -> Self {
+        let mut registry = Self::new();
+        for group in registry.groups.values_mut() {
+            group.enabled = true;
+        }
+        registry
+    }
+
+    /// Resolve and consume the registry into the server's immutable tool set.
+    pub fn into_tools(self) -> Vec<Box<dyn McpTool>> {
+        self.collect_enabled_tools()
     }
 
     /// Get the resolved tool list, refreshing the cache if expired.
@@ -191,6 +212,20 @@ mod tests {
         assert!(registry.groups().contains_key("devtools"));
         assert!(registry.groups().contains_key("intelligence"));
         assert!(registry.groups().contains_key("security"));
+    }
+
+    #[test]
+    fn production_registry_exactly_matches_shared_catalog() {
+        let registered = McpToolRegistry::all_enabled()
+            .into_tools()
+            .into_iter()
+            .map(|tool| tool.definition().name)
+            .collect::<std::collections::BTreeSet<_>>();
+        let catalog = omc_shared::capability_catalog::mcp_tool_names()
+            .into_iter()
+            .map(str::to_string)
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(registered, catalog);
     }
 
     #[test]

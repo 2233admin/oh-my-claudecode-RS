@@ -71,7 +71,15 @@ Errors use stable machine-readable codes:
 ### `agent_capabilities`
 
 Read-only discovery. No required arguments. Returns the OMC-RS capability
-catalog and protocol version.
+catalog and protocol version. Each of the 16 capability records also lists its
+exact MCP tool names and runtime availability (`available`, `unavailable`, or
+`conditional`). Dependency-backed capabilities report the resolved executable
+path or a machine-readable reason, so hosts can avoid invoking unavailable
+Python, Code Intel, rust-analyzer, or team adapters. DAP remains conditional
+because its adapter command is supplied per request.
+
+The catalog in `omc-shared::capability_catalog` is the single source of truth.
+An MCP contract test requires the 32 registered tools to match it exactly.
 
 ### `agent_route`
 
@@ -493,6 +501,15 @@ The script writes `target/omc-package/omc-bundle.json` with
 `omc team` process bridge, and `omc-mcp.exe` as the compatibility MCP entrypoint.
 The adjacent `omc-team.exe` is intentional: it reuses the existing team runtime
 and avoids embedding a second scheduler in `omc.exe`.
+
+Run the release discovery performance budget with:
+
+```powershell
+python tests/host-consumer/benchmark.py --omc target/omc-package/omc.exe
+```
+
+It measures cold CLI discovery and warm discovery through a persistent MCP
+process, while also enforcing the 16-capability/32-tool catalog size.
 
 The host-side envelope fixtures live in
 `crates/omc-shared/tests/agent_tool_consumer.rs`. They deliberately deserialize

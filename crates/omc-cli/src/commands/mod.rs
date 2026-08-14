@@ -63,6 +63,10 @@ pub enum Commands {
         /// Emit machine-readable JSON instead of a human report
         #[arg(long)]
         json: bool,
+
+        /// Include the 16 platform capabilities and dependency availability
+        #[arg(long)]
+        tools: bool,
     },
 
     /// Start the MCP stdio server

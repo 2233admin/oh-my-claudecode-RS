@@ -37,3 +37,13 @@ Hermes, Sentinel, or another host can copy the JSON parsing boundary from this
 fixture without depending on OMC-RS Rust types. A successful run proves only
 transport and contract consumption; it does not claim that a host's own agent
 loop or private credentials are available.
+
+Discovery latency and catalog-size budgets:
+
+```powershell
+python tests/host-consumer/benchmark.py --omc .\target\release\omc.exe
+```
+
+This measures cold CLI discovery and repeated discovery through one persistent
+MCP process. It also fails if the released surface drifts from 16 capabilities
+or 32 tools.

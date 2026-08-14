@@ -105,6 +105,8 @@ pub struct Capability {
     pub description: String,
     pub kind: String,
     pub side_effects: Vec<String>,
+    pub mcp_tools: Vec<String>,
+    pub availability: crate::capability_catalog::CapabilityAvailability,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -134,114 +136,7 @@ pub fn capabilities_payload() -> CapabilitiesPayload {
             INTEROP_SNAPSHOT_SCHEMA_VERSION.into(),
             INTEROP_BRIDGE_SCHEMA_VERSION.into(),
         ],
-        capabilities: vec![
-            Capability {
-                name: "agent_capabilities".into(),
-                description: "List the stable OMC-RS capability contract.".into(),
-                kind: "discovery".into(),
-                side_effects: vec![],
-            },
-            Capability {
-                name: "agent_route".into(),
-                description: "Route a task by complexity without exposing provider model IDs."
-                    .into(),
-                kind: "routing".into(),
-                side_effects: vec![],
-            },
-            Capability {
-                name: "code_intel_artifact_query".into(),
-                description:
-                    "Read committed Code Intel artifacts through its released query surface; results include normalized artifact provenance and canonical URIs, with bounded exact inspection by artifact URI.".into(),
-                kind: "repository_intelligence".into(),
-                side_effects: vec![],
-            },
-            Capability {
-                name: "lsp_document_symbols".into(),
-                description: "Read Rust document symbols through a bounded one-shot rust-analyzer adapter.".into(),
-                kind: "language_intelligence".into(),
-                side_effects: vec![],
-            },
-            Capability {
-                name: "python_repl".into(),
-                description: "Execute explicit Python cells in a process-local persistent session; the host must opt into code side effects.".into(),
-                kind: "code_execution".into(),
-                side_effects: vec![
-                    "executes local Python code".into(),
-                    "may read/write files, spawn processes, or use network according to the code".into(),
-                ],
-            },
-            Capability {
-                name: "debug_inspect".into(),
-                description: "Inspect an explicit launch or attach session through an external stdio DAP adapter; only read-only DAP actions are exposed.".into(),
-                kind: "debugging".into(),
-                side_effects: vec![
-                    "starts an external DAP adapter process".into(),
-                    "launches or attaches a debuggee when the host opts into side effects".into(),
-                ],
-            },
-            Capability {
-                name: "team_observability".into(),
-                description: "Read sessions, aggregate usage, or health from the existing omc-team runtime without starting or mutating a team.".into(),
-                kind: "orchestration_observability".into(),
-                side_effects: vec![],
-            },
-            Capability {
-                name: "interop_snapshot".into(),
-                description: "Read a bounded, host-neutral snapshot of existing OMC/OMX interop state without starting or mutating either runtime.".into(),
-                kind: "orchestration_interop".into(),
-                side_effects: vec![],
-            },
-            Capability {
-                name: "interop_bridge".into(),
-                description: "Send one explicit OMC/OMX task or message through a gated durable bridge; it never starts workers or owns a task lifecycle.".into(),
-                kind: "orchestration_interop".into(),
-                side_effects: vec!["writes a task or message record when active interop flags and allowSideEffects=true are both present".into()],
-            },
-            Capability {
-                name: "workflow_advance".into(),
-                description: "Advance a host-neutral clarify-plan-execute-verify workflow only when supplied evidence permits it.".into(),
-                kind: "orchestration".into(),
-                side_effects: vec![],
-            },
-            Capability {
-                name: "subagent_result_validate".into(),
-                description: "Validate a typed subagent result against a small named schema.".into(),
-                kind: "result_validation".into(),
-                side_effects: vec![],
-            },
-            Capability {
-                name: "hash_edit".into(),
-                description: "Apply a contiguous line edit only when every supplied SHA-256 anchor matches.".into(),
-                kind: "source_edit".into(),
-                side_effects: vec!["writes one validated project file atomically".into()],
-            },
-            Capability {
-                name: "state_*".into(),
-                description: "Read and write OMC mode state through the existing state tools."
-                    .into(),
-                kind: "state".into(),
-                side_effects: vec!["writes .omc/state when using state_write".into()],
-            },
-            Capability {
-                name: "goal_*".into(),
-                description: "Create, resume, checkpoint, block, and complete project goals through the durable OMC ledger.".into(),
-                kind: "goal_state".into(),
-                side_effects: vec!["writes .omc/state/goals when using goal tools".into()],
-            },
-            Capability {
-                name: "project_memory_*".into(),
-                description: "Read and write project memory through the existing memory tools."
-                    .into(),
-                kind: "memory".into(),
-                side_effects: vec!["writes .omc/project-memory.json when using write tools".into()],
-            },
-            Capability {
-                name: "notepad_*".into(),
-                description: "Read and write the shared OMC notepad through existing tools.".into(),
-                kind: "memory".into(),
-                side_effects: vec!["writes .omc/notepad.md when using write tools".into()],
-            },
-        ],
+        capabilities: crate::capability_catalog::capabilities(),
     }
 }
 

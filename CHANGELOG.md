@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Centralized the 16 released capabilities and their 32 MCP tool mappings in a
+  single catalog, with dependency availability diagnostics and a registry
+  consistency gate.
+- Added repeatable cold-CLI and warm-MCP discovery latency budgets for release
+  bundles.
+
 ### Added
 
 - Added fail-closed `--force` replacement for Claude, Codex, and Hermes MCP
