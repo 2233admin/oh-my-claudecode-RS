@@ -200,11 +200,11 @@ fn unified_cli_starts_mcp_stdio_server() {
 
 #[test]
 fn mcp_service_reuses_the_same_lsp_project_process() {
-    if Command::new("rust-analyzer")
+    let analyzer_available = Command::new("rust-analyzer")
         .arg("--version")
         .output()
-        .is_err()
-    {
+        .is_ok_and(|output| output.status.success());
+    if !analyzer_available {
         return;
     }
     let project = tempfile::tempdir().expect("temporary Rust project");

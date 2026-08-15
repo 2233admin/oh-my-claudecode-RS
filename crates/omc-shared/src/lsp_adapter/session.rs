@@ -17,18 +17,14 @@ struct LspSession {
 impl LspSession {
     fn open(root: &Path, timeout: Duration) -> Result<Self, ToolError> {
         let mut child = spawn_lsp(root)?;
-        let stdin = child.stdin.take().ok_or_else(|| {
-            ToolError::new(
-                error_codes::UPSTREAM_FAILED,
-                "rust-analyzer stdin was not available",
-            )
-        })?;
-        let stdout = child.stdout.take().ok_or_else(|| {
-            ToolError::new(
-                error_codes::UPSTREAM_FAILED,
-                "rust-analyzer stdout was not available",
-            )
-        })?;
+        let stdin = match child.stdin.take() {
+            Some(stdin) => stdin,
+            None => return terminate_open(&mut child, "rust-analyzer stdin was not available"),
+        };
+        let stdout = match child.stdout.take() {
+            Some(stdout) => stdout,
+            None => return terminate_open(&mut child, "rust-analyzer stdout was not available"),
+        };
         let responses = spawn_reader(stdout);
         let mut session = Self {
             child,
@@ -37,7 +33,10 @@ impl LspSession {
             next_request_id: 1,
             document_versions: std::collections::HashMap::new(),
         };
-        initialize_lsp(&mut session.stdin, &session.responses, root, timeout)?;
+        if let Err(error) = initialize_lsp(&mut session.stdin, &session.responses, root, timeout) {
+            drop(session);
+            return Err(error);
+        }
         session.next_request_id = 2;
         Ok(session)
     }
@@ -80,6 +79,12 @@ impl LspSession {
     }
 }
 
+fn terminate_open<T>(child: &mut Child, message: &str) -> Result<T, ToolError> {
+    let _ = child.kill();
+    let _ = child.wait();
+    Err(ToolError::new(error_codes::UPSTREAM_FAILED, message))
+}
+
 impl Drop for LspSession {
     fn drop(&mut self) {
         let request_id = self.next_request_id;
@@ -110,17 +115,29 @@ fn query_with_pool(
             "LSP project session pool was poisoned",
         )
     })?;
-    let reused = pool.contains_key(&root);
-    let session = pool
-        .get_or_try_insert_with(root.clone(), || LspSession::open(&root, timeout))
-        .map_err(|error| match error {
-            SessionPoolError::Capacity { limit } => ToolError::new(
-                error_codes::UPSTREAM_FAILED,
-                format!("LSP project session capacity reached ({limit})"),
-            ),
-            SessionPoolError::Open(error) => error,
-        })?;
-    let result = session.document_symbols(&uri, &contents, timeout)?;
+    let (result, server_process_id, reused) = {
+        let (session, reused) = pool
+            .get_or_try_insert_with_status(root.clone(), || LspSession::open(&root, timeout))
+            .map_err(|error| match error {
+                SessionPoolError::Capacity { limit } => ToolError::new(
+                    error_codes::UPSTREAM_FAILED,
+                    format!("LSP project session capacity reached ({limit})"),
+                ),
+                SessionPoolError::Open(error) => error,
+            })?;
+        (
+            session.document_symbols(&uri, &contents, timeout),
+            session.child.id(),
+            reused,
+        )
+    };
+    let result = match result {
+        Ok(result) => result,
+        Err(error) => {
+            pool.remove(&root);
+            return Err(error);
+        }
+    };
     Ok(LspDocumentSymbolsPayload {
         operation: "lsp.document_symbols".into(),
         server: RUST_ANALYZER_COMMAND.into(),
@@ -128,7 +145,7 @@ fn query_with_pool(
         file: relative_file,
         uri,
         result,
-        server_process_id: session.child.id(),
+        server_process_id,
         session_reused: reused,
         side_effects: Vec::new(),
     })
@@ -177,5 +194,16 @@ impl LspProjectPool {
         request: &LspDocumentSymbolsRequest,
     ) -> Result<LspDocumentSymbolsPayload, ToolError> {
         query_with_pool(&self.sessions, request)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn project_pool_starts_without_processes() {
+        let pool = LspProjectPool::new();
+        assert!(pool.sessions.lock().unwrap().is_empty());
     }
 }

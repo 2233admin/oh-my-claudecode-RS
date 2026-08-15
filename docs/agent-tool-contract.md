@@ -311,7 +311,10 @@ responsibility.
 
 ### `lsp_document_symbols`
 
-Read-only Rust document symbols through a one-shot `rust-analyzer` process.
+Read-only Rust document symbols through `rust-analyzer`. The direct CLI adapter
+is one-shot; the long-running MCP process keeps a bounded project-scoped pool
+(maximum 4 projects, 10-minute idle TTL) and evicts a session after a transport
+or request failure.
 The adapter accepts a project-relative file, canonicalizes both the project
 root and file, rejects traversal/symlink escapes, bounds each JSON-RPC message
 to 4 MiB, and enforces a 5--60 second timeout. It sends no edit, rename,
@@ -334,9 +337,10 @@ MCP arguments:
 }
 ```
 
-This is the first LSP slice. Server discovery/configuration, long-lived
-server pooling, and write-capable LSP operations remain outside the contract
-until they have an explicit host and lifecycle boundary.
+The response includes `serverProcessId` and `sessionReused` so an MCP consumer
+can verify reuse without depending on Rust types. Server discovery,
+configuration, background indexing management, and write-capable LSP
+operations remain outside the contract.
 
 ### `python_repl`
 
@@ -510,6 +514,16 @@ python tests/host-consumer/benchmark.py --omc target/omc-package/omc.exe
 
 It measures cold CLI discovery and warm discovery through a persistent MCP
 process, while also enforcing the 16-capability/32-tool catalog size.
+
+Measure the project-scoped LSP cold start and warm reuse path through a real
+MCP process with:
+
+```powershell
+python tests/host-consumer/lsp_benchmark.py --omc target/omc-package/omc.exe
+```
+
+The benchmark verifies that warm calls retain the same `rust-analyzer` process,
+report `sessionReused=true`, and remain inside the configured warm P95 budget.
 
 The host-side envelope fixtures live in
 `crates/omc-shared/tests/agent_tool_consumer.rs`. They deliberately deserialize

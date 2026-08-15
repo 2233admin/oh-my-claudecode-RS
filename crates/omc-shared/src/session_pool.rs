@@ -40,12 +40,22 @@ impl<K: Eq + Hash, V> BoundedSessionPool<K, V> {
         key: K,
         open: impl FnOnce() -> Result<V, E>,
     ) -> Result<&mut V, SessionPoolError<E>> {
+        self.get_or_try_insert_with_status(key, open)
+            .map(|(value, _)| value)
+    }
+
+    /// Get or open a session and report whether the returned value was reused.
+    pub fn get_or_try_insert_with_status<E>(
+        &mut self,
+        key: K,
+        open: impl FnOnce() -> Result<V, E>,
+    ) -> Result<(&mut V, bool), SessionPoolError<E>> {
         self.reap_idle();
         let at_capacity = self.entries.len() >= self.capacity;
         match self.entries.entry(key) {
             HashEntry::Occupied(mut occupied) => {
                 occupied.get_mut().last_used = Instant::now();
-                Ok(&mut occupied.into_mut().value)
+                Ok((&mut occupied.into_mut().value, true))
             }
             HashEntry::Vacant(vacant) => {
                 if at_capacity {
@@ -54,12 +64,15 @@ impl<K: Eq + Hash, V> BoundedSessionPool<K, V> {
                     });
                 }
                 let value = open().map_err(SessionPoolError::Open)?;
-                Ok(&mut vacant
-                    .insert(Entry {
-                        value,
-                        last_used: Instant::now(),
-                    })
-                    .value)
+                Ok((
+                    &mut vacant
+                        .insert(Entry {
+                            value,
+                            last_used: Instant::now(),
+                        })
+                        .value,
+                    false,
+                ))
             }
         }
     }
@@ -81,9 +94,5 @@ impl<K: Eq + Hash, V> BoundedSessionPool<K, V> {
 
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
-    }
-
-    pub fn contains_key(&self, key: &K) -> bool {
-        self.entries.contains_key(key)
     }
 }
