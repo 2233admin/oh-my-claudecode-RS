@@ -5,9 +5,7 @@ use omc_mcp::McpTool;
 use omc_mcp::agent_tools::WorkflowAdvanceTool;
 use omc_mcp::python_tools::python_tools;
 use serde_json::Value;
-#[cfg(windows)]
 use std::io::Write;
-#[cfg(windows)]
 use std::process::{Command, Stdio};
 
 fn cli_response() -> Value {
@@ -198,6 +196,69 @@ fn unified_cli_starts_mcp_stdio_server() {
 
     drop(stdin);
     assert!(child.wait().expect("MCP server exits").success());
+}
+
+#[test]
+fn mcp_service_reuses_the_same_lsp_project_process() {
+    if Command::new("rust-analyzer")
+        .arg("--version")
+        .output()
+        .is_err()
+    {
+        return;
+    }
+    let project = tempfile::tempdir().expect("temporary Rust project");
+    std::fs::create_dir(project.path().join("src")).expect("src directory");
+    std::fs::write(
+        project.path().join("Cargo.toml"),
+        "[package]\nname='lsp-reuse-fixture'\nversion='0.1.0'\nedition='2024'\n",
+    )
+    .expect("manifest writes");
+    std::fs::write(
+        project.path().join("src/lib.rs"),
+        "pub fn answer() -> u32 { 42 }\n",
+    )
+    .expect("source writes");
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_omc"))
+        .arg("mcp")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("MCP service starts");
+    let mut stdin = child.stdin.take().expect("MCP stdin");
+    let mut reader = std::io::BufReader::new(child.stdout.take().expect("MCP stdout"));
+    let call = |id: u8,
+                stdin: &mut std::process::ChildStdin,
+                reader: &mut std::io::BufReader<std::process::ChildStdout>| {
+        let request = serde_json::json!({
+            "jsonrpc": "2.0", "id": id, "method": "tools/call", "params": {
+                "name": "lsp_document_symbols", "arguments": {
+                    "workingDirectory": project.path(), "file": "src/lib.rs", "timeoutMs": 60000
+                }
+            }
+        });
+        writeln!(stdin, "{request}").expect("tool request writes");
+        stdin.flush().expect("tool request flushes");
+        let mut line = String::new();
+        std::io::BufRead::read_line(reader, &mut line).expect("tool response reads");
+        let rpc: Value = serde_json::from_str(&line).expect("RPC response JSON");
+        let envelope: Value = serde_json::from_str(
+            rpc["result"]["content"][0]["text"]
+                .as_str()
+                .expect("tool envelope text"),
+        )
+        .expect("tool envelope JSON");
+        assert_eq!(envelope["ok"], true, "{envelope}");
+        envelope["data"].clone()
+    };
+    let cold = call(1, &mut stdin, &mut reader);
+    let warm = call(2, &mut stdin, &mut reader);
+    assert_eq!(cold["sessionReused"], false);
+    assert_eq!(warm["sessionReused"], true);
+    assert_eq!(cold["serverProcessId"], warm["serverProcessId"]);
+    drop(stdin);
+    assert!(child.wait().expect("MCP service exits").success());
 }
 
 #[cfg(windows)]

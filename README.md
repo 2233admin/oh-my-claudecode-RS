@@ -69,6 +69,8 @@ cargo run -p omc-cli -- status --json
 # MCP stdio server for Agent hosts (the legacy omc-mcp binary remains valid)
 cargo run -p omc-cli -- mcp
 
+# The long-running MCP process reuses a bounded rust-analyzer session per project.
+
 # Host-neutral tools
 cargo run -p omc-cli -- tool capabilities
 cargo run -p omc-cli -- tool route --task "review the repository architecture"

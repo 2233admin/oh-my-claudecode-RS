@@ -141,6 +141,8 @@ fn host_consumes_lsp_result_without_omc_internal_types() {
         file: "src/lib.rs".into(),
         uri: "file:///C:/work/omc-rs/src/lib.rs".into(),
         result: serde_json::json!([{"name":"main","kind":12}]),
+        server_process_id: 42,
+        session_reused: true,
         side_effects: Vec::new(),
     };
     let encoded = serde_json::to_value(ToolResponse::success("hermes-lsp", payload))

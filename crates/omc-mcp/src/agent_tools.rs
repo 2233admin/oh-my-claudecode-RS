@@ -9,7 +9,7 @@ use omc_shared::agent_tool::{
 use omc_shared::code_intel::{CodeIntelQueryRequest, query_code_intel};
 use omc_shared::dap_adapter::{DebugInspectRequest, inspect_debug};
 use omc_shared::hash_edit::{HashEdit, HashEditError};
-use omc_shared::lsp_adapter::{LspDocumentSymbolsRequest, query_document_symbols};
+use omc_shared::lsp_adapter::{LspDocumentSymbolsRequest, LspProjectPool};
 use omc_shared::operation_contract::{ResultSchema, TypedSubagentResult};
 use omc_shared::workflow_contract::{WorkflowAdvanceRequest, advance_workflow};
 use serde::Serialize;
@@ -168,7 +168,7 @@ pub fn agent_tools() -> Vec<Box<dyn McpTool>> {
         Box::new(AgentCapabilitiesTool),
         Box::new(AgentRouteTool),
         Box::new(CodeIntelArtifactQueryTool),
-        Box::new(LspDocumentSymbolsTool),
+        Box::new(LspDocumentSymbolsTool::default()),
         Box::new(DebugInspectTool),
         Box::new(WorkflowAdvanceTool),
         Box::new(SubagentResultValidateTool),

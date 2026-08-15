@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added an MCP-owned, bounded project-level rust-analyzer pool with observable
+  reuse/PID evidence while preserving the one-shot CLI fallback.
 - Added versioned MCP v1 schema compatibility checks that reject removed tools/fields, new required inputs, type changes, narrowed enums, and tightened bounds.
 - Added unified `omc status [--json]` platform, host, goal, team, and interop diagnostics.
 - Added Python MCP session discovery, explicit close, and idle-session reclamation.

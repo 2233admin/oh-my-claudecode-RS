@@ -1,14 +1,15 @@
 //! Bounded, read-only LSP adapter.
 //!
-//! This is deliberately a one-shot bridge to the locally installed
-//! `rust-analyzer`. It owns transport validation and path safety, but it does
-//! not become a language-server registry or a second agent runtime.
+//! Long-running consumers may reuse a small project-scoped pool; the direct
+//! function remains a one-shot fallback. This is not a language-server
+//! registry or a second agent runtime.
 
 use std::fmt::{self, Write as FmtWrite};
 use std::fs;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{ChildStdin, Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::Mutex;
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -31,6 +32,8 @@ const DEFAULT_TIMEOUT_MS: u64 = 20_000;
 const MIN_TIMEOUT_MS: u64 = 5_000;
 const MAX_TIMEOUT_MS: u64 = 60_000;
 const MAX_MESSAGE_BYTES: usize = 4 * 1024 * 1024;
+const MAX_PROJECT_SESSIONS: usize = 4;
+const PROJECT_SESSION_TTL: Duration = Duration::from_secs(10 * 60);
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -51,8 +54,13 @@ pub struct LspDocumentSymbolsPayload {
     pub file: String,
     pub uri: String,
     pub result: Value,
+    pub server_process_id: u32,
+    pub session_reused: bool,
     pub side_effects: Vec<String>,
 }
+
+mod session;
+pub use session::LspProjectPool;
 
 pub fn query_document_symbols(
     request: &LspDocumentSymbolsRequest,
@@ -67,7 +75,7 @@ pub fn query_document_symbols(
     })?;
     let uri = path_to_file_uri(&file);
 
-    let result = run_document_symbols(&root, &uri, &contents, timeout)?;
+    let (result, server_process_id) = run_document_symbols(&root, &uri, &contents, timeout)?;
     Ok(LspDocumentSymbolsPayload {
         operation: "lsp.document_symbols".into(),
         server: RUST_ANALYZER_COMMAND.into(),
@@ -75,6 +83,8 @@ pub fn query_document_symbols(
         file: relative_file,
         uri,
         result,
+        server_process_id,
+        session_reused: false,
         side_effects: Vec::new(),
     })
 }
@@ -160,7 +170,7 @@ fn run_document_symbols(
     uri: &str,
     contents: &str,
     timeout: Duration,
-) -> Result<Value, ToolError> {
+) -> Result<(Value, u32), ToolError> {
     let mut child = Command::new(RUST_ANALYZER_COMMAND)
         .current_dir(root)
         .stdin(Stdio::piped())
@@ -212,7 +222,7 @@ fn run_document_symbols(
     let _ = write_notification(&mut stdin, "exit", Value::Null);
     let _ = child.kill();
     let _ = child.wait();
-    result
+    result.map(|value| (value, child.id()))
 }
 
 fn run_lsp_session(
@@ -223,6 +233,34 @@ fn run_lsp_session(
     contents: &str,
     timeout: Duration,
 ) -> Result<Value, ToolError> {
+    initialize_lsp(stdin, responses, root, timeout)?;
+    write_notification(
+        stdin,
+        "textDocument/didOpen",
+        json!({
+            "textDocument": {
+                "uri": uri,
+                "languageId": "rust",
+                "version": 1,
+                "text": contents
+            }
+        }),
+    )?;
+    write_request(
+        stdin,
+        2,
+        "textDocument/documentSymbol",
+        json!({"textDocument": {"uri": uri}}),
+    )?;
+    receive_response(responses, 2, timeout)
+}
+
+fn initialize_lsp(
+    stdin: &mut ChildStdin,
+    responses: &Receiver<Result<Value, LspTransportError>>,
+    root: &Path,
+    timeout: Duration,
+) -> Result<(), ToolError> {
     write_request(
         stdin,
         1,
@@ -253,25 +291,7 @@ fn run_lsp_session(
     }
 
     write_notification(stdin, "initialized", json!({}))?;
-    write_notification(
-        stdin,
-        "textDocument/didOpen",
-        json!({
-            "textDocument": {
-                "uri": uri,
-                "languageId": "rust",
-                "version": 1,
-                "text": contents
-            }
-        }),
-    )?;
-    write_request(
-        stdin,
-        2,
-        "textDocument/documentSymbol",
-        json!({"textDocument": {"uri": uri}}),
-    )?;
-    receive_response(responses, 2, timeout)
+    Ok(())
 }
 
 #[cfg(test)]

@@ -30,7 +30,7 @@ fn code_intel_tool_rejects_missing_repository() {
 
 #[test]
 fn lsp_tool_rejects_missing_file_without_starting_server() {
-    let result = LspDocumentSymbolsTool.handle(serde_json::json!({
+    let result = LspDocumentSymbolsTool::default().handle(serde_json::json!({
         "requestId": "test-lsp-1",
         "workingDirectory": "."
     }));
@@ -40,7 +40,7 @@ fn lsp_tool_rejects_missing_file_without_starting_server() {
 
 #[test]
 fn lsp_tool_definition_is_read_only_by_contract() {
-    let definition = LspDocumentSymbolsTool.definition();
+    let definition = LspDocumentSymbolsTool::default().definition();
     assert_eq!(definition.name, "lsp_document_symbols");
     assert!(definition.input_schema.properties.contains_key("file"));
     assert_eq!(

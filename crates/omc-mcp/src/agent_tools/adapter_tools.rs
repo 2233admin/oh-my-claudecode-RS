@@ -79,7 +79,10 @@ impl McpTool for WorkflowAdvanceTool {
     }
 }
 
-pub struct LspDocumentSymbolsTool;
+#[derive(Default)]
+pub struct LspDocumentSymbolsTool {
+    pool: LspProjectPool,
+}
 
 impl McpTool for LspDocumentSymbolsTool {
     fn definition(&self) -> ToolDefinition {
@@ -109,7 +112,7 @@ impl McpTool for LspDocumentSymbolsTool {
         );
         ToolDefinition {
             name: "lsp_document_symbols".into(),
-            description: "Read Rust document symbols through a one-shot rust-analyzer adapter; it does not write files or retain a server process.".into(),
+            description: "Read Rust document symbols through a bounded project-scoped rust-analyzer pool owned by this MCP process.".into(),
             input_schema: ToolSchema {
                 schema_type: "object".into(),
                 properties,
@@ -135,7 +138,7 @@ impl McpTool for LspDocumentSymbolsTool {
                 );
             }
         };
-        match query_document_symbols(&request) {
+        match self.pool.query_document_symbols(&request) {
             Ok(payload) => encode(&ToolResponse::success(request_id, payload), false),
             Err(error) => encode(&ToolResponse::<Value>::failure(request_id, error), true),
         }

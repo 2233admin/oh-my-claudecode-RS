@@ -82,4 +82,8 @@ impl<K: Eq + Hash, V> BoundedSessionPool<K, V> {
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
+
+    pub fn contains_key(&self, key: &K) -> bool {
+        self.entries.contains_key(key)
+    }
 }
