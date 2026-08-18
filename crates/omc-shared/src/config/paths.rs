@@ -21,6 +21,8 @@ pub struct OmcPaths {
     pub state: PathBuf,
     /// Sessions directory (~/.omc/state/sessions/)
     pub sessions: PathBuf,
+    /// Durable project goals directory (~/.omc/state/goals/)
+    pub goals: PathBuf,
     /// Logs directory (~/.omc/logs/)
     pub logs: PathBuf,
     /// Prompts directory (~/.omc/prompts/)
@@ -53,6 +55,7 @@ impl OmcPaths {
             home: home.clone(),
             state: home.join("state"),
             sessions: home.join("state/sessions"),
+            goals: home.join("state/goals"),
             logs: home.join("logs"),
             prompts: home.join("prompts"),
             team: home.join("team"),
@@ -152,6 +155,7 @@ impl OmcPaths {
             home: root.clone(),
             state: root.join("state"),
             sessions: root.join("state/sessions"),
+            goals: root.join("state/goals"),
             logs: root.join("logs"),
             prompts: root.join("prompts"),
             team: root.join("team"),
@@ -207,6 +211,7 @@ mod tests {
         // Check subdirectory structure
         assert!(paths.state.ends_with("state"));
         assert!(paths.sessions.ends_with("state/sessions"));
+        assert!(paths.goals.ends_with("state/goals"));
         assert!(paths.logs.ends_with("logs"));
         assert!(paths.prompts.ends_with("prompts"));
         assert!(paths.team.ends_with("team"));

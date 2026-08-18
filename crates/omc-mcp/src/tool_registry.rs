@@ -58,11 +58,28 @@ pub struct McpToolRegistry {
 
 /// Default tool group definitions.
 const DEFAULT_GROUPS: &[(&str, &str, bool, &[&str])] = &[
-    ("core", "omc-mcp", true, &["state_", "notepad_"]),
-    ("agents", "omc-mcp", false, &["agent_"]),
+    (
+        "core",
+        "omc-mcp",
+        true,
+        &[
+            "state_",
+            "notepad_",
+            "goal_",
+            "workflow_",
+            "team_",
+            "interop_",
+        ],
+    ),
+    ("agents", "omc-mcp", true, &["agent_", "subagent_", "hash_"]),
     ("memory", "omc-mcp", true, &["project_memory_"]),
-    ("devtools", "omc-mcp", false, &["dev_"]),
-    ("intelligence", "omc-mcp", false, &["intel_"]),
+    ("devtools", "omc-mcp", false, &["dev_", "python_", "debug_"]),
+    (
+        "intelligence",
+        "omc-mcp",
+        false,
+        &["intel_", "code_intel_", "lsp_"],
+    ),
     ("security", "omc-mcp", false, &["security_"]),
 ];
 
@@ -96,6 +113,20 @@ impl McpToolRegistry {
             groups,
             cache: ToolCache::new(ttl),
         }
+    }
+
+    /// Build the production registry with every released group enabled.
+    pub fn all_enabled() -> Self {
+        let mut registry = Self::new();
+        for group in registry.groups.values_mut() {
+            group.enabled = true;
+        }
+        registry
+    }
+
+    /// Resolve and consume the registry into the server's immutable tool set.
+    pub fn into_tools(self) -> Vec<Box<dyn McpTool>> {
+        self.collect_enabled_tools()
     }
 
     /// Get the resolved tool list, refreshing the cache if expired.
@@ -184,11 +215,25 @@ mod tests {
     }
 
     #[test]
+    fn production_registry_exactly_matches_shared_catalog() {
+        let registered = McpToolRegistry::all_enabled()
+            .into_tools()
+            .into_iter()
+            .map(|tool| tool.definition().name)
+            .collect::<std::collections::BTreeSet<_>>();
+        let catalog = omc_shared::capability_catalog::mcp_tool_names()
+            .into_iter()
+            .map(str::to_string)
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(registered, catalog);
+    }
+
+    #[test]
     fn default_enabled_groups() {
         let registry = McpToolRegistry::default();
         assert!(registry.is_group_enabled("core"));
         assert!(registry.is_group_enabled("memory"));
-        assert!(!registry.is_group_enabled("agents"));
+        assert!(registry.is_group_enabled("agents"));
         assert!(!registry.is_group_enabled("devtools"));
         assert!(!registry.is_group_enabled("intelligence"));
         assert!(!registry.is_group_enabled("security"));
@@ -229,8 +274,12 @@ mod tests {
         assert!(names.iter().any(|n| n == "project_memory_read"));
         assert!(names.iter().any(|n| n == "project_memory_write"));
 
-        // disabled groups should not appear
-        assert!(!names.iter().any(|n| n.starts_with("agent_")));
+        // agent routing tools are enabled for consumers by default
+        assert!(names.iter().any(|n| n == "agent_capabilities"));
+        assert!(names.iter().any(|n| n == "agent_route"));
+        assert!(names.iter().any(|n| n == "subagent_result_validate"));
+        assert!(names.iter().any(|n| n == "hash_edit"));
+        assert!(names.iter().any(|n| n == "workflow_advance"));
         assert!(!names.iter().any(|n| n.starts_with("dev_")));
         assert!(!names.iter().any(|n| n.starts_with("intel_")));
         assert!(!names.iter().any(|n| n.starts_with("security_")));
@@ -267,17 +316,51 @@ mod tests {
     fn enabling_disabled_group_adds_tools() {
         let mut registry = McpToolRegistry::default();
 
-        // agents disabled by default
+        // Agents are enabled by default for the distributable tool surface.
         let names_before: Vec<String> = registry
             .tools()
             .iter()
             .map(|t| t.definition().name.clone())
             .collect();
-        assert!(!names_before.iter().any(|n| n.starts_with("agent_")));
+        assert!(names_before.iter().any(|n| n == "agent_route"));
 
-        // Enable agents (no tools registered yet, so still empty -- but group is enabled)
+        registry.set_group_enabled("agents", false);
+        assert!(
+            !registry
+                .tools()
+                .iter()
+                .any(|tool| tool.definition().name == "agent_route")
+        );
         registry.set_group_enabled("agents", true);
         assert!(registry.is_group_enabled("agents"));
+        assert!(
+            registry
+                .tools()
+                .iter()
+                .any(|tool| tool.definition().name == "agent_route")
+        );
+
+        registry.set_group_enabled("intelligence", true);
+        assert!(
+            registry
+                .tools()
+                .iter()
+                .any(|tool| tool.definition().name == "code_intel_artifact_query")
+        );
+
+        registry.set_group_enabled("devtools", true);
+        assert!(
+            registry
+                .tools()
+                .iter()
+                .any(|tool| tool.definition().name == "python_repl")
+        );
+        assert!(
+            registry
+                .tools()
+                .iter()
+                .any(|tool| tool.definition().name == "debug_inspect")
+        );
     }
 
     #[test]
@@ -324,7 +407,7 @@ mod tests {
     #[test]
     fn empty_when_all_groups_disabled() {
         let mut registry = McpToolRegistry::default();
-        for name in ["core", "memory"] {
+        for name in ["core", "agents", "memory"] {
             registry.set_group_enabled(name, false);
         }
 

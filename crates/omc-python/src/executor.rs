@@ -99,6 +99,9 @@ pub async fn handle_repl_input(
             let result = executor.get_state(session_id).await?;
             Ok(ReplResponse::State(result))
         }
+        ReplAction::ListSessions | ReplAction::Close => Err(ReplError::InvalidSessionId(
+            "session lifecycle actions require PythonReplService".into(),
+        )),
     }
 }
 

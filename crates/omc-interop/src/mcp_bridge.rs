@@ -2,10 +2,11 @@ use std::env;
 use std::fmt::Write as _;
 
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use tracing::warn;
 
 use crate::omx_team_state;
-use crate::shared_state::{self, InteropSide, TaskType};
+use crate::shared_state::{self, InteropSide, SharedMessage, SharedTask, TaskType};
 
 // ============================================================================
 // Interop Mode
@@ -52,6 +53,193 @@ pub fn can_use_omx_direct_write_bridge() -> bool {
     let interop_enabled = env::var(OMX_OMC_INTEROP_ENABLED).as_deref() == Ok("1");
     let tools_enabled = env::var(OMC_INTEROP_TOOLS_ENABLED).as_deref() == Ok("1");
     interop_enabled && tools_enabled && get_interop_mode() == InteropMode::Active
+}
+
+pub const INTEROP_BRIDGE_SCHEMA_VERSION: &str = "omc.interop.bridge.v1";
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum InteropBridgeAction {
+    SendTask,
+    SendMessage,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InteropBridgeRequest {
+    pub action: InteropBridgeAction,
+    pub source: InteropSide,
+    pub target: InteropSide,
+    #[serde(rename = "type")]
+    pub task_type: Option<TaskType>,
+    pub description: Option<String>,
+    pub content: Option<String>,
+    pub working_directory: Option<String>,
+    #[serde(default)]
+    pub allow_side_effects: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InteropBridgeResponse {
+    pub schema_version: String,
+    pub action: InteropBridgeAction,
+    pub read_only: bool,
+    pub write_enabled: bool,
+    pub source: InteropSide,
+    pub target: InteropSide,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task: Option<SharedTask>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<SharedMessage>,
+}
+
+#[derive(Debug, Error)]
+pub enum InteropBridgeError {
+    #[error("interop writes require allowSideEffects=true and active interop flags")]
+    SideEffectsNotAllowed,
+
+    #[error("invalid interop request: {0}")]
+    InvalidRequest(String),
+
+    #[error("interop write failed: {0}")]
+    Upstream(#[from] shared_state::InteropError),
+}
+
+impl InteropBridgeError {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::SideEffectsNotAllowed => "side_effects_not_allowed",
+            Self::InvalidRequest(_) => "invalid_request",
+            Self::Upstream(_) => "upstream_failed",
+        }
+    }
+}
+
+fn require_text<'a>(value: Option<&'a String>, field: &str) -> Result<&'a str, InteropBridgeError> {
+    value
+        .map(String::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| InteropBridgeError::InvalidRequest(format!("{field} is required")))
+}
+
+fn bridge_response(
+    request: &InteropBridgeRequest,
+    task: Option<SharedTask>,
+    message: Option<SharedMessage>,
+) -> InteropBridgeResponse {
+    InteropBridgeResponse {
+        schema_version: INTEROP_BRIDGE_SCHEMA_VERSION.into(),
+        action: request.action.clone(),
+        read_only: false,
+        write_enabled: true,
+        source: request.source.clone(),
+        target: request.target.clone(),
+        task,
+        message,
+    }
+}
+
+pub struct InteropBridgeCliArgs<'a> {
+    pub action: &'a str,
+    pub source: &'a str,
+    pub target: &'a str,
+    pub task_type: Option<&'a str>,
+    pub description: Option<&'a str>,
+    pub content: Option<&'a str>,
+    pub working_directory: &'a str,
+    pub allow_side_effects: bool,
+}
+
+pub fn interop_bridge_request_from_cli(
+    args: InteropBridgeCliArgs<'_>,
+) -> Result<InteropBridgeRequest, InteropBridgeError> {
+    let action = match args.action {
+        "send_task" => InteropBridgeAction::SendTask,
+        "send_message" => InteropBridgeAction::SendMessage,
+        other => {
+            return Err(InteropBridgeError::InvalidRequest(format!(
+                "invalid action: {other}"
+            )));
+        }
+    };
+    let parse_side = |value: &str| match value {
+        "omc" => Ok(InteropSide::Omc),
+        "omx" => Ok(InteropSide::Omx),
+        other => Err(InteropBridgeError::InvalidRequest(format!(
+            "invalid runtime: {other}"
+        ))),
+    };
+    Ok(InteropBridgeRequest {
+        action,
+        source: parse_side(args.source)?,
+        target: parse_side(args.target)?,
+        task_type: args
+            .task_type
+            .map(|value| match value {
+                "analyze" => Ok(TaskType::Analyze),
+                "implement" => Ok(TaskType::Implement),
+                "review" => Ok(TaskType::Review),
+                "test" => Ok(TaskType::Test),
+                "custom" => Ok(TaskType::Custom),
+                other => Err(InteropBridgeError::InvalidRequest(format!(
+                    "invalid task type: {other}"
+                ))),
+            })
+            .transpose()?,
+        description: args.description.map(str::to_owned),
+        content: args.content.map(str::to_owned),
+        working_directory: Some(args.working_directory.to_owned()),
+        allow_side_effects: args.allow_side_effects,
+    })
+}
+
+/// Execute the small, explicitly gated shared-state bridge. It only writes
+/// durable task/message records; it never starts workers or changes task state.
+pub fn interop_bridge(
+    request: &InteropBridgeRequest,
+) -> Result<InteropBridgeResponse, InteropBridgeError> {
+    if request.source == request.target {
+        return Err(InteropBridgeError::InvalidRequest(
+            "source and target must differ".into(),
+        ));
+    }
+    if !request.allow_side_effects || !can_use_omx_direct_write_bridge() {
+        return Err(InteropBridgeError::SideEffectsNotAllowed);
+    }
+
+    let cwd = request.working_directory.as_deref().unwrap_or(".");
+    let response = match &request.action {
+        InteropBridgeAction::SendTask => {
+            let task_type = request.task_type.clone().ok_or_else(|| {
+                InteropBridgeError::InvalidRequest("type is required for send_task".into())
+            })?;
+            let description = require_text(request.description.as_ref(), "description")?;
+            let task = shared_state::add_shared_task(
+                cwd,
+                request.source.clone(),
+                request.target.clone(),
+                task_type,
+                description,
+                None,
+                None,
+            )?;
+            bridge_response(request, Some(task), None)
+        }
+        InteropBridgeAction::SendMessage => {
+            let content = require_text(request.content.as_ref(), "content")?;
+            let message = shared_state::add_shared_message(
+                cwd,
+                request.source.clone(),
+                request.target.clone(),
+                content,
+                None,
+            )?;
+            bridge_response(request, None, Some(message))
+        }
+    };
+
+    Ok(response)
 }
 // MCP tool result envelope
 // ============================================================================
@@ -134,6 +322,12 @@ pub struct SendTaskArgs {
 
 /// Send a task to the other tool (OMC <-> OMX).
 pub fn interop_send_task(args: &SendTaskArgs) -> ToolResult {
+    if !can_use_omx_direct_write_bridge() {
+        return tool_error(
+            "sending task",
+            "interop writes are disabled; enable active interop flags explicitly",
+        );
+    }
     let cwd = args.working_directory.as_deref().unwrap_or(".");
     let source = args.target.other();
 
@@ -267,6 +461,12 @@ pub struct SendMessageArgs {
 
 /// Send a message to the other tool.
 pub fn interop_send_message(args: &SendMessageArgs) -> ToolResult {
+    if !can_use_omx_direct_write_bridge() {
+        return tool_error(
+            "sending message",
+            "interop writes are disabled; enable active interop flags explicitly",
+        );
+    }
     let cwd = args.working_directory.as_deref().unwrap_or(".");
     let source = args.target.other();
 
@@ -664,6 +864,7 @@ pub const TOOL_LIST_OMX_TEAMS: &str = "interop_list_omx_teams";
 pub const TOOL_SEND_OMX_MESSAGE: &str = "interop_send_omx_message";
 pub const TOOL_READ_OMX_MESSAGES: &str = "interop_read_omx_messages";
 pub const TOOL_READ_OMX_TASKS: &str = "interop_read_omx_tasks";
+pub const TOOL_INTEROP_BRIDGE: &str = "interop_bridge";
 
 /// All interop tool names.
 pub const ALL_TOOLS: &[&str] = &[
@@ -675,6 +876,7 @@ pub const ALL_TOOLS: &[&str] = &[
     TOOL_SEND_OMX_MESSAGE,
     TOOL_READ_OMX_MESSAGES,
     TOOL_READ_OMX_TASKS,
+    TOOL_INTEROP_BRIDGE,
 ];
 
 #[cfg(test)]

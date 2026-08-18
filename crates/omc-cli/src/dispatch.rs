@@ -1,12 +1,45 @@
 //! Skill dispatch and template loading.
 
-use crate::commands::{Cli, Commands, SkillArgs};
-use omc_host::HostKind;
-use omc_skills::SkillRegistrar;
+use crate::commands::{Cli, Commands, GoalCommand, SkillArgs, ToolCommand};
+use chrono::Utc;
+use omc_interop::mcp_bridge::{
+    InteropBridgeCliArgs, interop_bridge, interop_bridge_request_from_cli,
+};
+use omc_interop::read_snapshot;
+use omc_mcp::run_stdio;
+use omc_python::{
+    PythonReplService, PythonSessionError, PythonToolPayload, PythonToolRequest, ReplAction,
+};
+use omc_shared::agent_tool::{
+    RouteRequest, ToolError, ToolResponse, capabilities_payload, normalize_request_id,
+    route_agent_task,
+};
+use omc_shared::code_intel::{CodeIntelQueryRequest, query_code_intel};
+use omc_shared::dap_adapter::{DebugInspectRequest, inspect_debug};
+use omc_shared::hash_edit::{HashEdit, LineAnchor};
+use omc_shared::lsp_adapter::{LspDocumentSymbolsRequest, query_document_symbols};
+use omc_shared::operation_contract::{ResultSchema, TypedSubagentResult};
+use omc_shared::workflow_contract::{
+    WorkflowAdvanceRequest, WorkflowContext, WorkflowStage, advance_workflow,
+};
+use omc_shared::{GoalCheckpoint, GoalLedger, GoalRecord, OmcPaths};
+use omc_team::team_observability;
+use serde_json::{Value, json};
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use thiserror::Error;
+
+mod tool;
+use tool::run_tool;
+pub use tool::run_tool_value;
+mod host;
+use host::collect_doctor_reports;
+use host::{run_doctor, run_setup_host};
+mod status;
+mod templates;
+use templates::{list_skills, load_template, substitute_arguments};
 
 #[derive(Debug, Error)]
 pub enum DispatchError {
@@ -14,13 +47,28 @@ pub enum DispatchError {
     NotFound(String),
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("Serialization error: {0}")]
+    Serde(#[from] serde_json::Error),
+    #[error("Goal error: {0}")]
+    Goal(String),
+    #[error("State error: {0}")]
+    State(#[from] omc_shared::state::StateError),
+    #[error("Host configuration error: {0}")]
+    Host(String),
+    #[error("Team runtime error: {0}")]
+    Team(String),
 }
 
 /// Resolve the canonical skill name for a given command variant.
 fn skill_name(cmd: &Commands) -> Option<&'static str> {
     match cmd {
+        Commands::Tool { .. } => None,
+        Commands::Goal { .. } => None,
         Commands::OmcSetup { .. } => Some("omc-setup"),
-        Commands::OmcDoctor(_) => Some("omc-doctor"),
+        Commands::OmcDoctor { .. } => None,
+        Commands::Status { .. } => None,
+        Commands::Mcp => None,
+        Commands::Team { .. } => None,
         Commands::ConfigureNotifications(_) => Some("configure-notifications"),
         Commands::Hud(_) => Some("hud"),
         Commands::Skill(_) => Some("skill"),
@@ -53,9 +101,14 @@ fn skill_name(cmd: &Commands) -> Option<&'static str> {
 /// Extract the skill args from any command variant.
 fn skill_args(cmd: &Commands) -> Option<SkillArgs> {
     match cmd {
+        Commands::Tool { .. } => None,
+        Commands::Goal { .. } => None,
+        Commands::OmcDoctor { .. } => None,
+        Commands::Status { .. } => None,
+        Commands::Mcp => None,
+        Commands::Team { .. } => None,
         Commands::OmcSetup { args, .. } => Some(SkillArgs { args: args.clone() }),
-        Commands::OmcDoctor(a)
-        | Commands::ConfigureNotifications(a)
+        Commands::ConfigureNotifications(a)
         | Commands::Hud(a)
         | Commands::Skill(a)
         | Commands::Skillify(a)
@@ -86,6 +139,34 @@ fn skill_args(cmd: &Commands) -> Option<SkillArgs> {
 
 /// Main entry point for the CLI.
 pub fn run(cli: Cli) -> Result<(), DispatchError> {
+    if let Commands::Tool { command } = &cli.command {
+        return run_tool(command);
+    }
+
+    if matches!(&cli.command, Commands::Mcp) {
+        run_stdio()?;
+        return Ok(());
+    }
+
+    if let Commands::Team { args } = &cli.command {
+        return run_team(args);
+    }
+
+    if let Commands::Goal { command } = &cli.command {
+        let root = std::env::current_dir().map_err(DispatchError::Io)?;
+        return run_goal(command, &root);
+    }
+
+    if let Commands::OmcDoctor { host, json, tools } = &cli.command {
+        let root = std::env::current_dir().map_err(DispatchError::Io)?;
+        return run_doctor(&root, host.as_deref(), *json, *tools);
+    }
+
+    if let Commands::Status { json } = &cli.command {
+        let root = std::env::current_dir().map_err(DispatchError::Io)?;
+        return status::run_status(&root, *json);
+    }
+
     if matches!(&cli.command, Commands::List) {
         list_skills();
         return Ok(());
@@ -95,11 +176,12 @@ pub fn run(cli: Cli) -> Result<(), DispatchError> {
     if let Commands::OmcSetup {
         host: Some(host),
         force,
+        hermes_home,
         ..
     } = &cli.command
     {
         let root = std::env::current_dir().map_err(DispatchError::Io)?;
-        run_setup_host(&root, host, *force)?;
+        run_setup_host(&root, host, *force, hermes_home.as_deref())?;
         return Ok(());
     }
 
@@ -114,435 +196,122 @@ pub fn run(cli: Cli) -> Result<(), DispatchError> {
     Ok(())
 }
 
-/// Execute the real host setup flow: init project dirs, bootstrap .omc/,
-/// discover and register skill sources, generate Codex manifest if needed.
-fn run_setup_host(root: &Path, host: &str, force: bool) -> Result<(), DispatchError> {
-    let host_kind = HostKind::parse(host).map_err(DispatchError::NotFound)?;
-
-    println!("Setting up OMC for host: {host_kind}");
-    println!("Project root: {}\n", root.display());
-
-    // 1. Init host project structure (.claude/ or .codex/)
-    let adapter = omc_host::create_adapter(host_kind);
-    let init_report = adapter
-        .init_project(root)
-        .map_err(DispatchError::NotFound)?;
-    println!("Host directories ({}):", host_kind.config_dir_name());
-    for p in &init_report.created {
-        println!("  + {}", p.display());
-    }
-    for p in &init_report.unchanged {
-        println!("  = {} (exists)", p.display());
-    }
-
-    // 2. Bootstrap .omc/ directory structure
-    omc_skills::bootstrap::bootstrap_omc_dir(root).map_err(DispatchError::Io)?;
-    println!("\n.omc/ directory bootstrapped.");
-
-    // 3. Discover skill sources in .omc/skills/
-    let omc_skills_dir = root.join(".omc").join("skills");
-    let sources = discover_skill_sources(&omc_skills_dir);
-
-    // 4. Register skill sources into host skills directory
-    let host_skills_dir = root.join(host_kind.config_dir_name()).join("skills");
-    let registrar = SkillRegistrar::new(&host_skills_dir);
-
-    if sources.is_empty() {
-        println!(
-            "\nNo skill sources found in {}. Add skills with `omc skill add`.",
-            omc_skills_dir.display()
-        );
+/// Forward team operations to the existing runtime binary.
+///
+/// Keeping this as a process bridge preserves omc-team's lifecycle and
+/// runtime implementation while making it consumable from the single `omc`
+/// entrypoint. It deliberately does not create a second scheduler.
+fn run_team(args: &[String]) -> Result<(), DispatchError> {
+    let command = resolve_team_command();
+    let status = Command::new(&command)
+        .args(args)
+        .status()
+        .map_err(DispatchError::Io)?;
+    if status.success() {
+        Ok(())
     } else {
-        println!("\nRegistering {} skill source(s):", sources.len());
-        let result = registrar.register_all(&sources);
-        for linked in &result.linked {
-            println!("  linked: {}", linked.display());
-        }
-        for copied in &result.copied {
-            println!("  copied: {}", copied.display());
-        }
-        for skipped in &result.skipped {
-            println!("  exists: {}", skipped.display());
-        }
-        for (path, err) in &result.errors {
-            println!("  error: {} — {err}", path.display());
-        }
+        Err(DispatchError::Team(format!(
+            "{} exited with {status}",
+            command.display()
+        )))
+    }
+}
 
-        // 5. For Codex: generate skills.toml manifest
-        if host_kind == HostKind::Codex {
-            let mut loader = omc_skills::SkillLoader::new(&host_skills_dir);
-            if let Ok(discovered) = loader.discover_all() {
-                let manifest = registrar.generate_codex_manifest(&discovered);
-                let manifest_path = root.join(".codex").join("skills.toml");
-                if force || !manifest_path.exists() {
-                    std::fs::write(&manifest_path, &manifest).map_err(DispatchError::Io)?;
-                    println!(
-                        "\nGenerated Codex manifest: {} ({} skills)",
-                        manifest_path.display(),
-                        discovered.len()
-                    );
-                } else {
-                    println!(
-                        "\nCodex manifest exists (use --force to overwrite): {}",
-                        manifest_path.display()
-                    );
+fn resolve_team_command() -> PathBuf {
+    let names = if cfg!(windows) {
+        ["omc-team.exe", "omc-team"]
+    } else {
+        ["omc-team", "omc-team.exe"]
+    };
+
+    if let Ok(executable) = std::env::current_exe() {
+        let mut directory = executable.parent();
+        for _ in 0..=2 {
+            if let Some(dir) = directory {
+                for name in names {
+                    let candidate = dir.join(name);
+                    if candidate.is_file() {
+                        return candidate;
+                    }
                 }
+                directory = dir.parent();
             }
         }
     }
 
-    println!("\nSetup complete for {host_kind}.");
+    PathBuf::from(names[0])
+}
+
+fn run_goal(command: &GoalCommand, root: &Path) -> Result<(), DispatchError> {
+    let ledger = GoalLedger::new(OmcPaths::new_with_root(root.join(".omc")));
+    let now = || Utc::now().to_rfc3339();
+
+    match command {
+        GoalCommand::Create {
+            id,
+            objective,
+            owner,
+            task_id,
+        } => {
+            let mut goal = GoalRecord::new(id, objective, now());
+            goal.owner = owner.clone();
+            if let Some(task_id) = task_id {
+                goal.attach_task(task_id).map_err(DispatchError::Goal)?;
+            }
+            ledger.create(&goal)?;
+            print_goal(&goal)?;
+        }
+        GoalCommand::List => {
+            println!("{}", serde_json::to_string_pretty(&ledger.list()?)?);
+        }
+        GoalCommand::Show { id } => {
+            print_goal(&ledger.load(id)?)?;
+        }
+        GoalCommand::Start { id } => {
+            let mut goal = ledger.load(id)?;
+            goal.start(now()).map_err(DispatchError::Goal)?;
+            ledger.save(&goal)?;
+            print_goal(&goal)?;
+        }
+        GoalCommand::Block { id, reason } => {
+            let mut goal = ledger.load(id)?;
+            goal.block(reason, now()).map_err(DispatchError::Goal)?;
+            ledger.save(&goal)?;
+            print_goal(&goal)?;
+        }
+        GoalCommand::Checkpoint {
+            id,
+            checkpoint_id,
+            summary,
+        } => {
+            let mut goal = ledger.load(id)?;
+            goal.add_checkpoint(GoalCheckpoint {
+                checkpoint_id: checkpoint_id.clone(),
+                summary: summary.clone(),
+                recorded_at: now(),
+                artifact_refs: Vec::new(),
+            })
+            .map_err(DispatchError::Goal)?;
+            goal.updated_at = now();
+            ledger.save(&goal)?;
+            print_goal(&goal)?;
+        }
+        GoalCommand::Complete { id } => {
+            let mut goal = ledger.load(id)?;
+            goal.complete(now()).map_err(DispatchError::Goal)?;
+            ledger.save(&goal)?;
+            print_goal(&goal)?;
+        }
+    }
+
     Ok(())
 }
 
-/// Discover skill source directories under `dir`.
-///
-/// Returns `(source_dir, link_name)` pairs for directories containing SKILL.md.
-fn discover_skill_sources(dir: &Path) -> Vec<(PathBuf, String)> {
-    let mut sources = Vec::new();
-    if !dir.is_dir() {
-        return sources;
-    }
-
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return sources;
-    };
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() && path.join("SKILL.md").exists() {
-            let name = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("unknown")
-                .to_string();
-            sources.push((path, name));
-        }
-    }
-
-    sources
-}
-
-/// Load a skill template by name from the skills directory.
-///
-/// Search order:
-/// 1. `OMC_SKILLS_DIR` environment variable
-/// 2. `<crate_parent>/crates/omc-skills/src/templates/<name>.md`
-/// 3. `~/.omc/skills/<name>/SKILL.md`
-fn load_template(name: &str) -> Result<String, DispatchError> {
-    let candidates = template_search_paths(name);
-
-    for path in &candidates {
-        if path.exists() {
-            return std::fs::read_to_string(path).map_err(Into::into);
-        }
-    }
-
-    Err(DispatchError::NotFound(format!(
-        "{name} (searched: {})",
-        candidates
-            .iter()
-            .map(|p| p.display().to_string())
-            .collect::<Vec<_>>()
-            .join(", ")
-    )))
-}
-
-/// Build the ordered list of paths to check for a skill template.
-static OMC_SKILLS_DIR: &str = "OMC_SKILLS_DIR";
-static OMC_HOME: &str = "OMC_HOME";
-
-fn template_search_paths(name: &str) -> Vec<PathBuf> {
-    let mut paths = Vec::new();
-
-    // 1. Explicit environment override
-    if let Ok(dir) = std::env::var(OMC_SKILLS_DIR) {
-        paths.push(PathBuf::from(dir).join(format!("{name}.md")));
-    }
-
-    // 2. Sibling crate templates directory (dev / repo layout)
-    if let Ok(exe) = std::env::current_exe() {
-        // Walk up from target/<profile>/build/omc-cli-*/out or target/<profile>/
-        // to find the workspace root, then look in crates/omc-skills/src/templates/
-        if let Some(ws) = find_workspace_root(&exe) {
-            paths.push(
-                ws.join("crates/omc-skills/src/templates")
-                    .join(format!("{name}.md")),
-            );
-        }
-    }
-
-    // Also try relative to CWD (useful during development)
-    if let Ok(cwd) = std::env::current_dir() {
-        paths.push(
-            cwd.join("crates/omc-skills/src/templates")
-                .join(format!("{name}.md")),
-        );
-        // Also check sibling project
-        paths.push(
-            cwd.join("../oh-my-claudecode-RS/crates/omc-skills/src/templates")
-                .join(format!("{name}.md")),
-        );
-    }
-
-    // 3. Installed OMC home directory
-    if let Some(home) = omc_home() {
-        paths.push(home.join("skills").join(name).join("SKILL.md"));
-    }
-
-    paths
-}
-
-/// Attempt to find the workspace root by looking for Cargo.toml with `[workspace]`.
-fn find_workspace_root(from: &Path) -> Option<PathBuf> {
-    let mut dir = from.to_path_buf();
-    loop {
-        if !dir.pop() {
-            break;
-        }
-        let cargo_toml = dir.join("Cargo.toml");
-        if cargo_toml.exists()
-            && let Ok(content) = std::fs::read_to_string(&cargo_toml)
-            && content.contains("[workspace]")
-        {
-            return Some(dir);
-        }
-    }
-    None
-}
-
-/// Resolve the OMC home directory.
-fn omc_home() -> Option<PathBuf> {
-    if let Ok(home) = std::env::var(OMC_HOME) {
-        return Some(PathBuf::from(home));
-    }
-    dirs::home_dir().map(|h| h.join(".omc"))
-}
-
-/// Replace `$ARGUMENTS` placeholders in a template with the user's arguments.
-fn substitute_arguments(template: &str, arguments: &str) -> String {
-    template
-        .replace("{{ARGUMENTS}}", arguments)
-        .replace("$ARGUMENTS", arguments)
-}
-
-/// List all discoverable skills by scanning the template directories.
-fn list_skills() {
-    let mut skills = BTreeMap::new();
-
-    // Scan templates directory
-    let search_roots = template_search_roots();
-    for root in &search_roots {
-        if root.is_dir() {
-            for entry in std::fs::read_dir(root).into_iter().flatten() {
-                let entry = match entry {
-                    Ok(e) => e,
-                    Err(_) => continue,
-                };
-                let path = entry.path();
-                if path.extension().and_then(|e| e.to_str()) == Some("md")
-                    && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
-                {
-                    let desc = extract_description(&path);
-                    skills.entry(stem.to_string()).or_insert(desc);
-                }
-            }
-        }
-    }
-
-    if skills.is_empty() {
-        println!("No skills found. Set OMC_SKILLS_DIR or install skills to ~/.omc/skills/");
-        return;
-    }
-
-    println!("{:<30} Description", "Skill");
-    println!("{:<30} -----------", "-----");
-    for (name, desc) in &skills {
-        let desc_str = desc.as_deref().unwrap_or("");
-        println!("{name:<30} {desc_str}");
-    }
-}
-
-/// Get directories to scan for skill listing.
-fn template_search_roots() -> Vec<PathBuf> {
-    let mut roots = Vec::new();
-
-    if let Ok(dir) = std::env::var(OMC_SKILLS_DIR) {
-        roots.push(PathBuf::from(dir));
-    }
-
-    if let Ok(exe) = std::env::current_exe()
-        && let Some(ws) = find_workspace_root(&exe)
-    {
-        roots.push(ws.join("crates/omc-skills/src/templates"));
-    }
-
-    if let Ok(cwd) = std::env::current_dir() {
-        let dev_path = cwd.join("crates/omc-skills/src/templates");
-        if dev_path.is_dir() {
-            roots.push(dev_path);
-        }
-    }
-
-    if let Some(home) = omc_home() {
-        roots.push(home.join("skills"));
-    }
-
-    roots
-}
-
-/// Extract the description from a skill template's YAML frontmatter.
-fn extract_description(path: &Path) -> Option<String> {
-    let content = std::fs::read_to_string(path).ok()?;
-    parse_frontmatter_description(&content)
-}
-
-/// Parse the `description` field from YAML frontmatter delimited by `---`.
-fn parse_frontmatter_description(content: &str) -> Option<String> {
-    let trimmed = content.trim_start();
-    if !trimmed.starts_with("---") {
-        return None;
-    }
-
-    let after_first = &trimmed[3..];
-    let end = after_first.find("---")?;
-    let frontmatter = &after_first[..end];
-
-    for line in frontmatter.lines() {
-        let line = line.trim();
-        if let Some(value) = line.strip_prefix("description:") {
-            let value = value.trim().trim_matches('"').trim_matches('\'');
-            if !value.is_empty() {
-                return Some(value.to_string());
-            }
-        }
-    }
-
-    None
+fn print_goal(goal: &GoalRecord) -> Result<(), DispatchError> {
+    println!("{}", serde_json::to_string_pretty(goal)?);
+    Ok(())
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_substitute_arguments_dollar() {
-        let template = "Run with:\n```text\n$ARGUMENTS\n```\n";
-        let result = substitute_arguments(template, "hello world");
-        assert_eq!(result, "Run with:\n```text\nhello world\n```\n");
-    }
-
-    #[test]
-    fn test_substitute_arguments_braces() {
-        let template = "Task: {{ARGUMENTS}}";
-        let result = substitute_arguments(template, "hello world");
-        assert_eq!(result, "Task: hello world");
-    }
-
-    #[test]
-    fn test_substitute_arguments_both_formats() {
-        let template = "$ARGUMENTS and {{ARGUMENTS}}";
-        let result = substitute_arguments(template, "test");
-        assert_eq!(result, "test and test");
-    }
-
-    #[test]
-    fn test_substitute_no_placeholder() {
-        let template = "No placeholder here";
-        let result = substitute_arguments(template, "args");
-        assert_eq!(result, "No placeholder here");
-    }
-
-    #[test]
-    fn test_substitute_empty_arguments() {
-        let template = "Args: $ARGUMENTS";
-        let result = substitute_arguments(template, "");
-        assert_eq!(result, "Args: ");
-    }
-
-    #[test]
-    fn test_parse_frontmatter_description() {
-        let content = r#"---
-description: "A test skill"
-name: test
----
-
-# Content"#;
-        let desc = parse_frontmatter_description(content);
-        assert_eq!(desc, Some("A test skill".to_string()));
-    }
-
-    #[test]
-    fn test_parse_frontmatter_no_description() {
-        let content = r#"---
-name: test
----
-
-# Content"#;
-        let desc = parse_frontmatter_description(content);
-        assert_eq!(desc, None);
-    }
-
-    #[test]
-    fn test_parse_frontmatter_empty() {
-        let content = "no frontmatter here";
-        let desc = parse_frontmatter_description(content);
-        assert_eq!(desc, None);
-    }
-
-    #[test]
-    fn test_skill_args_joined() {
-        let args = SkillArgs {
-            args: vec!["hello".into(), "world".into()],
-        };
-        assert_eq!(args.joined(), "hello world");
-    }
-
-    #[test]
-    fn test_skill_args_empty() {
-        let args = SkillArgs { args: vec![] };
-        assert_eq!(args.joined(), "");
-    }
-
-    #[test]
-    fn test_skill_names_unique() {
-        // Verify all commands map to distinct skill names (except aliases)
-        let commands = vec![
-            "omc-setup",
-            "omc-doctor",
-            "configure-notifications",
-            "hud",
-            "skill",
-            "skillify",
-            "trace",
-            "verify",
-            "visual-verdict",
-            "wiki",
-            "learner",
-            "remember",
-            "ask",
-            "autoresearch",
-            "ccg",
-            "cancel",
-            "debug",
-            "deep-dive",
-            "deepinit",
-            "external-context",
-            "project-session-manager",
-            "psm",
-            "release",
-            "self-improve",
-            "omc-teams",
-            "plan",
-            "deep-interview",
-        ];
-        let mut sorted = commands.clone();
-        sorted.sort();
-        sorted.dedup();
-        assert_eq!(
-            commands.len(),
-            sorted.len(),
-            "duplicate skill names detected"
-        );
-    }
-}
+#[path = "dispatch/tests.rs"]
+mod tests;

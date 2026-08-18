@@ -44,7 +44,7 @@ oh-my-claudecode-RS/
 └── tests/macro-tests/     integration tests for proc macros
 ```
 
-18 crates + 1 integration test target. All under one `[workspace]` with shared `[profile.release]` settings.
+19 crates plus integration test targets. All under one `[workspace]` with shared `[profile.release]` settings.
 
 ## Dependency graph
 

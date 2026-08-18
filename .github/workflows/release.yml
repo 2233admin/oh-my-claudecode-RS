@@ -31,18 +31,21 @@ jobs:
       - name: Package (linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
+          tar czf omc-agent-tool-linux-x86_64.tar.gz -C target/release omc omc-mcp omc-team
           tar czf omc-hud-linux-x86_64.tar.gz -C target/release omc-hud
           tar czf omc-team-linux-x86_64.tar.gz -C target/release omc-team
           tar czf omc-xcmd-linux-x86_64.tar.gz -C target/release omc-xcmd
       - name: Package (macos)
         if: matrix.os == 'macos-latest'
         run: |
+          tar czf omc-agent-tool-macos.tar.gz -C target/release omc omc-mcp omc-team
           tar czf omc-hud-macos.tar.gz -C target/release omc-hud
           tar czf omc-team-macos.tar.gz -C target/release omc-team
           tar czf omc-xcmd-macos.tar.gz -C target/release omc-xcmd
       - name: Package (windows)
         if: matrix.os == 'windows-latest'
         run: |
+          powershell -Command "Compress-Archive -Path target/release/omc.exe,target/release/omc-mcp.exe,target/release/omc-team.exe -DestinationPath omc-agent-tool-windows-x86_64.zip"
           powershell -Command "Compress-Archive -Path target/release/omc-hud.exe -DestinationPath omc-hud-windows-x86_64.zip"
           powershell -Command "Compress-Archive -Path target/release/omc-team.exe -DestinationPath omc-team-windows-x86_64.zip"
           powershell -Command "Compress-Archive -Path target/release/omc-xcmd.exe -DestinationPath omc-xcmd-windows-x86_64.zip"
@@ -69,10 +72,11 @@ jobs:
         run: |
           ls -la artifacts/
           find artifacts -type f -name "*.tar.gz" -o -name "*.zip" | head -20
+          find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) -print0 | sort -z | xargs -0 sha256sum > artifacts/SHA256SUMS
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*.tar.gz,artifacts/**/*.zip
+          files: artifacts/**/*.tar.gz,artifacts/**/*.zip,artifacts/SHA256SUMS
           generate_release_notes: true
           prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
         env:

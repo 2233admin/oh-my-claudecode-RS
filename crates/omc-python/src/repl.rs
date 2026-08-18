@@ -8,6 +8,8 @@ pub enum ReplAction {
     Interrupt,
     Reset,
     GetState,
+    ListSessions,
+    Close,
 }
 
 /// Input for the Python REPL tool.
@@ -97,6 +99,18 @@ mod tests {
     fn deserialize_action() {
         let action: ReplAction = serde_json::from_str("\"execute\"").unwrap();
         assert_eq!(action, ReplAction::Execute);
+    }
+
+    #[test]
+    fn lifecycle_actions_are_stable_snake_case() {
+        assert_eq!(
+            serde_json::to_string(&ReplAction::ListSessions).unwrap(),
+            "\"list_sessions\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ReplAction::Close).unwrap(),
+            "\"close\""
+        );
     }
 
     #[test]

@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.2.0] — 2026-08-18
+
+- Added an MCP-owned, bounded project-level rust-analyzer pool with observable
+  reuse/PID evidence while preserving the one-shot CLI fallback.
+- Added versioned MCP v1 schema compatibility checks that reject removed tools/fields, new required inputs, type changes, narrowed enums, and tightened bounds.
+- Added unified `omc status [--json]` platform, host, goal, team, and interop diagnostics.
+- Added Python MCP session discovery, explicit close, and idle-session reclamation.
+- Made pooled LSP sessions self-healing after transport failures, added accurate
+  cold/warm reuse telemetry, and gated warm latency with a real MCP benchmark.
+- Centralized the 16 released capabilities and their 32 MCP tool mappings in a
+  single catalog, with dependency availability diagnostics and a registry
+  consistency gate.
+- Added repeatable cold-CLI and warm-MCP discovery latency budgets for release
+  bundles.
+
+### Added
+
+- Added fail-closed `--force` replacement for Claude, Codex, and Hermes MCP
+  registrations with atomic writes and adjacent configuration backups.
+- Added byte-accurate UTF-8 Python output limits with explicit truncation
+  markers and deterministic UTF-8 subprocess I/O on Windows.
+- Split CLI dispatch, MCP agent tools, and DAP/LSP transports into focused
+  modules so new host-neutral adapters do not accumulate in monolithic files.
+
+- Added the bounded `omc.debug.v1` / `debug_inspect` adapter for explicit
+  launch/attach sessions through externally supplied stdio DAP adapters.
+
+- Unified `omc mcp` stdio entry that reuses the `omc-mcp` server library.
+- `omc setup --host codex|claude` registration of the `omc-rs -> omc mcp`
+  host server, with idempotent writes and fail-closed conflict handling.
+- Versioned host-neutral agent-tool contracts for capabilities, routing,
+  workflow evidence, typed results, hash edits, artifacts, LSP, and Python.
+
 ## [0.1.0] — 2026-05-05
 
 First usable release. 13/13 HUD elements implemented; cold-start under 5ms target (median 3.81ms on Windows 11 / Ryzen 9800X3D, 10-run sample).
@@ -56,4 +91,6 @@ First usable release. 13/13 HUD elements implemented; cold-start under 5ms targe
 - Reference TypeScript implementation: [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) (Apache 2.0, Yeachan-Heo); only external contracts consumed (Claude Code stdin schema, `~/.claude/settings.json` `statusLine.command` interface, OMC `.omc/state/` path conventions)
 - Initial production skeleton authored 2026-05-05 by Codex via the `codex-rescue` agent — attribution preserved in commit [`d813abf`](https://github.com/2233admin/oh-my-claudecode-RS/commit/d813abf)
 
+[Unreleased]: https://github.com/2233admin/oh-my-claudecode-RS/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/2233admin/oh-my-claudecode-RS/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/2233admin/oh-my-claudecode-RS/releases/tag/v0.1.0

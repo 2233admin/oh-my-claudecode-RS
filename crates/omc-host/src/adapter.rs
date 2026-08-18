@@ -121,7 +121,8 @@ pub trait HostAdapter: Send + Sync {
     // ── Config Generation ──────────────────────────────────────────
 
     /// Generate the host-specific config file content.
-    /// Claude: settings.json. Codex: config.toml + hooks.json.
+    /// Claude: settings.json plus project `.mcp.json` when MCP servers exist.
+    /// Codex: config.toml + hooks.json.
     fn generate_config(&self, opts: &ConfigGenOptions) -> Result<GeneratedConfig, String>;
 
     /// Return the relative path to the host config file.

@@ -22,6 +22,9 @@ pub enum InteropError {
 
     #[error("invalid name: {0}")]
     InvalidName(String),
+
+    #[error("limit must be between 1 and 100: {0}")]
+    InvalidLimit(usize),
 }
 
 fn check_segment(name: &str, kind: &str) -> Result<()> {

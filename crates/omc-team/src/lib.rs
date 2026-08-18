@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use omc_shared::TeamObservabilityPayload;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -222,6 +223,20 @@ pub fn init_project(root: &Path) -> Result<InitReport, String> {
         }
     }
     Ok(report)
+}
+
+/// Project the existing team observability files into a read-only host contract.
+/// This never starts, stops, or mutates a team runtime.
+pub fn team_observability(root: &Path, view: &str) -> Result<TeamObservabilityPayload, String> {
+    let data = match view {
+        "sessions" => serde_json::to_value(load_sessions(root)?),
+        "top" => serde_json::to_value(top_snapshot(root)?),
+        "doctor" => serde_json::to_value(observability_doctor(root)),
+        _ => return Err(format!("unknown team observability view: {view}")),
+    }
+    .map_err(|error| format!("failed to encode team observability: {error}"))?;
+
+    Ok(TeamObservabilityPayload::new(view, data))
 }
 
 static CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: &str = "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS";
