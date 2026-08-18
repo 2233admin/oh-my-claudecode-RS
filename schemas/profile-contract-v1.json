@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "omc.profile-contract.v1",
+  "objects": {
+    "profile": {
+      "fields": {
+        "schemaVersion": { "type": "string" },
+        "id": { "type": "string" },
+        "runtime": { "type": "object" },
+        "provider": { "type": "object" },
+        "model": { "type": "object" },
+        "protocol": { "type": "object" },
+        "permissions": { "type": "object" },
+        "dependencies": { "type": "array" },
+        "setup": { "type": "object" },
+        "extensions": { "type": "object" }
+      },
+      "required": ["schemaVersion", "id", "runtime", "provider", "model", "protocol"]
+    },
+    "permission": {
+      "fields": {
+        "value": {
+          "type": "string",
+          "values": ["credential-access", "dangerous", "debug-control", "network", "process-spawn", "read", "workspace-write"]
+        }
+      },
+      "required": ["value"]
+    },
+    "doctorRepair": {
+      "fields": {
+        "code": { "type": "string" },
+        "summary": { "type": "string" },
+        "command": { "type": "string" },
+        "automatic": { "type": "boolean" }
+      },
+      "required": ["code", "summary", "automatic"]
+    }
+  }
+}

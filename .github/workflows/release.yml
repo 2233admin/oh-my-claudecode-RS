@@ -33,6 +33,12 @@ jobs:
       - name: Package (linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
+          mkdir -p omc-universal-runtime/catalogs omc-universal-runtime/schemas omc-universal-runtime/docs
+          cp target/release/omc target/release/omc-mcp target/release/omc-team omc-universal-runtime/
+          cp catalogs/bundled-v1.json omc-universal-runtime/catalogs/
+          cp schemas/profile-contract-v1.json schemas/status-contract-v1.json omc-universal-runtime/schemas/
+          cp docs/universal-runtime-profiles.md omc-universal-runtime/docs/
+          tar czf omc-universal-runtime-linux-x86_64.tar.gz omc-universal-runtime
           tar czf omc-agent-tool-linux-x86_64.tar.gz -C target/release omc omc-mcp omc-team
           tar czf omc-hud-linux-x86_64.tar.gz -C target/release omc-hud
           tar czf omc-team-linux-x86_64.tar.gz -C target/release omc-team
@@ -40,6 +46,12 @@ jobs:
       - name: Package (macos)
         if: matrix.os == 'macos-latest'
         run: |
+          mkdir -p omc-universal-runtime/catalogs omc-universal-runtime/schemas omc-universal-runtime/docs
+          cp target/release/omc target/release/omc-mcp target/release/omc-team omc-universal-runtime/
+          cp catalogs/bundled-v1.json omc-universal-runtime/catalogs/
+          cp schemas/profile-contract-v1.json schemas/status-contract-v1.json omc-universal-runtime/schemas/
+          cp docs/universal-runtime-profiles.md omc-universal-runtime/docs/
+          tar czf omc-universal-runtime-macos.tar.gz omc-universal-runtime
           tar czf omc-agent-tool-macos.tar.gz -C target/release omc omc-mcp omc-team
           tar czf omc-hud-macos.tar.gz -C target/release omc-hud
           tar czf omc-team-macos.tar.gz -C target/release omc-team
@@ -47,6 +59,7 @@ jobs:
       - name: Package (windows)
         if: matrix.os == 'windows-latest'
         run: |
+          powershell -Command "New-Item -ItemType Directory -Force omc-universal-runtime/catalogs,omc-universal-runtime/schemas,omc-universal-runtime/docs | Out-Null; Copy-Item target/release/omc.exe,target/release/omc-mcp.exe,target/release/omc-team.exe omc-universal-runtime/; Copy-Item catalogs/bundled-v1.json omc-universal-runtime/catalogs/; Copy-Item schemas/profile-contract-v1.json,schemas/status-contract-v1.json omc-universal-runtime/schemas/; Copy-Item docs/universal-runtime-profiles.md omc-universal-runtime/docs/; Compress-Archive -Path omc-universal-runtime -DestinationPath omc-universal-runtime-windows-x86_64.zip"
           powershell -Command "Compress-Archive -Path target/release/omc.exe,target/release/omc-mcp.exe,target/release/omc-team.exe -DestinationPath omc-agent-tool-windows-x86_64.zip"
           powershell -Command "Compress-Archive -Path target/release/omc-hud.exe -DestinationPath omc-hud-windows-x86_64.zip"
           powershell -Command "Compress-Archive -Path target/release/omc-team.exe -DestinationPath omc-team-windows-x86_64.zip"

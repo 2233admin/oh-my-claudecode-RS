@@ -33,12 +33,52 @@ pub enum Commands {
         command: GoalCommand,
     },
 
+    /// Create, discover, and validate universal runtime profiles
+    Profile {
+        #[command(subcommand)]
+        command: ProfileCommand,
+    },
+
+    /// Inspect, refresh, or roll back trusted metadata catalogs
+    Catalog {
+        #[command(subcommand)]
+        command: CatalogCommand,
+    },
+
+    /// Inspect or refresh dependency metadata
+    Dependencies {
+        #[command(subcommand)]
+        command: DependenciesCommand,
+    },
+
+    /// Perform a bounded, read-only live protocol probe
+    Probe {
+        #[arg(long, value_name = "PATH")]
+        profile: std::path::PathBuf,
+        #[arg(long, default_value_t = 3_000)]
+        timeout_ms: u64,
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Setup OMC for a specific host
     #[command(name = "setup", visible_alias = "omc-setup")]
     OmcSetup {
         /// Target host: claude, codex, or Hermes MCP consumer
         #[arg(long, value_parser = ["claude", "codex", "hermes"])]
         host: Option<String>,
+
+        /// Explicit universal runtime profile
+        #[arg(long, value_name = "PATH", conflicts_with = "host")]
+        profile: Option<std::path::PathBuf>,
+
+        /// Print the planned change without writing configuration
+        #[arg(long)]
+        print_only: bool,
+
+        /// Emit a machine-readable JSON envelope
+        #[arg(long)]
+        json: bool,
 
         /// Hermes home directory; defaults to HERMES_HOME or ~/.hermes
         #[arg(long, value_name = "PATH")]
@@ -57,8 +97,12 @@ pub enum Commands {
     #[command(name = "doctor", visible_alias = "omc-doctor")]
     OmcDoctor {
         /// Check only one host; omit to check both Claude Code and Codex CLI
-        #[arg(long, value_parser = ["claude", "codex"])]
+        #[arg(long, value_parser = ["claude", "codex", "hermes"])]
         host: Option<String>,
+
+        /// Explicit universal runtime profile
+        #[arg(long, value_name = "PATH", conflicts_with = "host")]
+        profile: Option<std::path::PathBuf>,
 
         /// Emit machine-readable JSON instead of a human report
         #[arg(long)]
@@ -164,6 +208,55 @@ pub enum Commands {
 
     /// List all available skills
     List,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ProfileCommand {
+    /// Write a minimal data-only profile template
+    Init {
+        id: String,
+        #[arg(long, value_name = "PATH")]
+        output: std::path::PathBuf,
+    },
+    /// List profiles visible from the current project and user home
+    List {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Parse and semantically validate a profile
+    Validate {
+        #[arg(long, value_name = "PATH")]
+        profile: std::path::PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum CatalogCommand {
+    Status,
+    Refresh {
+        #[arg(long, value_name = "PATH_OR_URI")]
+        source: String,
+        #[arg(long, value_name = "PATH_OR_URI")]
+        trusted_source: String,
+        #[arg(long, env = "OMC_CATALOG_TRUST_KEY", hide_env_values = true)]
+        trust_key: String,
+    },
+    Rollback,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum DependenciesCommand {
+    Status,
+    Refresh {
+        #[arg(long, value_name = "PATH_OR_URI")]
+        source: String,
+        #[arg(long, value_name = "PATH_OR_URI")]
+        trusted_source: String,
+        #[arg(long, env = "OMC_CATALOG_TRUST_KEY", hide_env_values = true)]
+        trust_key: String,
+    },
 }
 
 /// Arguments accepted by skill-dispatching commands.

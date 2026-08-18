@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-08-18
+goal: A repository-unknown profile completes validate, probe, setup, doctor,
+  permission negotiation, and real MCP consumption without modifying or
+  rebuilding OMC-RS.

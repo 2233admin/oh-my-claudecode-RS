@@ -5,10 +5,15 @@
 //! and skill registrations for either platform.
 
 pub mod adapter;
+pub mod builtin_profiles;
+pub mod catalog;
 pub mod claude;
 pub mod codex;
 pub mod config_state;
 pub mod mcp_reg;
+pub mod process_adapter_pool;
+pub mod profile_lifecycle;
+pub mod protocol_adapter;
 pub mod types;
 pub mod unified_hooks;
 

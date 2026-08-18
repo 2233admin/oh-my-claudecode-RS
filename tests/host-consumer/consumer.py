@@ -131,6 +131,16 @@ def run_cli(
     require("agent_route" in names, "CLI catalog omitted agent_route")
     require("team_observability" in names, "CLI catalog omitted team_observability")
 
+    status_process = subprocess.run(
+        [omc, "status", "--json"], capture_output=True, text=True, check=False
+    )
+    require(status_process.returncode == 0, f"CLI status failed: {status_process.stderr}")
+    status = decode_json(status_process.stdout, "CLI status")
+    require(status.get("schemaVersion") == "omc.status.v1", "CLI status schema missing")
+    require(isinstance(status.get("runtimeProfile"), dict), "runtime profile status missing")
+    require(isinstance(status.get("catalog"), dict), "catalog status missing")
+    require(isinstance(status.get("dependencies"), dict), "dependency status missing")
+
     team = subprocess.run(
         [
             omc,
@@ -279,6 +289,7 @@ def run_cli(
         "interop_omx_team_count": len(interop_response["data"]["omxTeams"]),
         "interop_normalized_task_count": interop_response["data"]["normalizedTaskCount"],
         "interop_bridge": "written" if require_active else "denied",
+        "status_schema": status["schemaVersion"],
     }
     if code_intel_response is not None:
         code_intel_data = code_intel_response["data"]

@@ -1,11 +1,22 @@
 [CmdletBinding()]
 param(
-    [string]$ReleaseDirectory = (Join-Path $PSScriptRoot "..\target\release"),
-    [string]$PackageDirectory = (Join-Path $PSScriptRoot "..\target\omc-package"),
+    [string]$ReleaseDirectory,
+    [string]$PackageDirectory,
     [switch]$Build
 )
 
 $ErrorActionPreference = "Stop"
+
+$ScriptDirectory = $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($ScriptDirectory)) {
+    $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+}
+if ([string]::IsNullOrWhiteSpace($ReleaseDirectory)) {
+    $ReleaseDirectory = Join-Path $ScriptDirectory "..\target\release"
+}
+if ([string]::IsNullOrWhiteSpace($PackageDirectory)) {
+    $PackageDirectory = Join-Path $ScriptDirectory "..\target\omc-package"
+}
 
 function Get-WorkspaceVersion {
     $metadata = cargo metadata --no-deps --format-version 1 | ConvertFrom-Json

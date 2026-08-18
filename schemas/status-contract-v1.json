@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "omc.status.v1",
+  "required": [
+    "schemaVersion", "overall", "projectRoot", "capabilities", "hosts",
+    "runtimeProfile", "catalog", "dependencies", "goals", "team", "interop"
+  ],
+  "runtimeProfile": {
+    "states": ["unconfigured", "resolved"],
+    "resolvedFields": [
+      "activeProfile", "runtime", "providerEvidence", "modelEvidence",
+      "protocolEvidence", "effectivePermissions", "dependencies",
+      "catalogVersion", "provenance"
+    ]
+  }
+}
