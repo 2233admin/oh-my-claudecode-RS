@@ -29,6 +29,18 @@ A **Rust rewrite** of [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-cl
 
 ## Quick Start
 
+For Hermes, download the `omc-agent-tool-*` archive from the latest GitHub
+Release, extract all three adjacent binaries, then register the MCP server:
+
+```bash
+omc setup --host hermes
+omc doctor --host hermes --json
+```
+
+Hermes launches `omc mcp`; `omc-mcp` remains the compatibility entrypoint and
+`omc-team` provides the existing team process bridge. Keep the three binaries
+in the same directory.
+
 ```bash
 # Clone
 git clone https://github.com/2233admin/oh-my-claudecode-RS.git
