@@ -140,14 +140,20 @@ pub fn validate_profile(resolved: ResolvedProfile) -> ValidationReport {
             ));
         }
     }
-    if let ProtocolDescriptor::McpHttpSse { endpoint } = &resolved.profile.protocol
-        && !(endpoint.starts_with("http://") || endpoint.starts_with("https://"))
-    {
-        issues.push(issue(
-            "invalid_endpoint",
-            "$.protocol.endpoint",
-            "HTTP/SSE endpoint must use http or https",
-        ));
+    if let ProtocolDescriptor::McpHttpSse { endpoint } = &resolved.profile.protocol {
+        let valid = reqwest::Url::parse(endpoint).is_ok_and(|url| {
+            matches!(url.scheme(), "http" | "https")
+                && url.host_str().is_some()
+                && url.username().is_empty()
+                && url.password().is_none()
+        });
+        if !valid {
+            issues.push(issue(
+                "invalid_endpoint",
+                "$.protocol.endpoint",
+                "HTTP/SSE endpoint must be an absolute http(s) URL without credentials",
+            ));
+        }
     }
     for key in resolved.profile.extensions.keys() {
         if !key.contains('/') {
@@ -319,6 +325,30 @@ mod tests {
                 .issues
                 .iter()
                 .any(|item| item.code == "secret_value_forbidden")
+        );
+    }
+
+    #[test]
+    fn validation_rejects_malformed_or_credentialed_endpoint() {
+        let mut profile = fixture("demo");
+        profile.protocol = ProtocolDescriptor::McpHttpSse {
+            endpoint: "https://user:password@example.invalid/mcp".into(),
+        };
+        let report = validate_profile(ResolvedProfile {
+            provenance: Provenance {
+                source: ProfileSource::Explicit,
+                schema_version: profile.schema_version.clone(),
+                digest: "a".repeat(64),
+                catalog_version: None,
+                location: None,
+            },
+            profile,
+        });
+        assert!(
+            report
+                .issues
+                .iter()
+                .any(|item| item.code == "invalid_endpoint")
         );
     }
 }

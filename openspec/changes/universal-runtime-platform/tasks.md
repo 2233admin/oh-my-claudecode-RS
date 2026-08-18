@@ -28,13 +28,13 @@
 - [x] 4.2 Implement stable OMC permissions and Runtime-native mapping with fail-closed unknown handling
 - [x] 4.3 Implement effective permission intersection and lower-trust override tightening rules
 - [x] 4.4 Add unprobeable-model declared evidence and conservative first-use verification state
-- [ ] 4.5 Add security tests for unknown permits, escalation attempts, secrets, malformed endpoints, and side-effect denial
+- [x] 4.5 Add security tests for unknown permits, escalation attempts, secrets, malformed endpoints, and side-effect denial
 
 ## 5. Protocol Adapters
 
 - [x] 5.1 Extract the existing MCP stdio transport behind the Protocol Adapter seam without behavior drift
 - [x] 5.2 Implement MCP HTTP/SSE probing and lifecycle parity
-- [ ] 5.3 Add explicitly authorized bounded subprocess Adapter sessions with capacity, TTL, health, failure eviction, close, and reuse diagnostics
+- [x] 5.3 Add explicitly authorized bounded subprocess Adapter sessions with capacity, TTL, health, failure eviction, close, and reuse diagnostics
 - [ ] 5.4 Add protocol conformance tests proving equivalent capability discovery across stdio and HTTP/SSE
 
 ## 6. Trusted Catalogs and Dependencies
