@@ -23,9 +23,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Build
         run: cargo build --release --workspace
       - name: Package (linux)
@@ -50,7 +50,7 @@ jobs:
           powershell -Command "Compress-Archive -Path target/release/omc-team.exe -DestinationPath omc-team-windows-x86_64.zip"
           powershell -Command "Compress-Archive -Path target/release/omc-xcmd.exe -DestinationPath omc-xcmd-windows-x86_64.zip"
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-${{ matrix.os }}
           path: |
@@ -62,10 +62,12 @@ jobs:
     name: Create Release
     needs: [build]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Download all artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           path: artifacts
       - name: Prepare Release Files
@@ -74,7 +76,7 @@ jobs:
           find artifacts -type f -name "*.tar.gz" -o -name "*.zip" | head -20
           find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) -print0 | sort -z | xargs -0 sha256sum > artifacts/SHA256SUMS
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: artifacts/**/*.tar.gz,artifacts/**/*.zip,artifacts/SHA256SUMS
           generate_release_notes: true
