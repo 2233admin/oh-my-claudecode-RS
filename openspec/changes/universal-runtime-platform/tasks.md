@@ -56,7 +56,7 @@
 
 ## 8. Release Closure
 
-- [ ] 8.1 Run formatting, clippy, workspace tests, schema gates, security scans, and three-platform release builds
+- [x] 8.1 Run formatting, clippy, workspace tests, schema gates, security scans, and three-platform release builds
 - [ ] 8.2 Publish `v0.3.0-rc.1` with Linux/macOS/Windows Universal Runtime bundles and SHA-256 checksums
 - [ ] 8.3 Download RC assets and validate randomized unknown profile, Hermes, Claude/Codex compatibility, permissions, catalog update/rollback, and performance
 - [ ] 8.4 Fix RC findings, rerun all gates, and confirm no unresolved High findings or behavior drift
