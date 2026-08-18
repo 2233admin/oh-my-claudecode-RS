@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0] — 2026-08-18
+## [0.2.1] — 2026-08-18
 
 - Added an MCP-owned, bounded project-level rust-analyzer pool with observable
   reuse/PID evidence while preserving the one-shot CLI fallback.
@@ -91,6 +91,6 @@ First usable release. 13/13 HUD elements implemented; cold-start under 5ms targe
 - Reference TypeScript implementation: [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) (Apache 2.0, Yeachan-Heo); only external contracts consumed (Claude Code stdin schema, `~/.claude/settings.json` `statusLine.command` interface, OMC `.omc/state/` path conventions)
 - Initial production skeleton authored 2026-05-05 by Codex via the `codex-rescue` agent — attribution preserved in commit [`d813abf`](https://github.com/2233admin/oh-my-claudecode-RS/commit/d813abf)
 
-[Unreleased]: https://github.com/2233admin/oh-my-claudecode-RS/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/2233admin/oh-my-claudecode-RS/compare/v0.1.0...v0.2.0
+[Unreleased]: https://github.com/2233admin/oh-my-claudecode-RS/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/2233admin/oh-my-claudecode-RS/compare/v0.1.0...v0.2.1
 [0.1.0]: https://github.com/2233admin/oh-my-claudecode-RS/releases/tag/v0.1.0
