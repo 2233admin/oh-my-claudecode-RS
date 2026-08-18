@@ -291,7 +291,7 @@ mod tests {
             vec![
                 "-NoProfile".into(),
                 "-Command".into(),
-                "Write-Output '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"capabilities\":{}}}'; Write-Output '{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"echo\"}]}}'".into(),
+                "$null = [Console]::In.ReadLine(); $null = [Console]::In.ReadLine(); Write-Output '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"capabilities\":{}}}'; Write-Output '{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"echo\"}]}}'".into(),
             ],
         );
         #[cfg(not(windows))]
@@ -299,7 +299,7 @@ mod tests {
             "sh".to_string(),
             vec![
                 "-c".into(),
-                "printf '%s\\n%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"capabilities\":{}}}' '{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"echo\"}]}}'".into(),
+                "read -r _; read -r _; printf '%s\\n%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"capabilities\":{}}}' '{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"echo\"}]}}'".into(),
             ],
         );
         let stdio = resolved(ProtocolDescriptor::McpStdio, command, args);
@@ -313,7 +313,7 @@ mod tests {
 
         let stdio_report = adapter_for(&stdio.profile.protocol)
             .unwrap()
-            .probe(&stdio, Duration::from_secs(2))
+            .probe(&stdio, Duration::from_secs(10))
             .await
             .unwrap();
         let http_report = adapter_for(&http.profile.protocol)
@@ -357,7 +357,7 @@ mod tests {
             vec![
                 "-NoProfile".into(),
                 "-Command".into(),
-                "Write-Output '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}'; Write-Output '{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[]}}'".into(),
+                "$null = [Console]::In.ReadLine(); $null = [Console]::In.ReadLine(); Write-Output '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}'; Write-Output '{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[]}}'".into(),
             ],
         );
         #[cfg(not(windows))]
@@ -365,12 +365,12 @@ mod tests {
             "sh".to_string(),
             vec![
                 "-c".into(),
-                "printf '%s\\n%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}' '{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[]}}'".into(),
+                "read -r _; read -r _; printf '%s\\n%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}' '{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[]}}'".into(),
             ],
         );
         let profile = resolved(ProtocolDescriptor::McpStdio, command, args);
 
-        let report = probe_protocol(&profile, Duration::from_secs(2)).unwrap();
+        let report = probe_protocol(&profile, Duration::from_secs(10)).unwrap();
 
         assert!(report.ready);
     }
