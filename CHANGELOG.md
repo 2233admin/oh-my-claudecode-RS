@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added Universal Runtime Profiles for zero-code custom Agent, provider, model,
+  protocol, permission, and dependency composition.
+- Added trusted, independently versioned offline catalogs with integrity,
+  compatibility, atomic activation, and rollback gates.
+- Extended `omc status` and profile doctor with provenance, dependency,
+  effective-permission, catalog, and non-automatic repair diagnostics.
+- Added release-consumer schema fixtures and cold/warm profile performance
+  budgets for the forthcoming v0.3 release line.
+
 ## [0.2.1] — 2026-08-18
 
 - Added an MCP-owned, bounded project-level rust-analyzer pool with observable

@@ -244,6 +244,18 @@ pub struct DoctorReport {
     pub evidence: Vec<CapabilityEvidence>,
     #[serde(default)]
     pub issues: Vec<ContractIssue>,
+    #[serde(default)]
+    pub repairs: Vec<RepairGuidance>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RepairGuidance {
+    pub code: String,
+    pub summary: String,
+    #[serde(default)]
+    pub command: Option<String>,
+    pub automatic: bool,
 }
 
 #[cfg(test)]
@@ -279,5 +291,17 @@ mod tests {
         let fixture = include_str!("../../../schemas/profile-fixtures/unknown-runtime-v1.json");
         let profile: Profile = serde_json::from_str(fixture).expect("released fixture is valid");
         assert_eq!(profile.schema_version, PROFILE_SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn doctor_repairs_are_explicitly_non_automatic() {
+        let repair = RepairGuidance {
+            code: "dependency_missing".into(),
+            summary: "Install the runtime using its trusted distribution channel".into(),
+            command: Some("runtime --version".into()),
+            automatic: false,
+        };
+        let value = serde_json::to_value(repair).unwrap();
+        assert_eq!(value["automatic"], false);
     }
 }

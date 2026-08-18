@@ -37,6 +37,7 @@ pub use tool::run_tool_value;
 mod host;
 use host::collect_doctor_reports;
 use host::{run_doctor, run_setup_host};
+mod catalog;
 mod profile;
 mod status;
 mod templates;
@@ -67,7 +68,10 @@ fn skill_name(cmd: &Commands) -> Option<&'static str> {
     match cmd {
         Commands::Tool { .. } => None,
         Commands::Goal { .. } => None,
-        Commands::Profile { .. } | Commands::Probe { .. } => None,
+        Commands::Profile { .. }
+        | Commands::Probe { .. }
+        | Commands::Catalog { .. }
+        | Commands::Dependencies { .. } => None,
         Commands::OmcSetup { .. } => Some("omc-setup"),
         Commands::OmcDoctor { .. } => None,
         Commands::Status { .. } => None,
@@ -107,7 +111,10 @@ fn skill_args(cmd: &Commands) -> Option<SkillArgs> {
     match cmd {
         Commands::Tool { .. } => None,
         Commands::Goal { .. } => None,
-        Commands::Profile { .. } | Commands::Probe { .. } => None,
+        Commands::Profile { .. }
+        | Commands::Probe { .. }
+        | Commands::Catalog { .. }
+        | Commands::Dependencies { .. } => None,
         Commands::OmcDoctor { .. } => None,
         Commands::Status { .. } => None,
         Commands::Mcp => None,
@@ -165,6 +172,16 @@ pub fn run(cli: Cli) -> Result<(), DispatchError> {
     if let Commands::Profile { command } = &cli.command {
         let root = std::env::current_dir().map_err(DispatchError::Io)?;
         return profile::run_profile(command, &root);
+    }
+
+    if let Commands::Catalog { command } = &cli.command {
+        let root = std::env::current_dir().map_err(DispatchError::Io)?;
+        return catalog::run_catalog(command, &root);
+    }
+
+    if let Commands::Dependencies { command } = &cli.command {
+        let root = std::env::current_dir().map_err(DispatchError::Io)?;
+        return catalog::run_dependencies(command, &root);
     }
 
     if let Commands::Probe {

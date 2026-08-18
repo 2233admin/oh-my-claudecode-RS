@@ -23,33 +23,22 @@ pub(super) fn run_doctor(
     json: bool,
     tools: bool,
 ) -> Result<(), DispatchError> {
-    if host.is_some_and(|value| value.eq_ignore_ascii_case("hermes")) {
-        let home = omc_host::mcp_reg::resolve_hermes_home(None);
-        let resolved = resolve_builtin_profile("hermes", root, &home)?;
-        let report = omc_host::profile_lifecycle::doctor_profile(
-            &resolved,
-            root,
-            std::time::Duration::from_secs(3),
-        );
-        if json {
-            println!("{}", serde_json::to_string_pretty(&report)?);
-        } else {
-            println!(
-                "OMC Doctor\n[{}] {}",
-                if report.ready { "READY" } else { "ISSUES" },
-                report.profile_id
-            );
-            for issue in &report.issues {
-                println!("  - {}: {}", issue.code, issue.message);
-            }
-        }
-        return if report.ready {
-            Ok(())
-        } else {
-            Err(DispatchError::NotFound("Hermes is not ready".into()))
-        };
-    }
-    let reports = collect_doctor_reports(root, host)?;
+    let profile_ids: Vec<&str> = match host {
+        Some(value) => vec![builtin_profile_id(value)?],
+        None => vec!["claude", "codex"],
+    };
+    let hermes_home = omc_host::mcp_reg::resolve_hermes_home(None);
+    let reports = profile_ids
+        .into_iter()
+        .map(|id| {
+            let resolved = resolve_builtin_profile(id, root, &hermes_home)?;
+            Ok(omc_host::profile_lifecycle::doctor_profile(
+                &resolved,
+                root,
+                std::time::Duration::from_secs(3),
+            ))
+        })
+        .collect::<Result<Vec<_>, DispatchError>>()?;
     let capabilities = tools.then(omc_shared::agent_tool::capabilities_payload);
 
     if json {
@@ -69,9 +58,9 @@ pub(super) fn run_doctor(
         println!("Project root: {}\n", root.display());
         for report in &reports {
             let status = if report.ready { "READY" } else { "ISSUES" };
-            println!("[{}] {}", status, report.host);
-            for message in &report.messages {
-                println!("  - {message}");
+            println!("[{}] {}", status, report.profile_id);
+            for issue in &report.issues {
+                println!("  - {}: {}", issue.code, issue.message);
             }
             println!();
         }
@@ -106,24 +95,26 @@ pub(super) fn run_setup_host(
     force: bool,
     hermes_home: Option<&Path>,
 ) -> Result<(), DispatchError> {
-    if host.eq_ignore_ascii_case("hermes") {
-        let home = omc_host::mcp_reg::resolve_hermes_home(hermes_home);
-        let resolved = resolve_builtin_profile("hermes", root, &home)?;
-        let changed = omc_host::profile_lifecycle::setup_profile(
-            &resolved,
-            root,
-            omc_host::profile_lifecycle::SetupOptions {
-                force,
-                print_only: false,
-            },
-        )
-        .map_err(|error| DispatchError::Host(error.to_string()))?
-        .changed;
+    let profile_id = builtin_profile_id(host)?;
+    let home = omc_host::mcp_reg::resolve_hermes_home(hermes_home);
+    let resolved = resolve_builtin_profile(profile_id, root, &home)?;
+    let mcp_changed = omc_host::profile_lifecycle::setup_profile(
+        &resolved,
+        root,
+        omc_host::profile_lifecycle::SetupOptions {
+            force,
+            print_only: false,
+        },
+    )
+    .map_err(|error| DispatchError::Host(error.to_string()))?
+    .changed;
+
+    if profile_id == "hermes" {
         println!("Setting up OMC for Hermes MCP consumer");
         println!("Hermes home: {}", home.display());
         println!(
             "MCP server `omc-rs`: {}",
-            if changed {
+            if mcp_changed {
                 "registered"
             } else {
                 "already registered"
@@ -150,21 +141,6 @@ pub(super) fn run_setup_host(
         println!("  = {} (exists)", p.display());
     }
 
-    let profile_id = match host_kind {
-        HostKind::Claude => "claude",
-        HostKind::Codex => "codex",
-    };
-    let resolved = resolve_builtin_profile(profile_id, root, Path::new("."))?;
-    let mcp_changed = omc_host::profile_lifecycle::setup_profile(
-        &resolved,
-        root,
-        omc_host::profile_lifecycle::SetupOptions {
-            force,
-            print_only: false,
-        },
-    )
-    .map_err(|error| DispatchError::Host(error.to_string()))?
-    .changed;
     println!(
         "MCP server `omc-rs`: {}",
         if mcp_changed {
@@ -232,6 +208,18 @@ pub(super) fn run_setup_host(
 
     println!("\nSetup complete for {host_kind}.");
     Ok(())
+}
+
+fn builtin_profile_id(host: &str) -> Result<&'static str, DispatchError> {
+    if host.eq_ignore_ascii_case("claude") {
+        Ok("claude")
+    } else if host.eq_ignore_ascii_case("codex") {
+        Ok("codex")
+    } else if host.eq_ignore_ascii_case("hermes") {
+        Ok("hermes")
+    } else {
+        Err(DispatchError::NotFound(format!("unknown host: {host}")))
+    }
 }
 
 fn resolve_builtin_profile(

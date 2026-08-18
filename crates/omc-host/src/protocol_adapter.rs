@@ -177,6 +177,14 @@ pub fn adapter_for(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::profile_lifecycle::ResolvedProfile;
+    use omc_shared::profile::{
+        ModelDescriptor, PermissionPolicy, Profile, ProfileSource, Provenance, ProviderDescriptor,
+        RuntimeDescriptor,
+    };
+    use std::collections::BTreeMap;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
 
     #[test]
     fn process_adapter_is_not_implicitly_authorized() {
@@ -187,5 +195,131 @@ mod tests {
             idle_ttl_ms: 10,
         };
         assert!(adapter_for(&protocol).is_err());
+    }
+
+    fn resolved(
+        protocol: ProtocolDescriptor,
+        command: String,
+        args: Vec<String>,
+    ) -> ResolvedProfile {
+        ResolvedProfile {
+            profile: Profile {
+                schema_version: "omc.profile.v1".into(),
+                id: "equivalent-runtime".into(),
+                runtime: RuntimeDescriptor {
+                    id: "equivalent-runtime".into(),
+                    command: command.into(),
+                    args,
+                    environment: BTreeMap::new(),
+                },
+                provider: ProviderDescriptor {
+                    id: "p".into(),
+                    endpoint: None,
+                },
+                model: ModelDescriptor {
+                    id: "m".into(),
+                    capabilities: vec!["tool-calling".into()],
+                    probeable: true,
+                },
+                protocol,
+                permissions: PermissionPolicy::default(),
+                dependencies: Vec::new(),
+                setup: None,
+                extensions: BTreeMap::new(),
+            },
+            provenance: Provenance {
+                source: ProfileSource::Explicit,
+                schema_version: "omc.profile.v1".into(),
+                digest: "a".repeat(64),
+                catalog_version: None,
+                location: None,
+            },
+        }
+    }
+
+    #[tokio::test]
+    async fn stdio_and_http_sse_discover_equivalent_tool_capabilities() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            for response in [
+                json!({"jsonrpc":"2.0","id":1,"result":{"capabilities":{}}}),
+                json!({"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"echo"}]}}),
+            ] {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let mut request = vec![0; 4096];
+                let _ = socket.read(&mut request).await.unwrap();
+                let body = response.to_string();
+                let reply = format!(
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                socket.write_all(reply.as_bytes()).await.unwrap();
+            }
+        });
+
+        #[cfg(windows)]
+        let (command, args) = (
+            "powershell".to_string(),
+            vec![
+                "-NoProfile".into(),
+                "-Command".into(),
+                "Write-Output '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"capabilities\":{}}}'; Write-Output '{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"echo\"}]}}'".into(),
+            ],
+        );
+        #[cfg(not(windows))]
+        let (command, args) = (
+            "sh".to_string(),
+            vec![
+                "-c".into(),
+                "printf '%s\\n%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"capabilities\":{}}}' '{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"echo\"}]}}'".into(),
+            ],
+        );
+        let stdio = resolved(ProtocolDescriptor::McpStdio, command, args);
+        let http = resolved(
+            ProtocolDescriptor::McpHttpSse {
+                endpoint: format!("http://{address}/mcp"),
+            },
+            "unused".into(),
+            Vec::new(),
+        );
+
+        let stdio_report = adapter_for(&stdio.profile.protocol)
+            .unwrap()
+            .probe(&stdio, Duration::from_secs(2))
+            .await
+            .unwrap();
+        let http_report = adapter_for(&http.profile.protocol)
+            .unwrap()
+            .probe(&http, Duration::from_secs(2))
+            .await
+            .unwrap();
+        server.await.unwrap();
+
+        assert!(stdio_report.ready);
+        assert!(http_report.ready);
+        assert_eq!(
+            stdio_report.evidence[0].capability,
+            http_report.evidence[0].capability
+        );
+        assert_eq!(
+            stdio_report.evidence[0].available,
+            http_report.evidence[0].available
+        );
+        assert!(
+            stdio_report.evidence[0]
+                .detail
+                .as_deref()
+                .unwrap()
+                .contains("1 tools")
+        );
+        assert!(
+            http_report.evidence[0]
+                .detail
+                .as_deref()
+                .unwrap()
+                .contains("1 tools")
+        );
     }
 }

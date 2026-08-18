@@ -3,6 +3,7 @@
 use super::{ResolvedProfile, probe_stdio};
 use omc_shared::profile::{
     CapabilityEvidence, ContractIssue, DOCTOR_SCHEMA_VERSION, DoctorReport, EvidenceSource,
+    RepairGuidance,
 };
 use std::path::Path;
 use std::time::Duration;
@@ -75,7 +76,60 @@ pub fn doctor_profile(
         provenance: resolved.provenance.clone(),
         evidence,
         issues,
+        repairs: repair_guidance(resolved, project_root),
     }
+}
+
+fn repair_guidance(resolved: &ResolvedProfile, project_root: &Path) -> Vec<RepairGuidance> {
+    let mut repairs = Vec::new();
+    if let Some(setup) = &resolved.profile.setup {
+        let destination = if setup.path.is_absolute() {
+            setup.path.clone()
+        } else {
+            project_root.join(&setup.path)
+        };
+        if !destination.is_file() {
+            repairs.push(RepairGuidance {
+                code: "not_configured".into(),
+                summary: format!(
+                    "Register profile '{}' in the consumer configuration",
+                    resolved.profile.id
+                ),
+                command: resolved
+                    .provenance
+                    .location
+                    .as_ref()
+                    .map(|path| format!("omc setup --profile \"{}\"", path.display())),
+                automatic: false,
+            });
+        }
+    }
+    for dependency in &resolved.profile.dependencies {
+        if !dependency
+            .commands
+            .iter()
+            .any(|command| command_available(command))
+            && !matches!(
+                dependency.kind,
+                omc_shared::profile::DependencyKind::Optional
+                    | omc_shared::profile::DependencyKind::CallerSupplied
+            )
+        {
+            repairs.push(RepairGuidance {
+                code: "dependency_missing".into(),
+                summary: format!(
+                    "Install '{}' from its trusted distribution channel, then verify it",
+                    dependency.id
+                ),
+                command: dependency
+                    .commands
+                    .first()
+                    .map(|command| format!("{command} --version")),
+                automatic: false,
+            });
+        }
+    }
+    repairs
 }
 
 fn command_available(command: &str) -> bool {
@@ -128,6 +182,13 @@ mod tests {
                 .issues
                 .iter()
                 .any(|issue| issue.code == "spawn_failed")
+        );
+        assert!(report.repairs.iter().all(|repair| !repair.automatic));
+        assert!(
+            report
+                .repairs
+                .iter()
+                .any(|repair| repair.code == "not_configured")
         );
     }
 }

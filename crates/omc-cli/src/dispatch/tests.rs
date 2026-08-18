@@ -148,4 +148,31 @@ fn status_has_a_stable_schema_and_complete_catalog_counts() {
     assert_eq!(status.schema_version, "omc.status.v1");
     assert_eq!(status.capabilities.total, 16);
     assert_eq!(status.capabilities.mcp_tools, 32);
+    assert!(status.catalog.ok);
+    assert!(status.dependencies.ok);
+}
+
+#[test]
+fn status_projects_active_unknown_profile_with_provenance() {
+    let tmp = tempfile::tempdir().unwrap();
+    let profile = tmp.path().join("future.json");
+    std::fs::write(
+        &profile,
+        serde_json::to_vec(&serde_json::json!({
+            "schemaVersion":"omc.profile.v1", "id":"future-agent",
+            "runtime":{"id":"future-runtime","command":"future-agent"},
+            "provider":{"id":"private-provider"},
+            "model":{"id":"private-model","capabilities":["tool-calling"]},
+            "protocol":{"kind":"mcp-stdio"},
+            "permissions":{"omc":["read","network"],"runtime":["read"]},
+            "dependencies":[{"id":"future-agent","kind":"required","commands":["future-agent"]}]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let status = super::status::build_status_with_profile(tmp.path(), Some(&profile));
+    let data = status.runtime_profile.data.unwrap();
+    assert_eq!(data["activeProfile"], "future-agent");
+    assert_eq!(data["effectivePermissions"], serde_json::json!(["read"]));
+    assert_eq!(data["provenance"]["source"], "explicit");
 }

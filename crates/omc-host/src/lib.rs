@@ -6,6 +6,7 @@
 
 pub mod adapter;
 pub mod builtin_profiles;
+pub mod catalog;
 pub mod claude;
 pub mod codex;
 pub mod config_state;

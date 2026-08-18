@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "omc.catalog.v1",
+  "catalogVersion": "1.0.0",
+  "compatibleOmc": { "minInclusive": "0.2.0", "maxExclusive": "1.0.0" },
+  "compatibleProfileSchema": ["omc.profile.v1"],
+  "profiles": [
+    { "id": "generic-mcp", "schemaVersion": "omc.profile.v1", "permissions": [] },
+    { "id": "hermes", "schemaVersion": "omc.profile.v1", "permissions": [] },
+    { "id": "claude", "schemaVersion": "omc.profile.v1", "permissions": [] },
+    { "id": "codex", "schemaVersion": "omc.profile.v1", "permissions": [] }
+  ],
+  "providers": [{ "id": "runtime-managed" }],
+  "models": [{ "id": "runtime-managed", "capabilities": ["tool-calling"] }],
+  "dependencies": [
+    { "id": "omc", "description": "OMC MCP runtime", "commands": ["omc"], "platforms": ["linux", "macos", "windows"] },
+    { "id": "python", "description": "Optional Python REPL runtime", "commands": ["python3", "python"], "platforms": ["linux", "macos", "windows"] },
+    { "id": "git", "description": "Optional Git integration", "commands": ["git"], "platforms": ["linux", "macos", "windows"] }
+  ]
+}

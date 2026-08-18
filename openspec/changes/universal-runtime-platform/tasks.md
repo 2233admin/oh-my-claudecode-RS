@@ -19,8 +19,8 @@
 
 - [x] 3.1 Add built-in Generic MCP and Hermes profiles and migrate Hermes setup/doctor to the common lifecycle
 - [x] 3.2 Add built-in Claude and Codex profiles while retaining native hook adapters and compatibility command forms
-- [ ] 3.3 Remove duplicated setup/doctor dispatch paths after compatibility and parity tests pass
-- [ ] 3.4 Run every available built-in profile through the common conformance harness
+- [x] 3.3 Remove duplicated setup/doctor dispatch paths after compatibility and parity tests pass
+- [x] 3.4 Run every available built-in profile through the common conformance harness
 
 ## 4. Capability and Permission Negotiation
 
@@ -35,24 +35,24 @@
 - [x] 5.1 Extract the existing MCP stdio transport behind the Protocol Adapter seam without behavior drift
 - [x] 5.2 Implement MCP HTTP/SSE probing and lifecycle parity
 - [x] 5.3 Add explicitly authorized bounded subprocess Adapter sessions with capacity, TTL, health, failure eviction, close, and reuse diagnostics
-- [ ] 5.4 Add protocol conformance tests proving equivalent capability discovery across stdio and HTTP/SSE
+- [x] 5.4 Add protocol conformance tests proving equivalent capability discovery across stdio and HTTP/SSE
 
 ## 6. Trusted Catalogs and Dependencies
 
-- [ ] 6.1 Move bundled profile/provider/model/dependency metadata into versioned offline catalog files
-- [ ] 6.2 Implement catalog validation, compatible OMC/profile ranges, provenance, and schema breaking-change gates
-- [ ] 6.3 Implement explicit trusted-source configuration plus signature and digest verification
-- [ ] 6.4 Implement staged atomic activation, active-pointer recovery, and rollback
-- [ ] 6.5 Implement `catalog status|refresh|rollback` and `dependencies status|refresh` with stable JSON output
-- [ ] 6.6 Add offline, corrupt download, digest mismatch, incompatible range, executable-directive, activation interruption, and rollback tests
+- [x] 6.1 Move bundled profile/provider/model/dependency metadata into versioned offline catalog files
+- [x] 6.2 Implement catalog validation, compatible OMC/profile ranges, provenance, and schema breaking-change gates
+- [x] 6.3 Implement explicit trusted-source configuration plus signature and digest verification
+- [x] 6.4 Implement staged atomic activation, active-pointer recovery, and rollback
+- [x] 6.5 Implement `catalog status|refresh|rollback` and `dependencies status|refresh` with stable JSON output
+- [x] 6.6 Add offline, corrupt download, digest mismatch, incompatible range, executable-directive, activation interruption, and rollback tests
 
 ## 7. Discoverability, Performance, and Operations
 
-- [ ] 7.1 Extend unified `omc status` with active profile, provider/model/protocol evidence, effective permissions, dependencies, catalog version, and provenance
-- [ ] 7.2 Add cold profile resolution/validation and warm probe/discovery benchmarks with CI budgets
-- [ ] 7.3 Add profile/catalog doctor diagnostics and actionable repair guidance without automatic executable installation
-- [ ] 7.4 Document custom profile authoring, private catalogs, permission mapping, migration, security, update, and rollback
-- [ ] 7.5 Update schema manifests, release notes, host-consumer fixtures, and compatibility documentation
+- [x] 7.1 Extend unified `omc status` with active profile, provider/model/protocol evidence, effective permissions, dependencies, catalog version, and provenance
+- [x] 7.2 Add cold profile resolution/validation and warm probe/discovery benchmarks with CI budgets
+- [x] 7.3 Add profile/catalog doctor diagnostics and actionable repair guidance without automatic executable installation
+- [x] 7.4 Document custom profile authoring, private catalogs, permission mapping, migration, security, update, and rollback
+- [x] 7.5 Update schema manifests, release notes, host-consumer fixtures, and compatibility documentation
 
 ## 8. Release Closure
 

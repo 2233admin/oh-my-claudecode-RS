@@ -42,8 +42,14 @@ Discovery latency and catalog-size budgets:
 
 ```powershell
 python tests/host-consumer/benchmark.py --omc .\target\release\omc.exe
+python tests/host-consumer/profile_benchmark.py --omc .\target\release\omc.exe
 ```
 
 This measures cold CLI discovery and repeated discovery through one persistent
 MCP process. It also fails if the released surface drifts from 16 capabilities
 or 32 tools.
+
+The profile benchmark independently validates the released unknown-runtime
+fixture on every cold invocation, then measures warm discovery through one MCP
+process. `omc status --json` is also consumed as a public host contract; set
+`OMC_PROFILE` to exercise an active custom profile with provenance.

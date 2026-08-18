@@ -39,6 +39,18 @@ pub enum Commands {
         command: ProfileCommand,
     },
 
+    /// Inspect, refresh, or roll back trusted metadata catalogs
+    Catalog {
+        #[command(subcommand)]
+        command: CatalogCommand,
+    },
+
+    /// Inspect or refresh dependency metadata
+    Dependencies {
+        #[command(subcommand)]
+        command: DependenciesCommand,
+    },
+
     /// Perform a bounded, read-only live protocol probe
     Probe {
         #[arg(long, value_name = "PATH")]
@@ -217,6 +229,33 @@ pub enum ProfileCommand {
         profile: std::path::PathBuf,
         #[arg(long)]
         json: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum CatalogCommand {
+    Status,
+    Refresh {
+        #[arg(long, value_name = "PATH")]
+        source: std::path::PathBuf,
+        #[arg(long, value_name = "PATH")]
+        trusted_source: std::path::PathBuf,
+        #[arg(long, env = "OMC_CATALOG_TRUST_KEY", hide_env_values = true)]
+        trust_key: String,
+    },
+    Rollback,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum DependenciesCommand {
+    Status,
+    Refresh {
+        #[arg(long, value_name = "PATH")]
+        source: std::path::PathBuf,
+        #[arg(long, value_name = "PATH")]
+        trusted_source: std::path::PathBuf,
+        #[arg(long, env = "OMC_CATALOG_TRUST_KEY", hide_env_values = true)]
+        trust_key: String,
     },
 }
 

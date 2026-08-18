@@ -84,6 +84,9 @@ fn profile(id: &str, setup: Option<SetupDescriptor>) -> Profile {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::profile_lifecycle::{
+        ProfileRef, ResolutionContext, resolve_profile, setup_profile, validate_profile,
+    };
 
     #[test]
     fn all_compatibility_profiles_share_the_open_contract() {
@@ -99,5 +102,39 @@ mod tests {
                 .values()
                 .all(|profile| matches!(profile.protocol, ProtocolDescriptor::McpStdio))
         );
+    }
+
+    #[test]
+    fn every_builtin_passes_the_common_lifecycle_conformance_harness() {
+        let root = tempfile::tempdir().unwrap();
+        let hermes_home = root.path().join("hermes");
+        let profiles = bundled_profiles(&hermes_home);
+
+        for id in [
+            GENERIC_MCP_PROFILE,
+            HERMES_PROFILE,
+            CLAUDE_PROFILE,
+            CODEX_PROFILE,
+        ] {
+            let resolved = resolve_profile(
+                &ProfileRef::Named(id.into()),
+                &ResolutionContext {
+                    project_root: root.path().into(),
+                    user_home: root.path().join("user"),
+                    organization_catalog: None,
+                    built_ins: profiles.clone(),
+                },
+            )
+            .unwrap();
+            let validation = validate_profile(resolved.clone());
+            assert!(validation.valid, "{id}: {:?}", validation.issues);
+
+            if resolved.profile.setup.is_some() {
+                let first = setup_profile(&resolved, root.path(), Default::default()).unwrap();
+                let second = setup_profile(&resolved, root.path(), Default::default()).unwrap();
+                assert!(first.changed, "{id} did not install through common setup");
+                assert!(!second.changed, "{id} common setup is not idempotent");
+            }
+        }
     }
 }

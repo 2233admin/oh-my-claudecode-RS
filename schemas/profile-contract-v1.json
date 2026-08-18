@@ -24,6 +24,15 @@
         }
       },
       "required": ["value"]
+    },
+    "doctorRepair": {
+      "fields": {
+        "code": { "type": "string" },
+        "summary": { "type": "string" },
+        "command": { "type": "string" },
+        "automatic": { "type": "boolean" }
+      },
+      "required": ["code", "summary", "automatic"]
     }
   }
 }

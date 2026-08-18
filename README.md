@@ -215,6 +215,7 @@ Start-Sleep 4; (Get-Process -Id $r.Id).WorkingSet64 / 1MB  # ~7 MB
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 | [CLAUDE.md](CLAUDE.md) | AI agent instructions |
+| [Universal Runtime Profiles](docs/universal-runtime-profiles.md) | Custom Agents, permissions, catalogs, migration, and operations |
 
 ## Contributing
 
