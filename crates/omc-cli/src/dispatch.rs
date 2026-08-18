@@ -37,6 +37,7 @@ pub use tool::run_tool_value;
 mod host;
 use host::collect_doctor_reports;
 use host::{run_doctor, run_setup_host};
+mod profile;
 mod status;
 mod templates;
 use templates::{list_skills, load_template, substitute_arguments};
@@ -57,6 +58,8 @@ pub enum DispatchError {
     Host(String),
     #[error("Team runtime error: {0}")]
     Team(String),
+    #[error("Profile error: {0}")]
+    Profile(String),
 }
 
 /// Resolve the canonical skill name for a given command variant.
@@ -64,6 +67,7 @@ fn skill_name(cmd: &Commands) -> Option<&'static str> {
     match cmd {
         Commands::Tool { .. } => None,
         Commands::Goal { .. } => None,
+        Commands::Profile { .. } | Commands::Probe { .. } => None,
         Commands::OmcSetup { .. } => Some("omc-setup"),
         Commands::OmcDoctor { .. } => None,
         Commands::Status { .. } => None,
@@ -103,6 +107,7 @@ fn skill_args(cmd: &Commands) -> Option<SkillArgs> {
     match cmd {
         Commands::Tool { .. } => None,
         Commands::Goal { .. } => None,
+        Commands::Profile { .. } | Commands::Probe { .. } => None,
         Commands::OmcDoctor { .. } => None,
         Commands::Status { .. } => None,
         Commands::Mcp => None,
@@ -157,7 +162,39 @@ pub fn run(cli: Cli) -> Result<(), DispatchError> {
         return run_goal(command, &root);
     }
 
-    if let Commands::OmcDoctor { host, json, tools } = &cli.command {
+    if let Commands::Profile { command } = &cli.command {
+        let root = std::env::current_dir().map_err(DispatchError::Io)?;
+        return profile::run_profile(command, &root);
+    }
+
+    if let Commands::Probe {
+        profile: path,
+        timeout_ms,
+        json,
+    } = &cli.command
+    {
+        let root = std::env::current_dir().map_err(DispatchError::Io)?;
+        return profile::run_probe(path, &root, *timeout_ms, *json);
+    }
+
+    if let Commands::OmcDoctor {
+        host: _,
+        profile: Some(path),
+        json,
+        ..
+    } = &cli.command
+    {
+        let root = std::env::current_dir().map_err(DispatchError::Io)?;
+        return profile::run_profile_doctor(path, &root, *json);
+    }
+
+    if let Commands::OmcDoctor {
+        host,
+        profile: None,
+        json,
+        tools,
+    } = &cli.command
+    {
         let root = std::env::current_dir().map_err(DispatchError::Io)?;
         return run_doctor(&root, host.as_deref(), *json, *tools);
     }
@@ -173,6 +210,18 @@ pub fn run(cli: Cli) -> Result<(), DispatchError> {
     }
 
     // Intercept `omc setup --host <host>` for real setup logic
+    if let Commands::OmcSetup {
+        profile: Some(path),
+        force,
+        print_only,
+        json,
+        ..
+    } = &cli.command
+    {
+        let root = std::env::current_dir().map_err(DispatchError::Io)?;
+        return profile::run_profile_setup(path, &root, *force, *print_only, *json);
+    }
+
     if let Commands::OmcSetup {
         host: Some(host),
         force,

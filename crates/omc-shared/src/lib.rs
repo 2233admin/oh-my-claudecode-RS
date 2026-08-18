@@ -14,6 +14,9 @@ pub mod memory;
 pub mod operation_contract;
 pub mod paths;
 pub mod prelude;
+pub mod profile;
+pub mod profile_negotiation;
+pub mod profile_schema;
 pub mod resilience;
 pub mod routing;
 pub mod session_pool;
@@ -35,6 +38,10 @@ pub use hash_edit::{HASH_EDIT_SCHEMA_VERSION, HashEdit, HashEditResult, LineAnch
 pub use operation_contract::{
     ARTIFACT_REF_SCHEMA_VERSION, ARTIFACT_URI_PREFIX, EVENT_SCHEMA_VERSION,
     SUBAGENT_RESULT_SCHEMA_VERSION, TASK_SCHEMA_VERSION,
+};
+pub use profile::{
+    DOCTOR_SCHEMA_VERSION, PROBE_SCHEMA_VERSION, PROFILE_SCHEMA_VERSION, SETUP_SCHEMA_VERSION,
+    VALIDATION_SCHEMA_VERSION,
 };
 pub use shared_memory::{MemoryEntry, SharedMemory, SharedMemoryError};
 pub use state::{

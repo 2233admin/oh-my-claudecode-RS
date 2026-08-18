@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "omc.profile.v1",
+  "id": "fixture-unknown-runtime",
+  "runtime": { "id": "runtime-not-compiled-into-omc", "command": "future-agent" },
+  "provider": { "id": "provider-not-compiled-into-omc" },
+  "model": { "id": "model-not-compiled-into-omc", "capabilities": ["tool-calling"] },
+  "protocol": { "kind": "mcp-stdio" },
+  "extensions": { "fixture.example/note": "preserved" }
+}
