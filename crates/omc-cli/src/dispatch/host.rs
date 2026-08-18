@@ -232,7 +232,12 @@ fn resolve_builtin_profile(
         &omc_host::profile_lifecycle::ResolutionContext {
             project_root: root.into(),
             user_home: omc_shared::OmcPaths::new().home,
-            organization_catalog: None,
+            organization_catalog: Some(
+                std::env::var_os("OMC_ORG_PROFILE_DIR")
+                    .or_else(|| std::env::var_os("OMC_CATALOG_HOME"))
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| root.join(".omc/catalogs")),
+            ),
             built_ins: omc_host::builtin_profiles::bundled_profiles(hermes_home),
         },
     )

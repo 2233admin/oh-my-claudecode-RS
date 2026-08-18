@@ -2,7 +2,7 @@
 
 use super::DispatchError;
 use crate::commands::{CatalogCommand, DependenciesCommand};
-use omc_host::catalog::{CatalogManager, DependencyMetadata};
+use omc_host::catalog::{CatalogManager, DependencyEvidence, dependency_evidence};
 use serde::Serialize;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -17,15 +17,6 @@ struct DependencyStatus {
     dependencies: Vec<DependencyEvidence>,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DependencyEvidence {
-    id: String,
-    available: bool,
-    command: Option<String>,
-    source: &'static str,
-}
-
 pub fn run_catalog(command: &CatalogCommand, root: &Path) -> Result<(), DispatchError> {
     let manager = CatalogManager::new(catalog_root(root));
     let status = match command {
@@ -34,7 +25,9 @@ pub fn run_catalog(command: &CatalogCommand, root: &Path) -> Result<(), Dispatch
             source,
             trusted_source,
             trust_key,
-        } => manager.refresh_file(source, trusted_source, trust_key),
+        } => manager
+            .trust_source(trusted_source)
+            .and_then(|()| manager.refresh_source(source, trust_key)),
         CatalogCommand::Rollback => manager.rollback(),
     }
     .map_err(|error| DispatchError::Profile(error.to_string()))?;
@@ -51,7 +44,8 @@ pub fn run_dependencies(command: &DependenciesCommand, root: &Path) -> Result<()
     } = command
     {
         manager
-            .refresh_file(source, trusted_source, trust_key)
+            .trust_source(trusted_source)
+            .and_then(|()| manager.refresh_source(source, trust_key))
             .map_err(|error| DispatchError::Profile(error.to_string()))?;
     }
     let (catalog, _) = manager
@@ -76,32 +70,10 @@ fn catalog_root(root: &Path) -> PathBuf {
         .unwrap_or_else(|| root.join(".omc/catalogs"))
 }
 
-fn dependency_evidence(metadata: &DependencyMetadata) -> DependencyEvidence {
-    let command = metadata
-        .commands
-        .iter()
-        .find(|command| command_available(command))
-        .cloned();
-    DependencyEvidence {
-        id: metadata.id.clone(),
-        available: command.is_some(),
-        command,
-        source: "cataloged",
-    }
-}
-
-fn command_available(command: &str) -> bool {
-    env::var_os("PATH").is_some_and(|paths| {
-        env::split_paths(&paths).any(|path| {
-            let direct = path.join(command);
-            direct.is_file() || (cfg!(windows) && path.join(format!("{command}.exe")).is_file())
-        })
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use omc_host::catalog::DependencyMetadata;
 
     #[test]
     fn dependency_evidence_is_catalog_provenance() {

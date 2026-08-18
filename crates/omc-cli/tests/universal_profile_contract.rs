@@ -2,7 +2,8 @@
 
 use serde_json::{Value, json};
 use std::fs;
-use std::process::{Command, Output};
+use std::io::{BufRead, BufReader, Write};
+use std::process::{Command, Output, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn unique_id(prefix: &str) -> String {
@@ -30,6 +31,40 @@ fn assert_success_json(output: Output, operation: &str) -> Value {
         String::from_utf8_lossy(&output.stderr)
     );
     serde_json::from_slice(&output.stdout).expect("command emits a JSON envelope")
+}
+
+fn consume_real_mcp_tool(project: &std::path::Path) -> (usize, Value) {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_omc"))
+        .arg("mcp")
+        .current_dir(project)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("unknown runtime starts through its declared command");
+    let mut stdin = child.stdin.take().expect("runtime stdin");
+    let stdout = child.stdout.take().expect("runtime stdout");
+    for request in [
+        json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}),
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}),
+        json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"agent_capabilities","arguments":{"requestId":"unknown-profile-consumer"}}}),
+    ] {
+        writeln!(stdin, "{request}").expect("write MCP request");
+    }
+    stdin.flush().expect("flush MCP requests");
+    drop(stdin);
+    let responses = BufReader::new(stdout)
+        .lines()
+        .take(3)
+        .map(|line| {
+            serde_json::from_str::<Value>(&line.expect("MCP response line")).expect("MCP JSON")
+        })
+        .collect::<Vec<_>>();
+    child.wait().expect("runtime exits after EOF");
+    let tool_count = responses[1]["result"]["tools"]
+        .as_array()
+        .expect("tools list")
+        .len();
+    (tool_count, responses[2].clone())
 }
 
 #[test]
@@ -105,4 +140,22 @@ fn randomized_unknown_profile_completes_public_cli_lifecycle() {
         "doctor",
     );
     assert_eq!(doctor["data"]["ready"], true);
+
+    let (tool_count, tool_call) = consume_real_mcp_tool(project.path());
+    assert!(tool_count > 0);
+    assert_eq!(tool_call["id"], 3);
+    assert!(tool_call["result"]["content"].as_array().is_some());
+
+    let status = Command::new(env!("CARGO_BIN_EXE_omc"))
+        .args(["status", "--json"])
+        .current_dir(project.path())
+        .env("OMC_HOME", project.path().join("omc-home"))
+        .env("OMC_PROFILE", &profile_path)
+        .output()
+        .expect("status starts");
+    let status = assert_success_json(status, "permission decision status");
+    assert_eq!(
+        status["runtimeProfile"]["data"]["effectivePermissions"],
+        json!(["read", "process-spawn"])
+    );
 }

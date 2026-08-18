@@ -3,9 +3,10 @@
 use super::DispatchError;
 use crate::commands::ProfileCommand;
 use omc_host::profile_lifecycle::{
-    ProfileRef, ResolutionContext, SetupOptions, doctor_profile, probe_stdio, resolve_profile,
-    setup_profile, validate_profile,
+    ProfileRef, ResolutionContext, SetupOptions, doctor_profile, resolve_profile, setup_profile,
+    validate_profile,
 };
+use omc_host::protocol_adapter::probe_protocol;
 use omc_shared::OmcPaths;
 use serde::Serialize;
 use serde_json::json;
@@ -38,7 +39,8 @@ pub fn run_probe(
     json_output: bool,
 ) -> Result<(), DispatchError> {
     let resolved = resolve_valid(path, root)?;
-    let report = probe_stdio(&resolved, Duration::from_millis(timeout_ms));
+    let report = probe_protocol(&resolved, Duration::from_millis(timeout_ms))
+        .map_err(|error| DispatchError::Profile(error.to_string()))?;
     emit(&report, json_output)?;
     if report.ready {
         Ok(())
@@ -102,7 +104,12 @@ fn context(root: &Path) -> ResolutionContext {
     ResolutionContext {
         project_root: root.to_path_buf(),
         user_home: OmcPaths::new().home,
-        organization_catalog: std::env::var_os("OMC_ORG_PROFILE_DIR").map(PathBuf::from),
+        organization_catalog: Some(
+            std::env::var_os("OMC_ORG_PROFILE_DIR")
+                .or_else(|| std::env::var_os("OMC_CATALOG_HOME"))
+                .map(PathBuf::from)
+                .unwrap_or_else(|| root.join(".omc/catalogs")),
+        ),
         built_ins: BTreeMap::new(),
     }
 }

@@ -1,9 +1,7 @@
 //! Resolution and validation seam for universal runtime profiles.
 
-use omc_shared::profile::{
-    ContractIssue, PROFILE_SCHEMA_VERSION, Profile, ProfileSource, ProtocolDescriptor, Provenance,
-    VALIDATION_SCHEMA_VERSION, ValidationReport,
-};
+use crate::catalog::CatalogManager;
+use omc_shared::profile::{Profile, ProfileSource, Provenance};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fs;
@@ -16,6 +14,8 @@ mod setup;
 pub use setup::{SetupError, SetupOptions, setup_profile};
 mod doctor;
 pub use doctor::doctor_profile;
+mod validation;
+pub use validation::validate_profile;
 
 #[derive(Debug, Clone)]
 pub enum ProfileRef {
@@ -51,6 +51,8 @@ pub enum ProfileError {
     Read { path: PathBuf, message: String },
     #[error("cannot parse profile {path}: {message}")]
     Parse { path: PathBuf, message: String },
+    #[error("invalid profile reference: {0}")]
+    InvalidReference(String),
 }
 
 pub fn resolve_profile(
@@ -60,8 +62,13 @@ pub fn resolve_profile(
     if let ProfileRef::Explicit(path) = reference {
         return load_file(path, ProfileSource::Explicit);
     }
-    let ProfileRef::Named(id) = reference else {
-        unreachable!();
+    let id = match reference {
+        ProfileRef::Named(id) => id,
+        ProfileRef::Explicit(_) => {
+            return Err(ProfileError::InvalidReference(
+                "invalid explicit profile reference".into(),
+            ));
+        }
     };
     let levels = [
         (
@@ -80,15 +87,26 @@ pub fn resolve_profile(
     for (source, directory) in levels {
         let Some(directory) = directory else { continue };
         let candidates = profile_candidates(&directory, id);
-        if candidates.len() > 1 {
+        let catalog_profile = (source == ProfileSource::Organization)
+            .then(|| load_catalog_profile(&directory, id))
+            .transpose()?
+            .flatten();
+        if candidates.len() + usize::from(catalog_profile.is_some()) > 1 {
+            let mut paths = candidates;
+            if catalog_profile.is_some() {
+                paths.push(directory.join("active.json"));
+            }
             return Err(ProfileError::Ambiguous {
                 id: id.clone(),
                 level: source,
-                paths: candidates,
+                paths,
             });
         }
         if let Some(path) = candidates.first() {
             return load_file(path, source);
+        }
+        if let Some(resolved) = catalog_profile {
+            return Ok(resolved);
         }
     }
     let profile = context
@@ -112,65 +130,38 @@ pub fn resolve_profile(
     })
 }
 
-pub fn validate_profile(resolved: ResolvedProfile) -> ValidationReport {
-    let mut issues = Vec::new();
-    if resolved.profile.schema_version != PROFILE_SCHEMA_VERSION {
-        issues.push(issue(
-            "migration_required",
-            "$.schemaVersion",
-            format!(
-                "unsupported profile schema {}; expected {PROFILE_SCHEMA_VERSION}",
-                resolved.profile.schema_version
-            ),
-        ));
-    }
-    validate_identifier("$.id", &resolved.profile.id, &mut issues);
-    validate_identifier("$.runtime.id", &resolved.profile.runtime.id, &mut issues);
-    validate_identifier("$.provider.id", &resolved.profile.provider.id, &mut issues);
-    validate_identifier("$.model.id", &resolved.profile.model.id, &mut issues);
-    if resolved.profile.runtime.command.as_os_str().is_empty() {
-        issues.push(issue("required", "$.runtime.command", "command is empty"));
-    }
-    for (name, value) in &resolved.profile.runtime.environment {
-        if looks_secret(name) || looks_secret(value) {
-            issues.push(issue(
-                "secret_value_forbidden",
-                format!("$.runtime.environment.{name}"),
-                "profiles may reference secret names but may not contain secret values",
-            ));
-        }
-    }
-    if let ProtocolDescriptor::McpHttpSse { endpoint } = &resolved.profile.protocol {
-        let valid = reqwest::Url::parse(endpoint).is_ok_and(|url| {
-            matches!(url.scheme(), "http" | "https")
-                && url.host_str().is_some()
-                && url.username().is_empty()
-                && url.password().is_none()
-        });
-        if !valid {
-            issues.push(issue(
-                "invalid_endpoint",
-                "$.protocol.endpoint",
-                "HTTP/SSE endpoint must be an absolute http(s) URL without credentials",
-            ));
-        }
-    }
-    for key in resolved.profile.extensions.keys() {
-        if !key.contains('/') {
-            issues.push(issue(
-                "extension_not_namespaced",
-                format!("$.extensions.{key}"),
-                "extension keys must contain an owner namespace",
-            ));
-        }
-    }
-    ValidationReport {
-        schema_version: VALIDATION_SCHEMA_VERSION.into(),
-        valid: issues.is_empty(),
-        profile: issues.is_empty().then_some(resolved.profile),
-        provenance: Some(resolved.provenance),
-        issues,
-    }
+fn load_catalog_profile(root: &Path, id: &str) -> Result<Option<ResolvedProfile>, ProfileError> {
+    let manager = CatalogManager::new(root);
+    let (catalog, status) = manager.active().map_err(|error| ProfileError::Read {
+        path: root.to_path_buf(),
+        message: error.to_string(),
+    })?;
+    let Some(profile) = catalog
+        .profiles
+        .iter()
+        .find(|metadata| metadata.id == id)
+        .and_then(|metadata| metadata.profile.clone())
+    else {
+        return Ok(None);
+    };
+    let bytes = serde_json::to_vec(&profile).map_err(|error| ProfileError::Parse {
+        path: root.join("active.json"),
+        message: error.to_string(),
+    })?;
+    Ok(Some(ResolvedProfile {
+        provenance: Provenance {
+            source: ProfileSource::Organization,
+            schema_version: profile.schema_version.clone(),
+            digest: digest(&bytes),
+            catalog_version: Some(status.catalog_version),
+            location: Some(if status.source == "bundled" {
+                PathBuf::from("bundled:catalog")
+            } else {
+                root.join("active.json")
+            }),
+        },
+        profile,
+    }))
 }
 
 fn profile_candidates(directory: &Path, id: &str) -> Vec<PathBuf> {
@@ -217,40 +208,10 @@ fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
-fn validate_identifier(path: &str, value: &str, issues: &mut Vec<ContractIssue>) {
-    if value.is_empty()
-        || !value
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || "-._/:".contains(character))
-    {
-        issues.push(issue(
-            "invalid_identifier",
-            path,
-            "identifier must be a non-empty portable open string",
-        ));
-    }
-}
-
-fn looks_secret(value: &str) -> bool {
-    let lower = value.to_ascii_lowercase();
-    lower.contains("api_key")
-        || lower.contains("apikey")
-        || lower.contains("secret")
-        || lower.contains("token=")
-        || lower.starts_with("sk-")
-}
-
-fn issue(code: &str, path: impl Into<String>, message: impl Into<String>) -> ContractIssue {
-    ContractIssue {
-        code: code.into(),
-        path: path.into(),
-        message: message.into(),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use omc_shared::profile::{PROFILE_SCHEMA_VERSION, ProtocolDescriptor};
 
     fn fixture(id: &str) -> Profile {
         serde_json::from_value(serde_json::json!({
@@ -293,6 +254,60 @@ mod tests {
         assert_eq!(resolved.profile.id, "project-demo");
         assert_eq!(resolved.provenance.source, ProfileSource::Project);
         assert_eq!(resolved.provenance.digest.len(), 64);
+    }
+
+    #[test]
+    fn active_organization_catalog_resolves_profile_with_catalog_provenance() {
+        use crate::catalog::{
+            CatalogManager, CatalogProfileMetadata, SignedCatalog, keyed_signature,
+        };
+
+        let root = tempfile::tempdir().unwrap();
+        let state = root.path().join("catalog");
+        let source = root.path().join("source.json");
+        let manager = CatalogManager::new(&state);
+        let profile = fixture("organization-demo");
+        let mut catalog = CatalogManager::bundled().unwrap();
+        catalog.catalog_version = "1.1.0".into();
+        catalog.profiles.push(CatalogProfileMetadata {
+            id: "organization-demo".into(),
+            schema_version: PROFILE_SCHEMA_VERSION.into(),
+            permissions: vec![],
+            profile: Some(profile.clone()),
+        });
+        let value = serde_json::to_value(&catalog).unwrap();
+        let bytes = serde_json::to_vec(&value).unwrap();
+        let digest = format!("{:x}", Sha256::digest(&bytes));
+        let envelope = SignedCatalog {
+            digest: digest.clone(),
+            signature_algorithm: "hmac-sha256-v1".into(),
+            signature: keyed_signature("key", &digest).unwrap(),
+            catalog: value,
+        };
+        fs::write(&source, serde_json::to_vec(&envelope).unwrap()).unwrap();
+        manager.refresh_file(&source, &source, "key").unwrap();
+
+        let resolved = resolve_profile(
+            &ProfileRef::Named("organization-demo".into()),
+            &ResolutionContext {
+                project_root: root.path().join("project"),
+                user_home: root.path().join("user"),
+                organization_catalog: Some(state.clone()),
+                built_ins: BTreeMap::new(),
+            },
+        )
+        .unwrap();
+        assert_eq!(resolved.profile, profile);
+        assert_eq!(resolved.provenance.source, ProfileSource::Organization);
+        assert_eq!(
+            resolved.provenance.catalog_version.as_deref(),
+            Some("1.1.0")
+        );
+        assert_eq!(resolved.provenance.digest.len(), 64);
+        assert_eq!(
+            resolved.provenance.location.as_deref(),
+            Some(state.join("active.json").as_path())
+        );
     }
 
     #[test]

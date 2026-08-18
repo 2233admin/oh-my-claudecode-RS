@@ -236,10 +236,10 @@ pub enum ProfileCommand {
 pub enum CatalogCommand {
     Status,
     Refresh {
-        #[arg(long, value_name = "PATH")]
-        source: std::path::PathBuf,
-        #[arg(long, value_name = "PATH")]
-        trusted_source: std::path::PathBuf,
+        #[arg(long, value_name = "PATH_OR_URI")]
+        source: String,
+        #[arg(long, value_name = "PATH_OR_URI")]
+        trusted_source: String,
         #[arg(long, env = "OMC_CATALOG_TRUST_KEY", hide_env_values = true)]
         trust_key: String,
     },
@@ -250,10 +250,10 @@ pub enum CatalogCommand {
 pub enum DependenciesCommand {
     Status,
     Refresh {
-        #[arg(long, value_name = "PATH")]
-        source: std::path::PathBuf,
-        #[arg(long, value_name = "PATH")]
-        trusted_source: std::path::PathBuf,
+        #[arg(long, value_name = "PATH_OR_URI")]
+        source: String,
+        #[arg(long, value_name = "PATH_OR_URI")]
+        trusted_source: String,
         #[arg(long, env = "OMC_CATALOG_TRUST_KEY", hide_env_values = true)]
         trust_key: String,
     },

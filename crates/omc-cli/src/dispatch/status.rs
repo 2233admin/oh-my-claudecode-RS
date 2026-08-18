@@ -178,23 +178,7 @@ fn catalog_status(root: &Path) -> (Probe, Probe) {
             let dependency_data = catalog
                 .dependencies
                 .iter()
-                .map(|dependency| {
-                    let selected = dependency.commands.iter().find(|command| {
-                        std::env::var_os("PATH").is_some_and(|paths| {
-                            std::env::split_paths(&paths).any(|path| {
-                                path.join(command).is_file()
-                                    || (cfg!(windows)
-                                        && path.join(format!("{command}.exe")).is_file())
-                            })
-                        })
-                    });
-                    serde_json::json!({
-                        "id": dependency.id,
-                        "available": selected.is_some(),
-                        "selectedCommand": selected,
-                        "source": "cataloged"
-                    })
-                })
+                .map(omc_host::catalog::dependency_evidence)
                 .collect::<Vec<_>>();
             (Probe::data(status), Probe::data(dependency_data))
         }
@@ -230,8 +214,15 @@ fn profile_status(root: &Path, active_profile: Option<&Path>) -> Probe {
     let context = ResolutionContext {
         project_root: root.to_path_buf(),
         user_home: OmcPaths::new().home,
-        organization_catalog: std::env::var_os("OMC_ORG_PROFILE_DIR").map(std::path::PathBuf::from),
-        built_ins: omc_host::builtin_profiles::bundled_profiles(Path::new(".hermes")),
+        organization_catalog: Some(
+            std::env::var_os("OMC_ORG_PROFILE_DIR")
+                .or_else(|| std::env::var_os("OMC_CATALOG_HOME"))
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|| root.join(".omc/catalogs")),
+        ),
+        built_ins: omc_host::builtin_profiles::bundled_profiles(
+            &omc_host::mcp_reg::resolve_hermes_home(None),
+        ),
     };
     let resolved = match resolve_profile(&ProfileRef::Explicit(path.to_path_buf()), &context) {
         Ok(resolved) => resolved,
@@ -263,13 +254,18 @@ fn profile_status(root: &Path, active_profile: Option<&Path>) -> Probe {
         .intersection(&runtime_permissions)
         .copied()
         .collect::<Vec<_>>();
+    let evidence_source = if resolved.provenance.catalog_version.is_some() {
+        "cataloged"
+    } else {
+        "declared"
+    };
     Probe::data(serde_json::json!({
         "state": "resolved",
         "activeProfile": resolved.profile.id,
         "runtime": resolved.profile.runtime.id,
-        "providerEvidence": {"id": resolved.profile.provider.id, "source": "declared"},
-        "modelEvidence": {"id": resolved.profile.model.id, "capabilities": resolved.profile.model.capabilities, "source": "declared"},
-        "protocolEvidence": {"protocol": resolved.profile.protocol, "source": "declared"},
+        "providerEvidence": {"id": resolved.profile.provider.id, "source": evidence_source},
+        "modelEvidence": {"id": resolved.profile.model.id, "capabilities": resolved.profile.model.capabilities, "source": evidence_source},
+        "protocolEvidence": {"protocol": resolved.profile.protocol, "source": evidence_source},
         "effectivePermissions": effective_permissions,
         "dependencies": resolved.profile.dependencies,
         "catalogVersion": resolved.provenance.catalog_version,

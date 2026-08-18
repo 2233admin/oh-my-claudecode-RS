@@ -4,11 +4,21 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::io::Read;
+use std::path::{Component, Path, PathBuf};
+use std::time::Duration;
 use thiserror::Error;
 
 pub const CATALOG_SCHEMA_VERSION: &str = "omc.catalog.v1";
 pub const BUNDLED_CATALOG: &str = include_str!("../../../catalogs/bundled-v1.json");
+
+mod validation;
+pub use validation::{check_same_major_compatible, validate_catalog};
+mod dependencies;
+pub use dependencies::{DependencyEvidence, dependency_evidence};
+mod crypto;
+use crypto::signature_matches;
+pub use crypto::{CryptoError, keyed_signature};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -27,13 +37,17 @@ pub struct Catalog {
     pub dependencies: Vec<DependencyMetadata>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CatalogProfileMetadata {
     pub id: String,
     pub schema_version: String,
     #[serde(default)]
     pub permissions: Vec<omc_shared::profile::OmcPermission>,
+    /// Complete data-only profile used by organization catalogs. Older
+    /// metadata-only bundled entries remain compatible.
+    #[serde(default)]
+    pub profile: Option<omc_shared::profile::Profile>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -87,6 +101,13 @@ pub struct CatalogStatus {
     pub rollback_available: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TrustedSourceRegistry {
+    #[serde(default)]
+    sources: Vec<String>,
+}
+
 #[derive(Debug, Error)]
 pub enum CatalogError {
     #[error("catalog I/O error: {0}")]
@@ -103,6 +124,8 @@ pub enum CatalogError {
     Schema(String),
     #[error("no previous catalog is available for rollback")]
     NoRollback,
+    #[error("catalog network error: {0}")]
+    Network(String),
 }
 
 pub struct CatalogManager {
@@ -127,6 +150,12 @@ impl CatalogManager {
     pub fn active(&self) -> Result<(Catalog, CatalogStatus), CatalogError> {
         let active = self.root.join("active.json");
         if !active.is_file() {
+            if let Some((catalog, source)) = self.recover_missing_active()? {
+                return Ok((
+                    catalog.clone(),
+                    status(&catalog, source, self.root.join("previous.json").is_file())?,
+                ));
+            }
             let catalog = Self::bundled()?;
             return Ok((catalog.clone(), status(&catalog, "bundled", false)?));
         }
@@ -156,6 +185,27 @@ impl CatalogManager {
         ))
     }
 
+    /// Complete or roll back an activation interrupted after active was moved
+    /// aside. A valid staged catalog wins because it represents the fully
+    /// validated transaction being committed; previous is the safe fallback.
+    fn recover_missing_active(&self) -> Result<Option<(Catalog, &'static str)>, CatalogError> {
+        let staged = self.root.join("staged.json");
+        let previous = self.root.join("previous.json");
+        for (candidate, source) in [
+            (&staged, "recovered-staged"),
+            (&previous, "recovered-previous"),
+        ] {
+            if !candidate.is_file() {
+                continue;
+            }
+            if let Ok(catalog) = self.read_valid(candidate) {
+                fs::rename(candidate, self.root.join("active.json"))?;
+                return Ok(Some((catalog, source)));
+            }
+        }
+        Ok(None)
+    }
+
     fn read_valid(&self, path: &Path) -> Result<Catalog, CatalogError> {
         let catalog: Catalog = serde_json::from_slice(&fs::read(path)?)?;
         validate_catalog(&catalog, &self.omc_version)?;
@@ -173,7 +223,78 @@ impl CatalogManager {
         if canonical_source != canonical_trusted {
             return Err(CatalogError::UntrustedSource(source.display().to_string()));
         }
-        let envelope: SignedCatalog = serde_json::from_slice(&fs::read(source)?)?;
+        self.verify_and_activate(&fs::read(source)?, trust_key)
+    }
+
+    /// Persist an explicitly approved source. Registration never downloads or
+    /// evaluates catalog content.
+    pub fn trust_source(&self, source: &str) -> Result<(), CatalogError> {
+        let source = normalize_source(source)?;
+        fs::create_dir_all(&self.root)?;
+        let path = self.root.join("trusted-sources.json");
+        let mut registry = if path.is_file() {
+            serde_json::from_slice(&fs::read(&path)?)?
+        } else {
+            TrustedSourceRegistry::default()
+        };
+        if !registry.sources.contains(&source) {
+            registry.sources.push(source);
+            registry.sources.sort();
+            atomic_write(&path, &serde_json::to_vec_pretty(&registry)?)?;
+        }
+        Ok(())
+    }
+
+    /// Refresh from a registered local path or HTTP(S) URI. Trust is checked
+    /// before opening a file, connecting a socket, or issuing an HTTP request.
+    pub fn refresh_source(
+        &self,
+        source: &str,
+        trust_key: &str,
+    ) -> Result<CatalogStatus, CatalogError> {
+        let normalized = normalize_source(source)?;
+        if !self.is_trusted(&normalized)? {
+            return Err(CatalogError::UntrustedSource(source.into()));
+        }
+        let bytes = if normalized.starts_with("http://") || normalized.starts_with("https://") {
+            let url = reqwest::Url::parse(&normalized)
+                .map_err(|_| CatalogError::UntrustedSource(source.into()))?;
+            let response = reqwest::blocking::Client::builder()
+                .connect_timeout(Duration::from_secs(5))
+                .timeout(Duration::from_secs(15))
+                .build()
+                .map_err(|error| CatalogError::Network(error.to_string()))?
+                .get(url)
+                .send()
+                .and_then(reqwest::blocking::Response::error_for_status)
+                .map_err(|error| CatalogError::Network(error.to_string()))?;
+            let mut bytes = Vec::new();
+            response
+                .take(4 * 1024 * 1024)
+                .read_to_end(&mut bytes)
+                .map_err(CatalogError::Io)?;
+            bytes
+        } else {
+            fs::read(Path::new(&normalized))?
+        };
+        self.verify_and_activate(&bytes, trust_key)
+    }
+
+    fn is_trusted(&self, normalized: &str) -> Result<bool, CatalogError> {
+        let path = self.root.join("trusted-sources.json");
+        if !path.is_file() {
+            return Ok(false);
+        }
+        let registry: TrustedSourceRegistry = serde_json::from_slice(&fs::read(path)?)?;
+        Ok(registry.sources.iter().any(|source| source == normalized))
+    }
+
+    fn verify_and_activate(
+        &self,
+        bytes: &[u8],
+        trust_key: &str,
+    ) -> Result<CatalogStatus, CatalogError> {
+        let envelope: SignedCatalog = serde_json::from_slice(bytes)?;
         if envelope.signature_algorithm != "hmac-sha256-v1" {
             return Err(CatalogError::Integrity(
                 "unsupported signature algorithm".into(),
@@ -184,7 +305,7 @@ impl CatalogManager {
         if digest != envelope.digest {
             return Err(CatalogError::Integrity("digest mismatch".into()));
         }
-        if keyed_signature(trust_key, &digest) != envelope.signature {
+        if !signature_matches(trust_key, &digest, &envelope.signature) {
             return Err(CatalogError::Integrity("signature mismatch".into()));
         }
         let catalog: Catalog = serde_json::from_value(envelope.catalog)?;
@@ -242,121 +363,52 @@ impl CatalogManager {
     }
 }
 
-pub fn validate_catalog(catalog: &Catalog, omc_version: &str) -> Result<(), CatalogError> {
-    if catalog.schema_version != CATALOG_SCHEMA_VERSION {
-        return Err(CatalogError::Schema(format!(
-            "unsupported {}",
-            catalog.schema_version
-        )));
-    }
-    if !catalog
-        .compatible_profile_schema
-        .iter()
-        .any(|v| v == omc_shared::PROFILE_SCHEMA_VERSION)
-    {
-        return Err(CatalogError::Incompatible(
-            "profile schema range excludes this binary".into(),
-        ));
-    }
-    if !version_in_range(omc_version, &catalog.compatible_omc) {
-        return Err(CatalogError::Incompatible(format!(
-            "OMC {omc_version} requires an upgrade or older catalog"
-        )));
-    }
-    Ok(())
-}
-
-pub fn check_same_major_compatible(previous: &Catalog, next: &Catalog) -> Result<(), CatalogError> {
-    if major(&previous.schema_version) != major(&next.schema_version) {
-        return Ok(());
-    }
-    for profile in &previous.profiles {
-        let Some(candidate) = next.profiles.iter().find(|item| item.id == profile.id) else {
-            return Err(CatalogError::Incompatible(format!(
-                "removed profile {}",
-                profile.id
-            )));
-        };
-        if candidate.schema_version != profile.schema_version {
-            return Err(CatalogError::Incompatible(format!(
-                "changed profile schema type for {}",
-                profile.id
-            )));
-        }
-        if candidate
-            .permissions
-            .iter()
-            .any(|permission| !profile.permissions.contains(permission))
+fn normalize_source(source: &str) -> Result<String, CatalogError> {
+    if source.starts_with("http://") || source.starts_with("https://") {
+        let url = reqwest::Url::parse(source)
+            .map_err(|_| CatalogError::UntrustedSource(source.into()))?;
+        if !matches!(url.scheme(), "http" | "https")
+            || url.host_str().is_none()
+            || !url.username().is_empty()
+            || url.password().is_some()
         {
-            return Err(CatalogError::Incompatible(format!(
-                "permission expansion for {}",
-                profile.id
-            )));
+            return Err(CatalogError::UntrustedSource(source.into()));
         }
+        return Ok(url.to_string());
     }
-    for model in &previous.models {
-        let Some(candidate) = next.models.iter().find(|item| item.id == model.id) else {
-            return Err(CatalogError::Incompatible(format!(
-                "removed model {}",
-                model.id
-            )));
-        };
-        if model
-            .capabilities
-            .iter()
-            .any(|capability| !candidate.capabilities.contains(capability))
-        {
-            return Err(CatalogError::Incompatible(format!(
-                "narrowed capabilities for {}",
-                model.id
-            )));
-        }
-    }
-    for dependency in &previous.dependencies {
-        let Some(candidate) = next
-            .dependencies
-            .iter()
-            .find(|item| item.id == dependency.id)
-        else {
-            return Err(CatalogError::Incompatible(format!(
-                "removed dependency {}",
-                dependency.id
-            )));
-        };
-        if candidate.commands.len() < dependency.commands.len() {
-            return Err(CatalogError::Incompatible(format!(
-                "narrowed commands for {}",
-                dependency.id
-            )));
-        }
-    }
-    Ok(())
-}
-
-pub fn keyed_signature(key: &str, digest: &str) -> String {
-    hmac_sha256_hex(key.as_bytes(), digest.as_bytes())
-}
-
-fn hmac_sha256_hex(key: &[u8], message: &[u8]) -> String {
-    const BLOCK: usize = 64;
-    let normalized = if key.len() > BLOCK {
-        Sha256::digest(key).to_vec()
+    let path = Path::new(source);
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
     } else {
-        key.to_vec()
+        std::env::current_dir()?.join(path)
     };
-    let mut padded = [0_u8; BLOCK];
-    padded[..normalized.len()].copy_from_slice(&normalized);
-    let mut inner_pad = padded;
-    let mut outer_pad = padded;
-    inner_pad.iter_mut().for_each(|byte| *byte ^= 0x36);
-    outer_pad.iter_mut().for_each(|byte| *byte ^= 0x5c);
-    let mut inner = Sha256::new();
-    inner.update(inner_pad);
-    inner.update(message);
-    let mut outer = Sha256::new();
-    outer.update(outer_pad);
-    outer.update(inner.finalize());
-    format!("{:x}", outer.finalize())
+    Ok(normalize_path_lexically(&absolute)
+        .to_string_lossy()
+        .into_owned())
+}
+
+fn normalize_path_lexically(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir if normalized.file_name().is_some() => {
+                normalized.pop();
+            }
+            other => normalized.push(other.as_os_str()),
+        }
+    }
+    normalized
+}
+
+fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), CatalogError> {
+    let staged = path.with_extension("staged");
+    fs::write(&staged, bytes)?;
+    if path.is_file() {
+        fs::remove_file(path)?;
+    }
+    fs::rename(staged, path)?;
+    Ok(())
 }
 
 fn status(
@@ -376,138 +428,5 @@ fn status(
 fn sha256_hex(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
-fn major(schema: &str) -> Option<&str> {
-    schema.rsplit_once('v').map(|(_, major)| major)
-}
-fn version_in_range(version: &str, range: &VersionRange) -> bool {
-    parse_version(version) >= parse_version(&range.min_inclusive)
-        && parse_version(version) < parse_version(&range.max_exclusive)
-}
-fn parse_version(value: &str) -> (u64, u64, u64) {
-    let mut parts = value
-        .trim_start_matches('v')
-        .split(['.', '-'])
-        .take(3)
-        .map(|p| p.parse().unwrap_or(0));
-    (
-        parts.next().unwrap_or(0),
-        parts.next().unwrap_or(0),
-        parts.next().unwrap_or(0),
-    )
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::tempdir;
-
-    fn signed(catalog: &Catalog, key: &str) -> SignedCatalog {
-        let value = serde_json::to_value(catalog).unwrap();
-        let digest = sha256_hex(&serde_json::to_vec(&value).unwrap());
-        SignedCatalog {
-            signature: keyed_signature(key, &digest),
-            digest,
-            signature_algorithm: "hmac-sha256-v1".into(),
-            catalog: value,
-        }
-    }
-
-    #[test]
-    fn offline_baseline_contains_all_metadata_dimensions() {
-        let catalog = CatalogManager::bundled().unwrap();
-        assert!(
-            !catalog.profiles.is_empty()
-                && !catalog.providers.is_empty()
-                && !catalog.models.is_empty()
-                && !catalog.dependencies.is_empty()
-        );
-    }
-
-    #[test]
-    fn corrupt_or_untrusted_refresh_preserves_active_catalog() {
-        let dir = tempdir().unwrap();
-        let manager = CatalogManager::new(dir.path());
-        let source = dir.path().join("source.json");
-        fs::write(&source, "not-json").unwrap();
-        assert!(manager.refresh_file(&source, &source, "key").is_err());
-        assert_eq!(manager.active().unwrap().1.source, "bundled");
-    }
-
-    #[test]
-    fn digest_mismatch_and_incompatible_range_are_rejected() {
-        let dir = tempdir().unwrap();
-        let manager = CatalogManager::new(dir.path().join("state"));
-        let source = dir.path().join("source.json");
-        let mut catalog = CatalogManager::bundled().unwrap();
-        let mut envelope = signed(&catalog, "key");
-        envelope.digest = "bad".into();
-        fs::write(&source, serde_json::to_vec(&envelope).unwrap()).unwrap();
-        assert!(matches!(
-            manager.refresh_file(&source, &source, "key"),
-            Err(CatalogError::Integrity(_))
-        ));
-        catalog.compatible_omc.min_inclusive = "99.0.0".into();
-        fs::write(
-            &source,
-            serde_json::to_vec(&signed(&catalog, "key")).unwrap(),
-        )
-        .unwrap();
-        assert!(matches!(
-            manager.refresh_file(&source, &source, "key"),
-            Err(CatalogError::Incompatible(_))
-        ));
-    }
-
-    #[test]
-    fn activation_and_rollback_are_atomic_from_the_readers_view() {
-        let dir = tempdir().unwrap();
-        let manager = CatalogManager::new(dir.path().join("state"));
-        let source = dir.path().join("source.json");
-        let mut first = CatalogManager::bundled().unwrap();
-        first.catalog_version = "1.1.0".into();
-        fs::write(&source, serde_json::to_vec(&signed(&first, "key")).unwrap()).unwrap();
-        manager.refresh_file(&source, &source, "key").unwrap();
-        let mut second = first.clone();
-        second.catalog_version = "1.2.0".into();
-        fs::write(
-            &source,
-            serde_json::to_vec(&signed(&second, "key")).unwrap(),
-        )
-        .unwrap();
-        manager.refresh_file(&source, &source, "key").unwrap();
-        assert_eq!(manager.rollback().unwrap().catalog_version, "1.1.0");
-    }
-
-    #[test]
-    fn interrupted_or_corrupt_active_pointer_recovers_previous() {
-        let dir = tempdir().unwrap();
-        let state = dir.path().join("state");
-        let manager = CatalogManager::new(&state);
-        let source = dir.path().join("source.json");
-        let mut first = CatalogManager::bundled().unwrap();
-        first.catalog_version = "1.1.0".into();
-        fs::write(&source, serde_json::to_vec(&signed(&first, "key")).unwrap()).unwrap();
-        manager.refresh_file(&source, &source, "key").unwrap();
-        let mut second = first.clone();
-        second.catalog_version = "1.2.0".into();
-        fs::write(
-            &source,
-            serde_json::to_vec(&signed(&second, "key")).unwrap(),
-        )
-        .unwrap();
-        manager.refresh_file(&source, &source, "key").unwrap();
-        fs::write(state.join("active.json"), "interrupted").unwrap();
-        assert_eq!(manager.active().unwrap().0.catalog_version, "1.1.0");
-    }
-
-    #[test]
-    fn executable_directives_and_same_major_removal_fail_closed() {
-        let mut value: Value = serde_json::from_str(BUNDLED_CATALOG).unwrap();
-        value["profiles"][0]["installScript"] = Value::String("curl | sh".into());
-        assert!(serde_json::from_value::<Catalog>(value).is_err());
-        let previous = CatalogManager::bundled().unwrap();
-        let mut next = previous.clone();
-        next.dependencies.clear();
-        assert!(check_same_major_compatible(&previous, &next).is_err());
-    }
-}
+mod tests;

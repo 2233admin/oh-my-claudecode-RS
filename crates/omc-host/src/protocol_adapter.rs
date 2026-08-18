@@ -28,6 +28,32 @@ pub trait ProtocolAdapter: Send + Sync {
     ) -> Result<ProbeReport, ProtocolError>;
 }
 
+/// Run the protocol-specific live handshake from synchronous callers.
+///
+/// The runtime lives on a dedicated, short-lived thread. This keeps the CLI's
+/// synchronous dispatch API usable both normally and when embedded in an
+/// existing Tokio runtime, where calling `Runtime::block_on` directly panics.
+pub fn probe_protocol(
+    profile: &ResolvedProfile,
+    timeout: Duration,
+) -> Result<ProbeReport, ProtocolError> {
+    let profile = profile.clone();
+    std::thread::spawn(move || {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|error| ProtocolError::Transport(error.to_string()))?;
+        runtime.block_on(async move {
+            let adapter = adapter_for(&profile.profile.protocol)?;
+            tokio::time::timeout(timeout, adapter.probe(&profile, timeout))
+                .await
+                .map_err(|_| ProtocolError::Transport("protocol handshake timed out".into()))?
+        })
+    })
+    .join()
+    .map_err(|_| ProtocolError::Transport("protocol probe thread panicked".into()))?
+}
+
 pub struct McpStdioAdapter;
 
 #[async_trait]
@@ -321,5 +347,31 @@ mod tests {
                 .unwrap()
                 .contains("1 tools")
         );
+    }
+
+    #[tokio::test]
+    async fn synchronous_probe_is_safe_inside_a_tokio_runtime() {
+        #[cfg(windows)]
+        let (command, args) = (
+            "powershell".to_string(),
+            vec![
+                "-NoProfile".into(),
+                "-Command".into(),
+                "Write-Output '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}'; Write-Output '{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[]}}'".into(),
+            ],
+        );
+        #[cfg(not(windows))]
+        let (command, args) = (
+            "sh".to_string(),
+            vec![
+                "-c".into(),
+                "printf '%s\\n%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}' '{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[]}}'".into(),
+            ],
+        );
+        let profile = resolved(ProtocolDescriptor::McpStdio, command, args);
+
+        let report = probe_protocol(&profile, Duration::from_secs(2)).unwrap();
+
+        assert!(report.ready);
     }
 }

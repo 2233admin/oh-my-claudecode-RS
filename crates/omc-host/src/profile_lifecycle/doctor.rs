@@ -1,6 +1,7 @@
 //! Universal diagnosis based on installed configuration and live evidence.
 
-use super::{ResolvedProfile, probe_stdio};
+use super::ResolvedProfile;
+use crate::protocol_adapter::probe_protocol;
 use omc_shared::profile::{
     CapabilityEvidence, ContractIssue, DOCTOR_SCHEMA_VERSION, DoctorReport, EvidenceSource,
     RepairGuidance,
@@ -66,9 +67,17 @@ pub fn doctor_profile(
             });
         }
     }
-    let probe = probe_stdio(resolved, timeout);
-    evidence.extend(probe.evidence);
-    issues.extend(probe.issues);
+    match probe_protocol(resolved, timeout) {
+        Ok(probe) => {
+            evidence.extend(probe.evidence);
+            issues.extend(probe.issues);
+        }
+        Err(error) => issues.push(ContractIssue {
+            code: "protocol_probe_failed".into(),
+            path: "$.protocol".into(),
+            message: error.to_string(),
+        }),
+    }
     DoctorReport {
         schema_version: DOCTOR_SCHEMA_VERSION.into(),
         profile_id: resolved.profile.id.clone(),
@@ -145,8 +154,11 @@ fn command_available(command: &str) -> bool {
 mod tests {
     use super::*;
     use crate::profile_lifecycle::{ProfileRef, ResolutionContext, resolve_profile};
+    use omc_shared::profile::ProtocolDescriptor;
     use std::collections::BTreeMap;
     use std::fs;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
 
     #[test]
     fn absent_config_and_runtime_are_actionable() {
@@ -189,6 +201,68 @@ mod tests {
                 .repairs
                 .iter()
                 .any(|repair| repair.code == "not_configured")
+        );
+    }
+
+    #[test]
+    fn doctor_uses_http_sse_protocol_handshake() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            for response in [
+                serde_json::json!({"jsonrpc":"2.0","id":1,"result":{"capabilities":{}}}),
+                serde_json::json!({"jsonrpc":"2.0","id":2,"result":{"tools":[]}}),
+            ] {
+                let (mut socket, _) = listener.accept().unwrap();
+                let mut request = [0; 4096];
+                let _ = socket.read(&mut request).unwrap();
+                let body = response.to_string();
+                write!(
+                    socket,
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                )
+                .unwrap();
+            }
+        });
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("profile.json");
+        fs::write(
+            &path,
+            serde_json::to_vec(&serde_json::json!({
+                "schemaVersion":"omc.profile.v1", "id":"http-runtime",
+                "runtime":{"id":"r","command":"unused"},
+                "provider":{"id":"p"}, "model":{"id":"m"},
+                "protocol":{"kind":"mcp-http-sse","endpoint":format!("http://{address}/mcp")}
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let resolved = resolve_profile(
+            &ProfileRef::Explicit(path),
+            &ResolutionContext {
+                project_root: root.path().into(),
+                user_home: root.path().into(),
+                organization_catalog: None,
+                built_ins: BTreeMap::new(),
+            },
+        )
+        .unwrap();
+        assert!(matches!(
+            resolved.profile.protocol,
+            ProtocolDescriptor::McpHttpSse { .. }
+        ));
+
+        let report = doctor_profile(&resolved, root.path(), Duration::from_secs(2));
+        server.join().unwrap();
+
+        assert!(report.ready);
+        assert!(
+            report
+                .evidence
+                .iter()
+                .any(|item| item.capability == "tool-calling" && item.available)
         );
     }
 }
